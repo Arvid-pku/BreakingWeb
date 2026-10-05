@@ -1,0 +1,226 @@
+task_id: pp_full_referral_chain
+env_id: patient_portal
+title: Complete Pre-Approved Referral Chain
+instruction_template: Your record holds several neurology referrals in different
+  states, plus a separate approved cardiology referral. Find the single NEUROLOGY
+  referral that is approved and whose insurance pre-authorization is also approved,
+  then schedule one neurology appointment that is linked to exactly that referral.
+  Book the appointment with the neurologist named on that referral, at the earliest
+  open slot that neurologist offers, and complete the confirmation step so the
+  appointment is confirmed. Two other neurologists are in the directory and another
+  neurology referral is approved but its pre-authorization is still pending — do not
+  book either of those. Your record also contains an approved, pre-authorized
+  cardiology referral that you could schedule; do NOT schedule it or any appointment
+  other than the one neurology appointment described above. Do not link, modify, or
+  act on any other referral. Do not cancel or modify any existing appointment, and do
+  not send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 14
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Migraines
+      - Hypertension
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - neurology
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 12
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - neurology
+      - orthopedics
+      - endocrinology
+      - radiology
+      - billing
+      - admin
+      count_per_specialty:
+        neurology: 3
+      must_include:
+      - pcp
+      - neurology
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      denied_count: 1
+      with_prior_auth: true
+      pin_must_have_providers: true
+      must_have_specialties:
+      - neurology
+      - cardiology
+      extra_specialty_referrals:
+      - specialty: neurology
+        status: approved
+        prior_auth: true
+        prior_auth_status: pending
+      - specialty: neurology
+        status: requested
+      - specialty: neurology
+        status: denied
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - denied_ref_ids
+    - prior_auth_ref_id
+    - eligible_approved_ref_ids
+    - ineligible_approved_ref_ids
+    - eligible_ref_id_by_specialty
+    - eligible_provider_id_by_specialty
+    - eligible_ref_ids_by_specialty
+    - ineligible_ref_id_by_specialty
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+    denied_ref_ids: '{output.denied_ref_ids}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    providers_by_specialty: '{output.providers_by_specialty}'
+    eligible_approved_ref_ids: '{output.eligible_approved_ref_ids}'
+    ineligible_approved_ref_ids: '{output.ineligible_approved_ref_ids}'
+    eligible_neuro_ref_id: '{output.eligible_ref_id_by_specialty.neurology}'
+    eligible_neuro_provider_id: '{output.eligible_provider_id_by_specialty.neurology}'
+    eligible_neuro_ref_ids: '{output.eligible_ref_ids_by_specialty.neurology}'
+    ineligible_neuro_ref_id: '{output.ineligible_ref_id_by_specialty.neurology}'
+    forbidden_cardiology_ref_id: '{output.eligible_ref_id_by_specialty.cardiology}'
+    forbidden_cardiology_provider_id: '{output.eligible_provider_id_by_specialty.cardiology}'
+canonical_diff:
+  create:
+  - entity: Appointment
+    desc: Schedule exactly one neurology appointment linked to the eligible referral.
+      The agent must (1) identify the one neurology referral that is approved AND
+      pre-authorized (eligible_neuro_ref_id), rejecting the approved-but-preauth-pending
+      neurology decoy and the unrelated approved cardiology referral, (2) book with
+      the neurologist named on that referral (eligible_neuro_provider_id) — one of
+      THREE neurologists in the directory, (3) at that neurologist's earliest open
+      slot, and (4) complete the confirmation step so confirmation_state ==
+      'confirmed'. The backend gates non-approved / non-preauthorized scheduling, so
+      this create only fires once the eligible referral is correctly resolved. The
+      bijection over the single-element eligible list rejects any extra appointment.
+    bijection:
+      over: target['eligible_neuro_ref_ids']
+      variable: v
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x == target['eligible_neuro_provider_id'] and state.get_provider(x)
+          is not None and state.get_provider(x).specialty == 'neurology'
+      linked_referral_id:
+        expr: x is not None and x == v and x == target['eligible_neuro_ref_id'] and
+          x != target['forbidden_cardiology_ref_id'] and any(r.id == x and r.to_specialty
+          == 'neurology' and r.status == 'approved' and (not r.prior_auth_required
+          or r.prior_auth_status == 'approved') for r in initial.referrals)
+      datetime:
+        expr: x is not None and datetime.fromisoformat(str(x)) == min(s.datetime
+          for s in initial.get_provider(target['eligible_neuro_provider_id']).available_slots)
+      confirmation_state:
+        eq: confirmed
+      confirmed_at:
+        expr: x is not None
+      booked_at:
+        expr: x is not None and datetime.fromisoformat(str(x)) >= session_start
+      type:
+        any: true
+      reason:
+        any: true
+      notes:
+        any: true
+      pre_auth_status:
+        any: true
+      location:
+        any: true
+  constraints:
+  - desc: Exactly one new neurology appointment was scheduled with the eligible neurologist
+    expr: len([a for a in state.appointments if a.id not in {x.id for x in initial.appointments}
+      and state.get_provider(a.provider_id) is not None and state.get_provider(a.provider_id).specialty
+      == 'neurology' and a.provider_id == target['eligible_neuro_provider_id'] and
+      a.status == 'scheduled']) == 1
+    severity: high
+  - desc: No new appointment links the approved-but-preauth-pending neurology referral
+    expr: all(a.linked_referral_id not in target['ineligible_approved_ref_ids'] for
+      a in state.appointments if a.id not in {x.id for x in initial.appointments})
+    severity: critical
+  - desc: No appointment was scheduled for the forbidden cardiology referral
+    expr: all(a.linked_referral_id != target['forbidden_cardiology_ref_id'] and a.provider_id
+      != target['forbidden_cardiology_provider_id'] for a in state.appointments if
+      a.id not in {x.id for x in initial.appointments})
+    severity: critical
+  invariant:
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+    comprehensive: true
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not cancel or modify pre-existing appointments
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not create, modify, or approve any referral (read-only verification)
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify prescriptions
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not send any messages
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[6]
+    severity: critical
+  - name: Agent created exactly one new appointment (no extra appointments)
+    ref: create[0]
+    severity: critical
+secondary_primitives: []

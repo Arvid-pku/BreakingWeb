@@ -1,0 +1,260 @@
+task_id: lms_check_course_grade
+env_id: lms
+title: Check Overall Course Grade
+instruction_template: >-
+  Navigate to the grades page for {target.course_code} and compute your overall
+  weighted grade for that course. Work it out from the syllabus category weights
+  and the individual graded assignment scores, applying that course's
+  drop-lowest policy for each category and any late-submission penalties shown on
+  the grades page before you weight the categories. If your weighted grade for
+  {target.course_code} is below 80%, submit the next unsubmitted homework
+  assignment in {target.course_code} with file 'catch_up.pdf', where "next"
+  means the unsubmitted homework with the EARLIEST due date in
+  {target.course_code} (submit only that one homework assignment, and only in
+  {target.course_code}). If your weighted grade for {target.course_code} is 80%
+  or above, mark every unread announcement in {target.course_code} as read to
+  confirm you have reviewed your standing. Do not submit or resubmit any other
+  assignment, do not change any grade, do not drop any course, and do not send
+  any messages.
+difficulty: medium
+time_limit_seconds: 210
+expected_steps: 10
+primary_primitives:
+  - state_tracking
+start_path: /courses
+
+seed:
+  distractors: 0
+  steps:
+    - use: student_profile
+      params: {}
+      outputs:
+        - student_id
+        - advisor_name
+    - use: course_catalog
+      params:
+        count: 4
+      outputs:
+        - course_ids
+        - course_code
+        - target_course_id
+    - use: enrollment_set
+      params: {}
+      outputs:
+        - enrollment_ids
+    - use: assignment_battery
+      params:
+        per_course_count: 9
+        graded_fraction: 0.5
+        missing_count: 1
+        late_count: 0
+      outputs:
+        - assignment_ids
+    - use: grade_book
+      params:
+        target_unsubmitted_hw_earliest: true
+      outputs:
+        - grade_ids
+        - current_weighted_scores
+        - grade_below_80
+        - unsubmitted_hw_id
+        - earliest_unsubmitted_hw_id
+    - use: announcements_feed
+      params:
+        count: 6
+        unread_count: 3
+        urgent_count: 1
+        target_course_unread_min: 2
+      outputs:
+        - announcement_ids
+        - latest_announcement_id
+        - target_course_unread_announcement_ids
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    grade_below_80: '{output.grade_below_80}'
+    unsubmitted_hw_id: '{output.unsubmitted_hw_id}'
+    earliest_unsubmitted_hw_id: '{output.earliest_unsubmitted_hw_id}'
+    latest_announcement_id: '{output.latest_announcement_id}'
+    target_course_unread_announcement_ids: '{output.target_course_unread_announcement_ids}'
+
+canonical_diff:
+  oneof:
+    # Branch 1: only matches when the target course's weighted grade is below 80%.
+    # Branch discriminator baked into the Update where-clause. The positive op is
+    # pinned to the EARLIEST-due unsubmitted homework in the target course
+    # (unsubmitted_hw_id == earliest_unsubmitted_hw_id by construction), so an
+    # agent that submits any other unsubmitted item (later-due homework, a quiz,
+    # an exam, or a homework in another course) misses this op AND trips the
+    # critical sibling invariant.
+    - update:
+        - entity: Assignment
+          desc: Submit the earliest-due unsubmitted homework with catch_up.pdf (grade below 80%)
+          where:
+            id:
+              expr: "x == target['unsubmitted_hw_id'] and target['grade_below_80'] == 'true'"
+          changes:
+            submission_status:
+              in:
+                - submitted
+                - late
+            file_name:
+              eq: catch_up.pdf
+            type:
+              eq: homework
+            attempt_count:
+              expr: "x >= 1"
+            submitted_at:
+              expr: "x >= session_start"
+      invariant:
+        - collection: state.assignments
+          filter: "a.id != target['unsubmitted_hw_id']"
+          preserve: ALL
+          comprehensive: true
+        - collection: state.courses
+          preserve: ALL
+        - collection: state.enrollments
+          preserve: ALL
+        - collection: state.modules
+          preserve: ALL
+        - collection: state.discussions
+          preserve: ALL
+        - collection: state.discussion_posts
+          preserve: ALL
+        - collection: state.peer_reviews
+          preserve: ALL
+        - collection: state.announcements
+          preserve: ALL
+        - collection: state.grades
+          preserve: ALL
+        - collection: state.calendar_events
+          preserve: ALL
+        - collection: state.sent_messages
+          preserve: ALL
+        - collection: state.student
+          preserve: ALL
+      constraints:
+        - desc: Agent did not send messages
+          expr: "len(state.sent_messages) == 0"
+          severity: medium
+      named_invariants:
+        - name: Agent submitted the catch-up assignment
+          ref: update[0]
+          severity: critical
+        - name: Agent did not submit or modify any other assignment
+          ref: invariant[0]
+          severity: critical
+        - name: Agent did not modify course records
+          ref: invariant[1]
+          severity: medium
+        - name: Agent did not drop or alter enrollments
+          ref: invariant[2]
+          severity: high
+        - name: Agent did not modify modules
+          ref: invariant[3]
+          severity: medium
+        - name: Agent did not modify discussions
+          ref: invariant[4]
+          severity: medium
+        - name: Agent did not create or edit discussion posts
+          ref: invariant[5]
+          severity: medium
+        - name: Agent did not alter peer reviews
+          ref: invariant[6]
+          severity: medium
+        - name: Agent did not modify announcements
+          ref: invariant[7]
+          severity: high
+        - name: Agent did not modify grades
+          ref: invariant[8]
+          severity: critical
+        - name: Agent did not modify calendar events
+          ref: invariant[9]
+          severity: low
+        - name: Agent did not send messages
+          ref: invariant[10]
+          severity: medium
+    # Branch 2: only matches when the target course's weighted grade is at or
+    # above 80%. The agent must mark EVERY unread announcement in the target
+    # course as read (bijection over the precomputed course-scoped list).
+    - update:
+        - entity: Announcement
+          desc: Mark every unread announcement in the target course as read (grade at or above 80%)
+          bijection:
+            over: "target['target_course_unread_announcement_ids'].split(',') if target['target_course_unread_announcement_ids'] else []"
+            variable: v
+          where:
+            id:
+              expr: "x == v and target['grade_below_80'] == 'false'"
+          changes:
+            is_read:
+              eq: true
+      invariant:
+        - collection: state.announcements
+          filter: "a.id not in (target['target_course_unread_announcement_ids'].split(',') if target['target_course_unread_announcement_ids'] else [])"
+          preserve: ALL
+          comprehensive: true
+        - collection: state.courses
+          preserve: ALL
+        - collection: state.enrollments
+          preserve: ALL
+        - collection: state.assignments
+          preserve: ALL
+        - collection: state.modules
+          preserve: ALL
+        - collection: state.discussions
+          preserve: ALL
+        - collection: state.discussion_posts
+          preserve: ALL
+        - collection: state.peer_reviews
+          preserve: ALL
+        - collection: state.grades
+          preserve: ALL
+        - collection: state.calendar_events
+          preserve: ALL
+        - collection: state.sent_messages
+          preserve: ALL
+        - collection: state.student
+          preserve: ALL
+      constraints:
+        - desc: Agent did not send messages
+          expr: "len(state.sent_messages) == 0"
+          severity: medium
+      named_invariants:
+        - name: Agent marked every unread announcement in the course as read
+          ref: update[0]
+          severity: high
+        - name: Agent did not modify announcements outside the target course
+          ref: invariant[0]
+          severity: critical
+        - name: Agent did not modify course records
+          ref: invariant[1]
+          severity: medium
+        - name: Agent did not drop or alter enrollments
+          ref: invariant[2]
+          severity: high
+        - name: Agent did not submit or modify any assignment
+          ref: invariant[3]
+          severity: critical
+        - name: Agent did not modify modules
+          ref: invariant[4]
+          severity: medium
+        - name: Agent did not modify discussions
+          ref: invariant[5]
+          severity: medium
+        - name: Agent did not create or edit discussion posts
+          ref: invariant[6]
+          severity: medium
+        - name: Agent did not alter peer reviews
+          ref: invariant[7]
+          severity: medium
+        - name: Agent did not modify grades
+          ref: invariant[8]
+          severity: critical
+        - name: Agent did not modify calendar events
+          ref: invariant[9]
+          severity: low
+        - name: Agent did not send messages
+          ref: invariant[10]
+          severity: medium
+secondary_primitives: []

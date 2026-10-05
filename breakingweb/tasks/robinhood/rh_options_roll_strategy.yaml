@@ -1,0 +1,82 @@
+task_id: rh_options_roll_strategy
+env_id: robinhood
+title: Roll a Covered Call on {target.symbol}
+instruction_template: 'You have a covered call on {target.symbol} that expires this
+  week and is in-the-money. Roll the position: buy back the current call, then sell
+  a new call at the next monthly expiration with a strike 5% above current price.'
+difficulty: expert
+time_limit_seconds: 400
+expected_steps: 20
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - MSFT
+      - AAPL
+      - GOOGL
+      - AMZN
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - MSFT
+      - AAPL
+      quantities:
+      - '100'
+      - '50'
+      cost_bases:
+      - '350.00'
+      - '170.00'
+    outputs: []
+  - use: options_positions
+    params:
+      count: 1
+      symbol: MSFT
+      position_type: covered_call
+      near_expiry_days: 3
+      in_the_money: true
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: MSFT
+      expirations_count: 3
+      strikes_per_expiration: 15
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    symbol: MSFT
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Buy-to-close order for expiring call (within 7 days of expiry)
+    properties:
+      status: {in: [pending, filled]}
+      legs: {expr: "any(leg['side'] == 'buy' and leg['option_type'] == 'call' and state.days_until(leg['expiration']) <= 7 for leg in x)"}
+  - entity: options_orders
+    desc: Sell-to-open new call at 14-45 days, ~5% OTM
+    properties:
+      status: {in: [pending, filled]}
+      legs: {expr: "any(leg['side'] == 'sell' and leg['option_type'] == 'call' and state.days_until(leg['expiration']) >= 14 and state.days_until(leg['expiration']) <= 45 and leg['strike'] >= state.get_stock(target['symbol']).price * Decimal('1.03') and leg['strike'] <= state.get_stock(target['symbol']).price * Decimal('1.07') for leg in x)"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, planning, grounding, exploration by requiring
+  exact completion of the requested Robinhood workflow while ignoring distractor account
+  state.

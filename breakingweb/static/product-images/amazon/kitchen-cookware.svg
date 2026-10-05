@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Kitchen cookware">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <ellipse cx="176" cy="230" rx="112" ry="66" fill="#222" stroke="#111" stroke-width="8"/>
+  <ellipse cx="176" cy="214" rx="92" ry="42" fill="#475569"/>
+  <path d="M268 220l76-30c16-6 28 16 12 26l-76 46z" fill="#111827"/>
+  <circle cx="142" cy="206" r="16" fill="#ff9900"/>
+  <path d="M98 284h152" stroke="#cbd5e1" stroke-width="12" stroke-linecap="round"/>
+</svg>

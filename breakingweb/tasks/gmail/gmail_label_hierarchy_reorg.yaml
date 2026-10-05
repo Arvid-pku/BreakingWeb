@@ -1,0 +1,166 @@
+task_id: gmail_label_hierarchy_reorg
+env_id: gmail
+title: Reorganize Label Taxonomy per Team Lead Directive
+instruction_template: 'Read the email from team lead Sofia Chen (sofia.chen@acmecorp.com)
+  with subject "New label taxonomy - implement today" and follow every instruction
+  in it exactly.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 42
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: label_hierarchy_reorg
+    params: {}
+    outputs:
+    - directive_email_id
+    - decoy_taxonomy_email_id
+    - blocked_email_id
+    - review_email_ids
+    - remaining_projects_email_ids
+    - all_projects_email_ids
+    - archive_projects_email_ids
+    - engineering_planning_label_id
+  targets:
+    directive_email_id: '{output.directive_email_id}'
+    decoy_taxonomy_email_id: '{output.decoy_taxonomy_email_id}'
+    blocked_email_id: '{output.blocked_email_id}'
+    review_email_ids: '{output.review_email_ids}'
+    remaining_projects_email_ids: '{output.remaining_projects_email_ids}'
+    all_projects_email_ids: '{output.all_projects_email_ids}'
+    archive_projects_email_ids: '{output.archive_projects_email_ids}'
+    engineering_planning_label_id: '{output.engineering_planning_label_id}'
+canonical_diff:
+  update:
+    - entity: labels
+      desc: Rename Projects to Engineering/Active
+      where:
+        name:
+          eq: "Projects"
+      changes:
+        name:
+          eq: "Engineering/Active"
+    - entity: labels
+      desc: Rename Archive-Projects to Engineering/Completed
+      where:
+        name:
+          eq: "Archive-Projects"
+      changes:
+        name:
+          eq: "Engineering/Completed"
+    - entity: emails
+      desc: Move blocked email from Engineering/Active to Engineering/Blocked
+      where:
+        id:
+          expr: "x == target['blocked_email_id']"
+      changes:
+        labels:
+          expr: "set(x) == ((set(next(e.labels for e in initial.emails if e.id == target['blocked_email_id'])) - {'Projects', 'Engineering/Active'}) | {'Engineering/Blocked'})"
+    - entity: emails
+      desc: Move review emails from Engineering/Active to Engineering/Review
+      bijection:
+        over: "target['review_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          expr: "set(x) == ((set(next(e.labels for e in initial.emails if e.id == v)) - {'Projects', 'Engineering/Active'}) | {'Engineering/Review'})"
+    - entity: emails
+      desc: Remaining Projects emails updated to Engineering/Active by rename
+      bijection:
+        over: "target['remaining_projects_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          expr: "set(x) == ((set(next(e.labels for e in initial.emails if e.id == v)) - {'Projects'}) | {'Engineering/Active'})"
+    - entity: emails
+      desc: Archive-Projects emails updated to Engineering/Completed by rename
+      bijection:
+        over: "target['archive_projects_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          expr: "set(x) == ((set(next(e.labels for e in initial.emails if e.id == v)) - {'Archive-Projects'}) | {'Engineering/Completed'})"
+  create:
+    - entity: labels
+      desc: Create Engineering/Blocked label (show in label list, show in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Engineering/Blocked"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "show"
+    - entity: labels
+      desc: Create Engineering/Review label (show in label list, hide in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Engineering/Review"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "hide"
+    - entity: labels
+      desc: Create Design label (show in label list, show in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Design"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "show"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in ([target['blocked_email_id']] + target['review_email_ids'])"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Projects', 'Archive-Projects', 'Engineering/Active', 'Engineering/Completed', 'Engineering/Blocked', 'Engineering/Review', 'Design']"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent renamed Projects to Engineering/Active
+      ref: update[0]
+      severity: high
+    - name: Agent renamed Archive-Projects to Engineering/Completed
+      ref: update[1]
+      severity: high
+    - name: Agent moved blocked email to Engineering/Blocked
+      ref: update[2]
+      severity: high
+    - name: Agent moved review emails to Engineering/Review
+      ref: update[3]
+      severity: high
+    - name: Agent created Engineering/Blocked label
+      ref: create[0]
+      severity: high
+    - name: Agent created Engineering/Review label
+      ref: create[1]
+      severity: high
+    - name: Agent created Design label
+      ref: create[2]
+      severity: high

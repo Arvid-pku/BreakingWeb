@@ -1,0 +1,126 @@
+task_id: gmail_incident_postmortem_assembly
+env_id: gmail
+title: Security Incident Postmortem Assembly
+instruction_template: 'A security incident "INC-2847" occurred last week. Gather evidence
+  from these 5 threads:
+
+  (1) The initial alert from monitoring@acme-security.com with subject containing
+  "INC-2847".
+
+  (2) Investigation update from alice.sec@acme.com with subject "INC-2847: Initial
+  Analysis".
+
+  (3) Investigation update from bob.infra@acme.com with subject "INC-2847: Infrastructure
+  Findings".
+
+  (4) Investigation update from carol.net@acme.com with subject "INC-2847: Network
+  Forensics - CORRECTED" (this supersedes Alice''s preliminary root cause).
+
+  (5) Resolution confirmation from alice.sec@acme.com with subject "INC-2847: Resolved".
+
+
+  Compose a new email to {target.postmortem_to} with subject "{target.postmortem_subject}"
+  and body containing: (a) the incident start time from the initial alert, (b) the
+  corrected root cause from Carol''s CORRECTED network forensics email (not from Alice''s
+  initial analysis which had a preliminary and incorrect root cause), (c) the resolution
+  time from the resolution confirmation, and (d) Bob''s remediation action from his
+  own text (not the forwarded section).
+
+
+  Star all 5 incident anchor emails (one per thread).'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- exploration
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: incident_postmortem_assembly
+    params: {}
+    outputs:
+    - postmortem_to
+    - postmortem_subject
+    - start_time
+    - corrected_root_cause
+    - wrong_root_cause
+    - resolution_time
+    - remediation
+    - incident_email_ids
+    - corrected_email_id
+    - decoy_email_id
+  targets:
+    postmortem_to: '{output.postmortem_to}'
+    postmortem_subject: '{output.postmortem_subject}'
+    start_time: '{output.start_time}'
+    corrected_root_cause: '{output.corrected_root_cause}'
+    wrong_root_cause: '{output.wrong_root_cause}'
+    resolution_time: '{output.resolution_time}'
+    remediation: '{output.remediation}'
+    incident_email_ids: '{output.incident_email_ids}'
+    corrected_email_id: '{output.corrected_email_id}'
+    decoy_email_id: '{output.decoy_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose postmortem email to leadership with all required content
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['postmortem_to']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          expr: "x == target['postmortem_subject']"
+        body:
+          expr: >-
+            target['start_time'] in x and target['corrected_root_cause'] in x
+            and target['resolution_time'] in x and target['remediation'] in x
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star all 5 incident anchor emails
+      bijection:
+        over: "target['incident_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['incident_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed postmortem email with all required fields
+      ref: create[0]
+      severity: high
+    - name: Agent starred all 5 incident anchor emails
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify unrelated emails
+      ref: invariant[0]
+      severity: high

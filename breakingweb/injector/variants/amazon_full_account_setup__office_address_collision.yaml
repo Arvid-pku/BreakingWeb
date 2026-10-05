@@ -1,0 +1,30 @@
+variant_id: amazon_full_account_setup__office_address_collision
+base_task_id: amazon_full_account_setup
+target_primitive: grounding
+description: The account already has old Home and Office entries with nearly identical names. The agent
+  must still add the new addresses, then check out to the exact new Office address rather than the stale
+  twin.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: address
+      full_name: Home
+      street_address: 200 Pine Street Apt 2
+      city: Seattle
+      state: WA
+      zip_code: '98101'
+    - type: address
+      full_name: Office
+      street_address: 80 Corporate Blvd
+      city: Bellevue
+      state: WA
+      zip_code: '98004'
+    - type: product
+      name: UltraWide Monitor 34-inch Pro
+      brand: LG
+      category: Electronics
+      price: 503.99
+      rating: 4.5
+      description: A similarly named monitor model that is not the requested first purchase.

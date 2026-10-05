@@ -1,0 +1,43 @@
+variant_id: booking_expert_travel_planner__property_shadow_v2
+base_task_id: booking_expert_travel_planner
+target_primitive: grounding
+description: Search results include same-city sibling properties with nearly identical
+  names + a Server-layer slow_responses delay on /properties/search forces the
+  agent to wait through latency while disambiguating. The combo stresses both
+  Grounding (decoy disambiguation) and Patience (waiting under the latency).
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: "properties/search$"
+      method: POST
+      delay_ms: 3000
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Three near-typo siblings of "Hotel Le Marais Paris". rs > target's
+    # 8.7 to lure rating sorts; all prices > $280 so the cross-city
+    # "cheapest" comparison still picks Tokyo's Shinjuku Granbell.
+    - type: property
+      name: Hotel Le Marais Paries
+      city: Paris
+      country: France
+      price: 290.0
+      review_score: 9.0
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel Le Maraisl Paris       # extra l after Marais
+      city: Paris
+      country: France
+      price: 295.0
+      review_score: 8.9
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel Le Marais Pariis       # extra i
+      city: Paris
+      country: France
+      price: 300.0
+      review_score: 9.1
+      amenities: [Free WiFi, Restaurant, Air conditioning]

@@ -1,0 +1,203 @@
+task_id: pp_post_hospitalization
+env_id: patient_portal
+title: Post-Hospitalization Follow-Up
+instruction_template: 'You were recently discharged from the hospital. Complete the
+  following post-discharge tasks: 1) Schedule exactly one PCP follow-up appointment
+  using the next available PCP slot with reason "Post-discharge PCP follow-up", 2)
+  Read the discharge summary message in your inbox and follow any specialist-follow-up
+  instructions it contains — if it directs you to schedule a specialist follow-up,
+  schedule exactly one specialist appointment with reason "Post-discharge specialist
+  follow-up".'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - orthopedics
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      expired_count: 1
+    outputs:
+    - active_rx_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: message_threads
+    params:
+      thread_count: 3
+      unread_count: 2
+      categories:
+      - clinical
+      body_context:
+        type: discharge_summary
+        provider_selector: most_recent_completed
+        include_referral_mention: true
+    outputs:
+    - thread_ids
+    - unread_msg_ids
+    - context_msg_ids
+    - context_specialties
+    - context_specialist_provider_ids
+  # PP-4: scheduling with the specialist named in the discharge summary
+  # requires an approved referral. The current must_include set forces
+  # cardiology for the specialist follow-up; seed an approved cardiology
+  # referral so the booking API doesn't reject the create.
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      must_have_specialties:
+      - cardiology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+    discharge_msg_id: '{output.context_msg_ids.discharge_summary}'
+    discharge_specialty: '{output.context_specialties.discharge_summary}'
+    discharge_specialist_provider_ids: '{output.context_specialist_provider_ids.discharge_summary}'
+canonical_diff:
+  # Positive signals:
+  #   (a) mark the discharge-summary provider message as read (identified by
+  #       target.discharge_msg_id, emitted by the message_threads seed);
+  #   (b) create one PCP follow-up appointment with the required exact reason
+  #       at the earliest available PCP slot;
+  #   (c) create one specialist follow-up appointment with the required exact
+  #       reason using any provider in target.discharge_specialist_provider_ids
+  #       (the specialty mentioned in the discharge-summary body is exposed
+  #       via the seed output; with the current provider_directory config the
+  #       list has a single cardiologist).
+  update:
+    - entity: ClinicalMessage
+      desc: "Mark the discharge-summary message as read"
+      where:
+        # `where` only sees id + fields whose value changed, so match by id
+        # against the deterministic target emitted by message_threads.
+        id:
+          expr: "x == target['discharge_msg_id']"
+      changes:
+        is_read: {eq: true}
+  create:
+    - entity: Appointment
+      desc: "Schedule one PCP follow-up at the next available PCP slot"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Post-discharge PCP follow-up"}
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id == target['pcp_id'] for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one specialist follow-up matching the discharge-summary specialty"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['discharge_specialist_provider_ids']"
+        reason: {eq: "Post-discharge specialist follow-up"}
+        datetime:
+          # Must be a valid available-slot datetime for any specialist in the
+          # target set. This keeps the check strict about "real slot" without
+          # hard-coding which specialist was chosen (the candidate pool is
+          # currently a single provider per specialty, but leave room for
+          # future seed diversity).
+          expr: >
+            x in [s.datetime for p in initial.providers
+                  if p.id in target['discharge_specialist_provider_ids']
+                  for s in p.available_slots]
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.messages
+      # All messages except the discharge-summary one must be preserved (the
+      # discharge-summary is the single authored Update).
+      filter: "a.id != target['discharge_msg_id']"
+      preserve: ALL
+    - collection: state.appointments
+      # Existing appointments (identified by initial snapshot ids) must not be
+      # cancelled, rescheduled or otherwise mutated; the two Creates above are
+      # the only permitted appointment changes.
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not send or modify messages other than marking discharge summary read"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: critical
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

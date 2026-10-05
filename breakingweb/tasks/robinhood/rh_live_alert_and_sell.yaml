@@ -1,0 +1,144 @@
+task_id: rh_live_alert_and_sell
+env_id: robinhood
+title: Alert-Triggered Market Sell
+instruction_template: Set a price alert for TSLA when it goes above $270. When
+  the alert triggers, sell your entire TSLA position at market price.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 10
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - TSLA
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - TSLA
+      quantities:
+      - '10'
+      cost_bases:
+      - '240.00'
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      TSLA:
+        keyframes:
+        - - 0
+          - 248.0
+        - - 22
+          - 275.0
+        - - 35
+          - 272.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: price_alerts
+    desc: TSLA above-$270 price alert created
+    properties:
+      symbol: {eq: TSLA}
+      condition: {eq: above}
+      target_price: {expr: "Decimal(str(x)) >= Decimal('270')"}
+      status: {any: true}
+      created_at: {any: true}
+  - entity: orders
+    desc: Sell order placed for TSLA position after alert triggered
+    properties:
+      symbol: {eq: TSLA}
+      side: {eq: sell}
+      status: {any: true}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded for TSLA
+    properties:
+      type: {eq: sell}
+      symbol: {eq: TSLA}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order fill notifications fired by the TSLA sell
+    bijection:
+      over: "[n for n in state.notifications if n.id not in [ix.id for ix in initial.notifications]]"
+      variable: v
+    properties:
+      type: {any: true}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  delete:
+  - entity: positions
+    desc: TSLA position fully liquidated (entire position sold)
+    where:
+      symbol: {eq: TSLA}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+  constraints:
+  - desc: TSLA above-$270 alert triggered
+    expr: any(a.symbol == 'TSLA' and a.condition == 'above' and
+      Decimal(str(a.target_price)) >= Decimal('270') and a.status == 'triggered'
+      for a in state.price_alerts)
+    severity: critical
+  - desc: TSLA full-position market sell filled
+    expr: any(o.symbol == 'TSLA' and o.side == 'sell' and o.order_type ==
+      'market' and o.quantity == Decimal('10') and o.status == 'filled' and
+      o.filled_quantity == o.quantity for o in state.orders)
+    severity: critical
+  - desc: TSLA sell order was created after the alert triggered
+    expr: any(a.symbol == 'TSLA' and a.condition == 'above' and a.triggered_at
+      is not None and any(o.symbol == 'TSLA' and o.side == 'sell' and
+      o.created_at > a.triggered_at for o in state.orders) for a in
+      state.price_alerts)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures planning, patience, grounding by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor
+  account state.

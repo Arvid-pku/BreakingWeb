@@ -1,0 +1,28 @@
+variant_id: pp_setup_telehealth__appointment_reschedule_retry_v1
+base_task_id: pp_setup_telehealth
+target_primitive: backtracking
+description: The first write to reschedule returns a fake successful response without persisting. The agent must verify that
+  the appointment's datetime actually moved to the new slot before declaring the task done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/appointments/*/reschedule'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: apt_d4f1c823a9
+      provider_id: prov_a82c441f
+      datetime: '2026-06-15T10:00:00+00:00'
+      duration_minutes: 30
+      type: telehealth
+      status: scheduled
+      reason: Telehealth visit
+      notes: ''
+      linked_referral_id: null
+      pre_auth_status: not_required
+      booked_at: '2026-04-26T08:00:00+00:00'
+      location: Telehealth
+    behavior:
+      mode: once

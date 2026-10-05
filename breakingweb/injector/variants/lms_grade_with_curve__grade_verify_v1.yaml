@@ -1,0 +1,96 @@
+variant_id: lms_grade_with_curve__grade_verify_v1
+base_task_id: lms_grade_with_curve
+target_primitive: verification
+description: The grades read intermittently returns an inflated, plausible weighted
+  score that sits on the WRONG side of the A/B letter boundary, and the acknowledge/appeal
+  write path silently no-ops on its first attempt. The agent must recompute the curved
+  letter band from the raw grade rows (not the displayed total), pick the correct
+  branch, and verify the mutation actually persisted by re-reading the backend.
+injections:
+# 1. Verification (network, read): the live grades endpoint intermittently serves
+#    a LOUD, fully-shaped snapshot whose weighted_score is pushed to ~88.4 — a B
+#    that sits just below the A line — regardless of the true curved score. On a
+#    curve-RAISES seed (true curved >= 90 = A) this nudges the agent toward the
+#    wrong "letter unchanged" branch; the agent must ignore the headline total and
+#    re-derive the band from the per-assignment raw rows, drop-lowest, and
+#    re-normalization. Intermittent (prob 0.6, up to 3 stale serves) so a single
+#    refresh does not converge — the agent has to reconcile across multiple reads.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    methods:
+    - GET
+    stale_body:
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      weighted_score: '88.40'
+      category_scores:
+        homework: '92.00'
+        midterm: '85.00'
+        final: null
+      grades: []
+    stale_count: 3
+    behavior:
+      mode: intermittent
+      probability: 0.6
+      seed: 42
+# 2. Verification (network, write): the FIRST acknowledge (mark-read) and the FIRST
+#    appeal (submit) write return a success-shaped body WITHOUT persisting. The
+#    agent must verify the persisted state (announcement is_read flipped /
+#    attempt_count incremented) and retry, directly attacking branch-2's tightened
+#    attempt_count >= initial+1 predicate and branch-1's is_read bijection.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/lms/announcements/*/read'
+    methods:
+    - POST
+    response_body:
+      ok: true
+      announcement:
+        is_read: true
+    fail_count: 1
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/lms/assignments/*/submit'
+    methods:
+    - POST
+    response_body:
+      assignment:
+        submission_status: submitted
+        file_name: curve_appeal.pdf
+        attempt_count: 1
+    fail_count: 1
+    behavior:
+      mode: once
+# 3. Grounding decoys (seed): a near-threshold graded item in the target course
+#    whose score is ~5 points off the real midterm, plus an announcement that
+#    quotes a DIFFERENT (wrong) curved letter. Both are added to the post-injection
+#    baseline, so they are pure distractors the agent must filter out when grounding
+#    the right number — they do not change the canonical curved-letter answer.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Practice midterm (ungraded weight)
+      assignment_type: quiz
+      weight_category: quizzes
+      submission_status: graded
+      score: '75'
+      points_possible: '100'
+      feedback: Practice score — does not count toward the midterm category.
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Curve recap (unofficial)
+      body: Unofficial recap — with the curve your course grade rounds up to an A.
+        Confirm against the official grades page before acting.
+      priority: normal
+      is_read: true

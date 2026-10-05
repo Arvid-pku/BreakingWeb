@@ -1,0 +1,74 @@
+task_id: reddit_inbox_read_only
+env_id: reddit
+title: Read Every Inbox Message
+instruction_template: 'Open each message in your inbox and mark it as read. When finished, every inbox message should be flagged as read.
+
+  '
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 8
+primary_primitives:
+- state_tracking
+secondary_primitives:
+- verification
+start_path: /messages
+seed:
+  distractors: 0
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: reddit
+      subject: Welcome to Reddit
+      body: Thanks for joining. Review the site-wide rules in your profile sidebar whenever you have a minute. No reply needed.
+      is_read: false
+    outputs:
+    - msg1_id
+    - msg1_subject
+    - msg1_from
+  - use: target_message
+    params:
+      from_user: reddit
+      subject: Your weekly activity digest
+      body: Here is a summary of your saved posts and karma movement from the last seven days. This message is informational only.
+      is_read: false
+    outputs:
+    - msg2_id
+    - msg2_subject
+    - msg2_from
+  - use: target_message
+    params:
+      from_user: reddit
+      subject: Profile privacy tips
+      body: A reminder of the privacy controls available under Settings. No action is required on this message.
+      is_read: false
+    outputs:
+    - msg3_id
+    - msg3_subject
+    - msg3_from
+  targets:
+    msg1_id: '{output.msg1_id}'
+    msg2_id: '{output.msg2_id}'
+    msg3_id: '{output.msg3_id}'
+
+canonical_diff:
+  update:
+  - entity: Message
+    collection: messages
+    bijection:
+      over: "[m.id for m in initial.messages if not m.is_read]"
+      variable: v
+    desc: "Mark every unread inbox message as read"
+    where:
+      id: {expr: "x == v"}
+    changes:
+      is_read: {eq: true}
+  invariant:
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: "Agent did not send any replies or new messages"
+    ref: invariant[0]
+    severity: high

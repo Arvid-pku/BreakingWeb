@@ -1,0 +1,139 @@
+task_id: reddit_messaging_workflow
+title: Full Messaging Workflow
+instruction_template: 'Complete this messaging workflow:
+
+
+  1. Go to Messages. Mark all messages as read.
+
+
+  2. Find the message from u/{target.reply_from} with subject "{target.reply_subject}". Reply with exactly: "{target.reply_body}"
+
+
+  3. Delete the message from u/{target.delete_from} with subject "{target.delete_subject}".
+
+
+  4. Compose a new message to u/{target.new_to} with subject "{target.new_subject}" and body exactly: "{target.new_body}"
+
+
+  5. Go to Settings and disable email notifications for private messages.
+
+
+  Do not delete any other messages.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: NeuralNexus
+      subject: Collaboration on ML benchmark
+      body: Would you be interested in contributing test cases?
+      is_read: false
+    outputs:
+    - reply_msg_id
+    - reply_msg_subject
+    - reply_msg_from
+  - use: target_message
+    params:
+      from_user: HerrMilkmann
+      subject: 'URGENT: Account verification needed'
+      body: Click this link to verify your account immediately.
+      is_read: false
+    outputs:
+    - delete_msg_id
+    - delete_msg_subject
+    - delete_msg_from
+  targets:
+    reply_from: '{output.reply_msg_from}'
+    reply_subject: '{output.reply_msg_subject}'
+    reply_msg_id: '{output.reply_msg_id}'
+    reply_body: Absolutely! I have experience with evaluation frameworks. Let me know how to get started.
+    delete_from: '{output.delete_msg_from}'
+    delete_subject: '{output.delete_msg_subject}'
+    delete_msg_id: '{output.delete_msg_id}'
+    new_to: ByteRunner
+    new_subject: Open source maintainer meetup
+    new_body: A few of us are organizing a virtual meetup for open source maintainers. Would you like to join? It is scheduled for next Saturday at 3pm EST.
+canonical_diff:
+  update:
+  - entity: Message
+    collection: messages
+    bijection:
+      over: '[m.id for m in initial.messages if not m.is_read and m.id != target[''delete_msg_id'']]'
+      variable: v
+    desc: Mark every unread non-spam inbox message as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      email_messages: {eq: false}
+  delete:
+  - entity: Message
+    collection: messages
+    desc: Delete the spam message identified by target.delete_msg_id
+    where:
+      id:
+        expr: x == target['delete_msg_id']
+  create:
+  - entity: Message
+    collection: sent_messages
+    desc: Reply to the requested inbox message with the exact body
+    properties:
+      to_user:
+        expr: x == target['reply_from']
+      subject:
+        expr: "x == 'Re: ' + target['reply_subject']"
+      body:
+        expr: x == target['reply_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        expr: x == target['reply_msg_id']
+  - entity: Message
+    collection: sent_messages
+    desc: Compose the new outreach message with the exact subject and body
+    properties:
+      to_user:
+        expr: x == target['new_to']
+      subject:
+        expr: x == target['new_subject']
+      body:
+        expr: x == target['new_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities
+      and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+env_id: reddit
+secondary_primitives: []

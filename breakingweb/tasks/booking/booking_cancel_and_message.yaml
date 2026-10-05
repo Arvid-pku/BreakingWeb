@@ -1,0 +1,159 @@
+task_id: booking_cancel_and_message
+env_id: booking
+title: Cancel Reservation and Message the Property
+instruction_template: 'Go to your trips and cancel the reservation at "{target.property_name}"
+  (confirmation number {target.confirmation_number}), which is scheduled for check-in
+  on {target.check_in}, accepting any cancellation fee shown. Then send a message
+  to the property with the subject "Cancellation - Change of Plans" and a body explaining
+  that you had to cancel due to a family emergency and you hope to rebook in the future.
+
+  '
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 12
+primary_primitives:
+- backtracking
+start_path: /home
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Costa Brava
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.6
+      review_count: 1530
+      price: 210.0
+      property_type: Hotel
+      neighborhood: Gothic Quarter
+      address: 12 La Rambla, 08002 Barcelona
+      amenities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      - Bar
+      popular_facilities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      distance_km: 0.8
+      rooms:
+      - name: Standard Double
+        price: 210.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: street
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.property_id}'
+      room_type_id: '{output.cheapest_room_id}'
+      room_type_name: Standard Double
+      check_in: '2026-06-01'
+      check_out: '2026-06-05'
+      price_per_night: 210.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 10
+      cancellation_policy:
+        type: partial_refund
+        penalty_percentage: 30
+        description: "30% cancellation fee applies"
+    outputs:
+    - reservation_id
+    - confirmation_number
+    - property_id
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    reservation_id: '{output.reservation_id}'
+    confirmation_number: '{output.confirmation_number}'
+    check_in: '2026-06-01'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the reservation at Hotel Costa Brava
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        status: {eq: cancelled}
+  create:
+    - entity: Message
+      desc: Send cancellation message to Hotel Costa Brava
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'cancellation' in x.lower() or 'cancel' in x.lower()"}
+        body: {expr: "len(x) > 20"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id']"
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.sender == 'property' or a.property_id != target['property_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly. `filter: "False"`
+    # + `comprehensive: true` whitelists the whole collection from
+    # the collateral sweep.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the target reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent sent a cancellation message to the property
+      ref: create[0]
+      severity: high
+    - name: Agent did not cancel or modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify or delete existing messages
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+    - name: Rebooking suggestions are system-generated side effects
+      ref: invariant[7]
+      severity: low
+secondary_primitives: []

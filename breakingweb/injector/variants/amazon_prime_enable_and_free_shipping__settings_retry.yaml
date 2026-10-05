@@ -1,0 +1,21 @@
+variant_id: amazon_prime_enable_and_free_shipping__settings_retry
+base_task_id: amazon_prime_enable_and_free_shipping
+target_primitive: backtracking
+description: >
+  The first two settings PUTs return a fake 200 with a realistic settings body
+  but never persist Prime membership. The agent must verify Prime is actually
+  enabled via re-read (not by trusting the success toast) before checking out
+  so the order does not incur shipping.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/settings'
+    methods:
+    - PUT
+    fail_count: 2
+    response_body:
+      settings:
+        prime_member: true
+    behavior:
+      mode: once

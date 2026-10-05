@@ -1,0 +1,34 @@
+variant_id: gmail_thread_blame_trace__state_tracking
+base_task_id: gmail_thread_blame_trace
+target_primitive: state_tracking
+description: Same-subject recap and forwarding-chain decoys mention the same wrong
+  price and point blame at the wrong person. The agent must reconstruct the first
+  in-thread occurrence, not trust later summaries.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Mariela Voss
+      from: '{target.mariela_voss_email}'
+      subject: Vendor Contract Renewal - Apex Solutions
+      body: I initially thought Anika introduced the $4,500 number because the draft
+        already showed it by the time finance reviewed the thread. Please verify before
+        forwarding anything.
+      labels:
+      - inbox
+    - from_name: Leo Huang
+      from: leo.huang@procure.co
+      subject: 'Fwd: Vendor Contract Renewal - Apex Solutions'
+      body: 'Forwarding an old reference chain. It includes a vendor quote with $4,500,
+        but that is not the original Apex renewal thread we are auditing.'
+      labels:
+      - inbox
+    - from_name: Procurement QA
+      from: qa-audit@procure.co
+      subject: Pricing error origin recap
+      body: 'Working summary: the wrong amount appears in later spreadsheet and draft
+        messages, but those were downstream echoes rather than the first in-thread source.'
+      labels:
+      - updates

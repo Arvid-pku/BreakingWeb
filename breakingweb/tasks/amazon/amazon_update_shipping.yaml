@@ -1,0 +1,186 @@
+task_id: amazon_update_shipping
+env_id: amazon
+title: Update Shipping Address and Place an Order
+instruction_template: 'Add a new shipping address with name "{target.recipient_name}",
+  street "{target.street}", city "{target.city}", state "{target.state_code}", ZIP
+  "{target.zip}". Set it as your default address. Then search for "{target.product_name}",
+  add it to cart, and complete the purchase using this new default address.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Bamboo Cutting Board Set
+      brand: Royal Craft Wood
+      category: Home & Kitchen
+      price: 39.99
+      rating: 4.5
+      features:
+      - Set of 3 sizes
+      - Organic bamboo
+      - Juice grooves
+      - Easy grip handles
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 10.0
+      - 80.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    recipient_name: Jordan Lee
+    street: 55 Elm Street
+    city: Denver
+    state_code: CO
+    zip: '80202'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New default shipping address created with target details
+    properties:
+      full_name:
+        expr: x == target['recipient_name']
+      street_address:
+        expr: target['street'] in x
+      city:
+        expr: x == target['city']
+      state:
+        expr: x == target['state_code']
+      zip_code:
+        expr: x == target['zip']
+      is_default:
+        eq: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  - entity: Order
+    desc: New order placed for target product using the new default address
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: state.settings.default_address_id == x and any(a.full_name ==
+          target['recipient_name'] for a in state.addresses if a.id == x)
+      status:
+        eq: confirmed
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  update:
+  - entity: Address
+    desc: Prior default address demoted as a side effect of setting a new
+      default (weight 0)
+    weight: 0.0
+    where:
+      id:
+        any: true
+    changes:
+      is_default:
+        eq: false
+  invariant:
+  - collection: state.addresses
+    filter: a.full_name != target['recipient_name']
+    preserve: ALL
+  - collection: state.orders
+    filter: not any(it.get('product_id') == target['product_id'] for it in
+      (a.items or []))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[12]
+    severity: medium

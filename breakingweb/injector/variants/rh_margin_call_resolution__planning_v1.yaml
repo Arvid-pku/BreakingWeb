@@ -1,0 +1,37 @@
+variant_id: rh_margin_call_resolution__planning_v1
+base_task_id: rh_margin_call_resolution
+target_primitive: planning
+description: >
+  Shuffled positions and noise orders for unrelated symbols obscure which
+  holding has the smallest impact on total returns. Distractor
+  notifications about other margin actions add confusion. The agent must
+  plan carefully to identify the right position to sell before depositing
+  the $500 buffer.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+- layer: seed
+  params:
+    action: add_noise_orders
+    symbols: ["GOOGL", "META", "NFLX"]
+    count: 6
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    messages:
+    - "Margin call resolved: GOOGL position liquidated"
+    - "Deposit $1,000 to avoid forced liquidation"
+    - "Your META stop-loss was triggered at $485"
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

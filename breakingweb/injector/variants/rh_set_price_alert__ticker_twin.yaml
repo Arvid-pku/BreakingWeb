@@ -1,0 +1,31 @@
+variant_id: rh_set_price_alert__ticker_twin
+base_task_id: rh_set_price_alert
+target_primitive: grounding
+description: Search results include confusingly similar ticker symbols next to the real target. The agent
+  must verify the exact symbol before trading or adding it to a watchlist.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_stocks
+    multiplier: 2
+    decoys:
+    - symbol: GOOGX
+      name: Alphabet Growth Trust
+      price: 182.5
+    - symbol: GOOGQ
+      name: Alphabet Income Notes
+      price: 51.3
+    - symbol: AAPLX
+      name: Apple Holdings Trust
+      price: 189.4
+    - symbol: APLE
+      name: Apple Hospitality REIT
+      price: 16.9
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: NVDAQ
+      condition: above
+      target_price: 700.00
+      status: triggered

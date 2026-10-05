@@ -1,0 +1,188 @@
+task_id: reddit_curate_and_engage
+env_id: reddit
+title: Curate Feed and Engage
+instruction_template: '1. Hide the post titled "{target.hide_title}" in r/{target.hide_sub}.
+
+
+  2. Save the post titled "{target.save_title}" in r/{target.save_sub}.
+
+
+  3. Upvote the post titled "{target.upvote_title}" in r/{target.upvote_sub}.
+
+
+  4. Add a comment on that upvoted post with exactly: "{target.comment_text}"
+
+
+  5. Go to Settings and enable compact view.
+
+
+  Do not hide, save, or vote on any other posts.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: mildlyinfuriating
+      title: My neighbor parks their car across two spots every single day
+      body: I have asked nicely three times.
+      score: 42000
+    outputs:
+    - hide_id
+    - hide_title
+    - hide_sub
+  - use: target_post
+    params:
+      subreddit: dataisbeautiful
+      title: I tracked every dollar I spent for 5 years and visualized it
+      body: Interactive charts in comments.
+      score: 31000
+      flair_text: OC
+    outputs:
+    - save_id
+    - save_title
+    - save_sub
+  - use: target_post
+    params:
+      subreddit: explainlikeimfive
+      title: 'ELI5: Why does time seem to speed up as you get older?'
+      body: ''
+      author: ThreadReader
+      score: 18000
+    outputs:
+    - upvote_id
+    - upvote_title
+    - upvote_sub
+  targets:
+    hide_title: '{output.hide_title}'
+    hide_id: '{output.hide_id}'
+    hide_sub: '{output.hide_sub}'
+    save_title: '{output.save_title}'
+    save_id: '{output.save_id}'
+    save_sub: '{output.save_sub}'
+    upvote_title: '{output.upvote_title}'
+    upvote_id: '{output.upvote_id}'
+    upvote_sub: '{output.upvote_sub}'
+    comment_text: It is because each year becomes a smaller fraction of your total life experience. When you are 5, a year is 20% of your life. When you are 50, it is only 2%.
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Mildlyinfuriating post hidden
+    where:
+      id:
+        expr: x == target['hide_id']
+    changes:
+      is_hidden:
+        eq: true
+  - entity: Post
+    desc: DataIsBeautiful post saved
+    where:
+      id:
+        expr: x == target['save_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    desc: ELI5 post upvoted
+    where:
+      id:
+        expr: x == target['upvote_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      compact_view: {eq: true}
+  create:
+  - entity: Comment
+    desc: Comment on ELI5 post with exact text
+    properties:
+      post_id:
+        expr: x == target['upvote_id']
+      body:
+        expr: x == target['comment_text']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Mildlyinfuriating post hidden
+    ref: update[0]
+    severity: high
+  - name: DataIsBeautiful post saved
+    ref: update[1]
+    severity: high
+  - name: ELI5 post upvoted
+    ref: update[2]
+    severity: high
+  - name: Comment on ELI5 post with exact text
+    ref: create[0]
+    severity: high
+  - name: Agent did not touch other posts beyond the three targets
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not edit or delete existing comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify subreddits
+    ref: invariant[0]
+    severity: low
+  - name: Agent did not read or alter inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not touch notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not edit user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities ==
+      initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

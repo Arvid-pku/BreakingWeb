@@ -1,0 +1,95 @@
+task_id: booking_mark_notifications_read
+env_id: booking
+title: Mark All Notifications as Read
+instruction_template: 'Go to your notifications page and mark all notifications as
+  read.
+
+  '
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 3
+primary_primitives:
+- verification
+start_path: /notifications
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: add_notification
+    params:
+      type: deal_alert
+      title: Flash Sale in Paris
+      message: 50% off select hotels in Paris this weekend!
+      read: false
+    outputs:
+    - notif_a
+  - use: add_notification
+    params:
+      type: check_in_reminder
+      title: Check-in Tomorrow
+      message: Your stay at Grand Hotel starts tomorrow. Don't forget to check in!
+      read: false
+    outputs:
+    - notif_b
+  - use: add_notification
+    params:
+      type: review_reminder
+      title: Share Your Experience
+      message: How was your recent stay? Leave a review to help other travelers.
+      read: false
+    outputs:
+    - notif_c
+  targets: {}
+canonical_diff:
+  update:
+    - entity: Notification
+      desc: Mark every previously-unread notification as read
+      bijection:
+        over: "[n.id for n in initial.notifications if not n.read]"
+        variable: nid
+      where:
+        id: {expr: "x == v"}
+      changes:
+        read: {eq: true}
+  invariant:
+    - collection: state.notifications
+      filter: "a.read == False or any(k not in ('id', 'read') for k in a.__dict__)"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+  named_invariants:
+    - name: Agent marked every previously-unread notification as read
+      ref: update[0]
+      severity: critical
+    - name: Agent did not leave unread notifications or touch non-read fields
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

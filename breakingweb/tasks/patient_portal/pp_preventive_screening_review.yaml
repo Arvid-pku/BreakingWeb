@@ -1,0 +1,105 @@
+task_id: pp_preventive_screening_review
+env_id: patient_portal
+title: Identify Overdue Screenings
+instruction_template: Review your applicable screenings list in your profile. For
+  every screening where the next due date has already passed, schedule exactly one
+  appointment. Use the screening name itself as the appointment reason exactly as
+  shown in the profile. Do not send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 15
+primary_primitives:
+- planning
+start_path: /profile
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+      overdue_screening_count: 2
+    outputs:
+    - pcp_id
+    - pcp_name
+    - applicable_screening_names
+    - overdue_screening_names
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      - admin
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  targets:
+    pcp_id: '{output.pcp_id}'
+    applicable_screening_names: '{output.applicable_screening_names}'
+    overdue_screening_names: '{output.overdue_screening_names}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one appointment per overdue screening; reason = screening name"
+      bijection:
+        over: "target['overdue_screening_names']"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason:
+          expr: "x == v"
+  invariant:
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[4]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[6]
+      severity: medium
+    - name: "Agent did not schedule more appointments than overdue screenings"
+      ref: create[0]
+      severity: medium
+secondary_primitives: []

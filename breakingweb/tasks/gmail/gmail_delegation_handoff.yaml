@@ -1,0 +1,183 @@
+task_id: gmail_delegation_handoff
+env_id: gmail
+title: Delegation Handoff
+instruction_template: 'Read the handoff email from your manager, Alex Tran (subject:
+  "Leave Handoff Checklist") and complete every item in the checklist exactly as
+  specified.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: delegation_handoff
+    params: {}
+    outputs:
+    - handoff_email_id
+    - vendor_thread_id
+    - vendor_email_id
+    - partner_thread_id
+    - partner_email_id
+    - budget_thread_id
+    - budget_email_id
+    - sprint_thread_id
+    - sprint_email_id
+    - design_nav_thread_id
+    - design_nav_email_id
+    - design_header_thread_id
+    - design_header_email_id
+    - design_header_reply_id
+    - nina_email_id
+  targets:
+    handoff_email_id: '{output.handoff_email_id}'
+    vendor_email_id: '{output.vendor_email_id}'
+    partner_email_id: '{output.partner_email_id}'
+    budget_email_id: '{output.budget_email_id}'
+    sprint_email_id: '{output.sprint_email_id}'
+    design_nav_email_id: '{output.design_nav_email_id}'
+    design_header_email_id: '{output.design_header_email_id}'
+    design_header_reply_id: '{output.design_header_reply_id}'
+    nina_email_id: '{output.nina_email_id}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create On Leave label
+      count: 1
+      properties:
+        name:
+          eq: "On Leave"
+    - entity: filters
+      desc: Create filter for vendor/partner contacts with On Leave label and star
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "cora.banks@vendor.io"
+            - "lee.chang@vendor.io"
+            - "ravi.gupta@partner.com"
+        add_labels:
+          set_eq:
+            - "On Leave"
+        star:
+          eq: true
+    - entity: sent
+      desc: Forward Q2 Vendor Renewal Terms to delegate
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['vendor_email_id']"
+        to:
+          expr: "x == ['delegate@company.io']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Partner Integration Timeline to delegate
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['partner_email_id']"
+        to:
+          expr: "x == ['delegate@company.io']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Budget Reallocation Request to delegate
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['budget_email_id']"
+        to:
+          expr: "x == ['delegate@company.io']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Reply to Sprint 14 Blockers with status text
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['sprint_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['sprint_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Status: blocked on API credentials. ETA next Wednesday."
+    - entity: sent
+      desc: Reply to Design Review Mobile Nav with status text
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['design_nav_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['design_nav_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Status: feedback incorporated, PR submitted."
+    - entity: contacts
+      desc: Add delegate@company.io as Jamie Park contact
+      count: 1
+      properties:
+        email:
+          eq: "delegate@company.io"
+        name:
+          eq: "Jamie Park"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      filter: "a.email != 'delegate@company.io'"
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'On Leave'"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent created the On Leave label
+      ref: create[0]
+      severity: high
+    - name: Agent created the filter for vendor and partner contacts
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded Q2 Vendor Renewal Terms to delegate
+      ref: create[2]
+      severity: high
+    - name: Agent forwarded Partner Integration Timeline to delegate
+      ref: create[3]
+      severity: high
+    - name: Agent forwarded Budget Reallocation Request to delegate
+      ref: create[4]
+      severity: high
+    - name: Agent replied to Sprint 14 Blockers with correct text
+      ref: create[5]
+      severity: high
+    - name: Agent replied to Design Review Mobile Nav with correct text
+      ref: create[6]
+      severity: high
+    - name: Agent added Jamie Park as contact
+      ref: create[7]
+      severity: high

@@ -1,0 +1,76 @@
+variant_id: booking_compare_and_book_cheapest__threshold_decoy
+base_task_id: booking_compare_and_book_cheapest
+target_primitive: verification
+description: Cheaper properties appear in the result set but fall below the rs ≥ 8.0
+  threshold; the first /properties/search call also silently fails with an empty
+  result set, forcing the agent to retry and re-evaluate the constraint without
+  context loss.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/properties/search'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      results: []
+      total: 0
+      page: 1
+      page_size: 20
+      total_pages: 0
+      cities: []
+      property_types: []
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Four near-typos of target "Shibuya Crossing Inn" (rs=8.2/$145 — the
+    # cheapest qualifier under the rs ≥ 8.0 threshold). All decoys are
+    # cheaper than target, so a pure price-sort goes to them; but all
+    # fall below rs ≥ 8.0 so the threshold check should still send the
+    # agent back to the real Shibuya Crossing Inn.
+    # Bug fix: original decoys were placed in Paris but the task searches
+    # Tokyo, so they were never visible. Re-cited to Tokyo.
+    - type: property
+      name: Shibuya Crosing Inn          # drop one s
+      city: Tokyo
+      country: Japan
+      property_type: Hotel
+      star_rating: 3
+      review_score: 7.9
+      review_count: 1200
+      price: 135.0
+      description: Cheaper option that misses the minimum review-score threshold.
+    - type: property
+      name: Shibuya Crossng Inn          # drop i
+      city: Tokyo
+      country: Japan
+      property_type: Hotel
+      star_rating: 3
+      review_score: 7.6
+      review_count: 940
+      price: 120.0
+      description: Very cheap property that should still be excluded by the rating filter.
+    - type: property
+      name: Shibuya Krossing Inn         # C → K
+      city: Tokyo
+      country: Japan
+      property_type: Hotel
+      star_rating: 3
+      review_score: 7.5
+      review_count: 800
+      price: 115.0
+      description: Phonetic look-alike — different leading consonant.
+    - type: property
+      name: Shibuyaa Crossing Inn        # double a
+      city: Tokyo
+      country: Japan
+      property_type: Hotel
+      star_rating: 3
+      review_score: 7.7
+      review_count: 1050
+      price: 130.0
+      description: Doubled-vowel typo at the city-name prefix.

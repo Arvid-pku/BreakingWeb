@@ -1,0 +1,126 @@
+task_id: rh_complex_transfer_reconciliation
+env_id: robinhood
+title: Account Cleanup and Fresh Deposit
+instruction_template: 'Perform a thorough account cleanup: (1) delete any price alerts
+  for stocks you no longer own, (2) remove any empty watchlists, (3) remove any recurring
+  investment that has missed its scheduled execution, and (4) deposit $2,500 from
+  your default linked bank account.'
+difficulty: frontier
+time_limit_seconds: 550
+expected_steps: 30
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - AMZN
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 5
+    outputs: []
+  - use: price_alerts
+    params:
+      count: 5
+      include_stale: true
+      stale_symbol: NFLX
+    outputs: []
+  - use: watchlist
+    params:
+      name: Empty List
+      symbols: []
+    outputs: []
+  - use: watchlist
+    params:
+      name: My Picks
+      symbols:
+      - AAPL
+      - TSLA
+    outputs: []
+  - use: recurring_investments
+    params:
+      count: 3
+      include_history: true
+      overdue_count: 1
+    outputs:
+    - overdue_symbols
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    overdue_symbols: '{output.overdue_symbols}'
+canonical_diff:
+  create:
+  - entity: transfers
+    desc: Deposit of $2,500 from linked bank
+    properties:
+      direction: {eq: deposit}
+      amount: {expr: "float(x) == 2500.0"}
+      status: {any: true}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      estimated_completion: {any: true}
+  - entity: transactions
+    desc: Transaction record for the $2,500 deposit
+    properties:
+      type: {eq: deposit}
+      amount: {expr: "float(x) == 2500.0"}
+      description: {any: true}
+      date: {any: true}
+  delete:
+  - entity: price_alerts
+    desc: Stale price alerts for unowned stocks removed
+    bijection:
+      over: "[a for a in initial.price_alerts if a.symbol not in initial.owned_symbols() and not a.id.startswith('alert_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  - entity: watchlists
+    desc: Empty watchlists removed
+    bijection:
+      over: "[w for w in initial.watchlists if len(w.symbols) == 0]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  - entity: recurring_investments
+    desc: Overdue recurring investments removed
+    bijection:
+      over: "[r for r in initial.recurring_investments if r.id in [x.id for x in initial.overdue_recurring_investments()] and not r.id.startswith('ri_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol in initial.owned_symbols() and not a.id.startswith('alert_decoy_')"
+    preserve: ALL
+  # Decoy alerts (id prefix `alert_decoy_`) are seeded distractors.
+  # Deleting them as part of the cleanup pass is legitimate; whitelist
+  # the whole collection from the collateral sweep so the agent isn't
+  # charged for cleaning them up. The named invariant above still fires
+  # if owned (non-decoy) alerts are touched.
+  - collection: state.price_alerts
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.watchlists
+    filter: "len(a.symbols) > 0"
+    preserve: ALL
+  - collection: state.recurring_investments
+    filter: "a.id not in [x.id for x in initial.overdue_recurring_investments()] and not a.id.startswith('ri_decoy_')"
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, grounding, patience, exploration
+  by requiring the agent to audit multiple account areas and take corrective action
+  across alerts, watchlists, recurring investments, and transfers.

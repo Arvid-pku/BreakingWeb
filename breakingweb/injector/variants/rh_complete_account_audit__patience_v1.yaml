@@ -1,0 +1,35 @@
+variant_id: rh_complete_account_audit__patience_v1
+base_task_id: rh_complete_account_audit
+target_primitive: patience
+description: >
+  Notification timestamps are scrambled so the agent cannot rely on recency to
+  find unread notifications, and decoy notifications about account security and
+  earnings inject urgency that tempts premature task abandonment. Distractor
+  notifications increase the volume the agent must patiently work through.
+injections:
+- layer: server
+  params:
+    action: scramble_notification_timestamps
+    seed: 31
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+      - type: security_alert
+        title: "Unusual Login Detected"
+        message: "A login from an unrecognized device in Chicago, IL was detected. If this was not you, change your password immediately."
+      - type: margin_call
+        title: "Margin Maintenance Warning"
+        message: "Your account margin maintenance has increased to 35%. Consider reducing leveraged positions."
+      - type: earnings
+        title: "TSLA Earnings Miss"
+        message: "Tesla reported EPS of $0.45, missing estimates by $0.08. Shares down 7% after hours."
+      - type: corporate_action
+        title: "AMZN Stock Split Record Date"
+        message: "Amazon 20-for-1 stock split record date is April 15. No action required."
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    count: 12
+    seed: 99

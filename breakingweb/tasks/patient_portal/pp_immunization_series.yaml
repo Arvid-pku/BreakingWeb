@@ -1,0 +1,191 @@
+task_id: pp_immunization_series
+env_id: patient_portal
+title: Immunization Series Completion
+instruction_template: You have an incomplete Hepatitis B vaccine series. Review your
+  immunization record to determine how many doses you have received and how many remain
+  (the series requires 3 doses total). Verify the required spacing between doses (at
+  least 1 month apart). Schedule appointments for each remaining dose with the administering
+  provider, ensuring at least 1 month spacing between each dose.
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 30
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hepatitis B Risk
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: immunization_record
+    params:
+      completed_count: 3
+      due_count: 1
+      series_incomplete: true
+      series_vaccine: Hepatitis B
+    outputs:
+    - completed_imm_ids
+    - due_imm_ids
+    - incomplete_series_imm_id
+    - due_vaccine_names
+    - remaining_dose_slots
+    - series_admin_provider_id
+    - series_vaccine_name
+    - series_doses_total
+    - series_window_start
+    - series_window_end
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  - use: message_threads
+    params:
+      thread_count: 2
+      unread_count: 1
+      categories:
+      - clinical
+    outputs:
+    - thread_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    incomplete_series_imm_id: '{output.incomplete_series_imm_id}'
+    due_vaccine_names: '{output.due_vaccine_names}'
+    upcoming_ids: '{output.upcoming_ids}'
+    remaining_dose_slots: '{output.remaining_dose_slots}'
+    series_admin_provider_id: '{output.series_admin_provider_id}'
+    series_vaccine_name: '{output.series_vaccine_name}'
+    series_doses_total: '{output.series_doses_total}'
+    series_window_start: '{output.series_window_start}'
+    series_window_end: '{output.series_window_end}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one appointment per remaining Hepatitis B series dose"
+      bijection:
+        over: "target['remaining_dose_slots']"
+        variable: v
+      properties:
+        status: {eq: scheduled}
+        provider_id:
+          expr: "x == target['series_admin_provider_id']"
+        reason:
+          expr: "'hepatitis' in x.lower() or target['series_vaccine_name'].lower() in x.lower() or 'vaccine' in x.lower() or 'immunization' in x.lower()"
+        datetime:
+          expr: "str(x) >= target['series_window_start'] and str(x) <= target['series_window_end']"
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    - collection: state.immunizations
+      filter: "a.id == target['incomplete_series_imm_id']"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+  constraints:
+    - desc: "Remaining Hepatitis B dose appointments are spaced at least 30 days apart"
+      severity: high
+      expr: >-
+        all(
+          later - earlier >= timedelta(days=30)
+          for earlier, later in zip(
+            sorted(
+              a.datetime
+              for a in state.appointments
+              if a.id not in {i.id for i in initial.appointments}
+              and a.status == 'scheduled'
+              and a.provider_id == target['series_admin_provider_id']
+              and (
+                'hepatitis' in (a.reason or '').lower()
+                or target['series_vaccine_name'].lower() in (a.reason or '').lower()
+                or 'vaccine' in (a.reason or '').lower()
+                or 'immunization' in (a.reason or '').lower()
+              )
+              and str(a.datetime) >= target['series_window_start']
+              and str(a.datetime) <= target['series_window_end']
+            ),
+            sorted(
+              a.datetime
+              for a in state.appointments
+              if a.id not in {i.id for i in initial.appointments}
+              and a.status == 'scheduled'
+              and a.provider_id == target['series_admin_provider_id']
+              and (
+                'hepatitis' in (a.reason or '').lower()
+                or target['series_vaccine_name'].lower() in (a.reason or '').lower()
+                or 'vaccine' in (a.reason or '').lower()
+                or 'immunization' in (a.reason or '').lower()
+              )
+              and str(a.datetime) >= target['series_window_start']
+              and str(a.datetime) <= target['series_window_end']
+            )[1:]
+          )
+        )
+  named_invariants:
+    - name: "Agent did not cancel or modify existing non-immunization appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify the incomplete Hepatitis B immunization record"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent did not schedule more appointments than remaining doses"
+      ref: create[0]
+      severity: medium
+secondary_primitives: []

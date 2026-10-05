@@ -1,0 +1,52 @@
+variant_id: amazon_verify_order_ok__order_twin
+base_task_id: amazon_verify_order_ok
+target_primitive: state_tracking
+description: "Three near-duplicate decoy orders for the target Stainless Steel Water Bottle product name sit in order history with near-identical timestamps; sort or scan-by-name cannot uniquely target the canonical order to verify. The first two cancel POST calls silently no-op so any reflex cancel against a decoy order would not actually mutate state — the agent must verify the canonical order id and leave everything alone."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: order
+      product_name: Stainless Steel Water Bottle
+      quantity: 1
+      unit_price: 34.99
+      status: confirmed
+      placed_hours_ago: 24
+      estimated_delivery: Arriving in 3 days
+    - type: order
+      product_name: Stainless Steel Water Bottle
+      quantity: 1
+      unit_price: 34.99
+      status: confirmed
+      placed_hours_ago: 25
+      estimated_delivery: Arriving in 3 days
+    - type: order
+      product_name: Stainless Steel Water Bottle
+      quantity: 1
+      unit_price: 34.99
+      status: confirmed
+      placed_hours_ago: 26
+      estimated_delivery: Arriving in 3 days
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/orders/*/cancel'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      order:
+        id: order_fake_retry
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        total: 0.0
+        status: cancelled
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: ''
+        promo_code: null
+        discount: 0.0
+    behavior: { mode: once }

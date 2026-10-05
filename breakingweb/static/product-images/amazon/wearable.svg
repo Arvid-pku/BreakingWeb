@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Wearable device">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="164" y="54" width="72" height="92" rx="22" fill="#111827"/>
+  <rect x="138" y="130" width="124" height="142" rx="36" fill="#232f3e"/>
+  <rect x="160" y="154" width="80" height="92" rx="18" fill="#0ea5e9"/>
+  <path d="M184 208l22-34 22 54" stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="164" y="256" width="72" height="90" rx="22" fill="#111827"/>
+  <circle cx="200" cy="284" r="7" fill="#ff9900"/>
+</svg>

@@ -1,0 +1,139 @@
+task_id: amazon_search_and_buy
+env_id: amazon
+title: Search for a Product and Complete Purchase
+instruction_template: Search for "{target.product_name}" on Amazon, add it to
+  your cart, and complete the checkout process using the shipping address for
+  Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242.
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Sony WH-1000XM5 Wireless Headphones
+      brand: Sony
+      category: Electronics
+      price: 348.0
+      rating: 4.7
+      features:
+      - Industry-leading noise cancellation
+      - 30-hour battery life
+      - Crystal clear hands-free calling
+      - Comfortable lightweight design
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 500.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    product_price: '{output.product_price}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order placed for target product using existing address and payment
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      status: {eq: confirmed}
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address
+          == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for
+          p in state.payment_methods)"
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

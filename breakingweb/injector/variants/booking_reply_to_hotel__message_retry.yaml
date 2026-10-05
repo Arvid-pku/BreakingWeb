@@ -1,0 +1,17 @@
+variant_id: booking_reply_to_hotel__message_retry
+base_task_id: booking_reply_to_hotel
+target_primitive: backtracking
+description: The first message send fails transiently. The agent must retry the message rather than assuming the property
+  received it.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/booking/messages'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

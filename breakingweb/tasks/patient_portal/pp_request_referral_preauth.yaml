@@ -1,0 +1,202 @@
+task_id: pp_request_referral_preauth
+env_id: patient_portal
+title: Complete Referral-to-Schedule Chain
+instruction_template: 'Review your existing referrals. Exactly one approved referral
+  is schedulable right now: its status is approved and, where pre-authorization is
+  required, the pre-authorization status is approved. Other approved referrals are
+  blocked because their required pre-authorization is still pending — including one
+  in the very same specialty as the schedulable referral, so do not pattern-match on
+  specialty alone; you must check each candidate''s pre-authorization status and link
+  only the referral whose pre-auth is approved. In the schedulable referral''s specialty,
+  schedule one appointment with a provider who is accepting new patients, choosing the
+  earliest available slot offered by an accepting provider in that specialty, and link
+  the new appointment to the schedulable referral. Do not book any closed-panel (not
+  accepting) provider even if it offers an earlier slot. Finally, complete the
+  confirmation step so the appointment shows as confirmed — booking alone leaves it
+  pending and is not sufficient.'
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 12
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Eczema
+      - Psoriasis
+      insurance_tier: premium
+      auto_confirm_specialties:
+      - dermatology
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 8
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - dermatology
+      count_per_specialty:
+        dermatology: 4
+      non_accepting_provider_specs:
+        dermatology: 2
+      min_slot_specialty: dermatology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+    - earliest_slot_dt
+    - earliest_slot_provider_ids
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 3
+      pending_count: 1
+      denied_count: 1
+      with_prior_auth: true
+      pending_preauth_count: 2
+      must_have_specialties:
+      - dermatology
+      extra_specialty_referrals:
+      - specialty: dermatology
+        status: approved
+        prior_auth: true
+        prior_auth_status: pending
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - denied_ref_ids
+    - prior_auth_ref_id
+    - eligible_ref_id
+    - eligible_specialty
+    - preauth_pending_ref_ids
+    - ineligible_approved_ref_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+    denied_ref_ids: '{output.denied_ref_ids}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    eligible_ref_id: '{output.eligible_ref_id}'
+    eligible_specialty: '{output.eligible_specialty}'
+    preauth_pending_ref_ids: '{output.preauth_pending_ref_ids}'
+    ineligible_approved_ref_ids: '{output.ineligible_approved_ref_ids}'
+    earliest_slot_dt: '{output.earliest_slot_dt}'
+    earliest_slot_provider_ids: '{output.earliest_slot_provider_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule exactly one dermatology appointment with an accepting provider at the earliest accepting-provider slot, linked to the single schedulable (approved + pre-auth-approved) referral, and confirm it. The 'verify referral / confirm pre-auth' parts are read-only prerequisites enforced by the backend create gate; the slot, provider-accepting, exact-referral, and confirmation conditions are all checked here."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: >-
+            state.get_provider(x) is not None
+            and state.get_provider(x).specialty == target['eligible_specialty']
+            and state.get_provider(x).accepting_new is True
+            and x in target['earliest_slot_provider_ids']
+        linked_referral_id:
+          expr: >-
+            x is not None
+            and x == target['eligible_ref_id']
+            and x not in target['preauth_pending_ref_ids']
+            and x not in target['ineligible_approved_ref_ids']
+            and any(
+              r.id == x and r.status == 'approved'
+              and r.to_specialty == target['eligible_specialty']
+              and (not r.prior_auth_required or r.prior_auth_status == 'approved')
+              for r in initial.referrals
+            )
+        datetime:
+          expr: "x == datetime.fromisoformat(target['earliest_slot_dt'])"
+        confirmation_state:
+          eq: "confirmed"
+        confirmed_at:
+          expr: "x is not None and x >= session_start"
+        type: {any: true}
+        reason: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+        requires_confirmation: {any: true}
+  invariant:
+    # Pre-existing appointments must be untouched. The one new appointment is
+    # excluded both by id (not in initial) and by the scheduled-status sweep.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification only)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not modify any provider record (e.g. flip accepting_new)"
+      ref: invariant[7]
+      severity: high
+    - name: "Agent did not modify patient demographics or insurance"
+      ref: invariant[8]
+      severity: critical
+secondary_primitives: []

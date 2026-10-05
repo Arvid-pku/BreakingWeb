@@ -1,0 +1,171 @@
+task_id: amazon_deal_hunter
+env_id: amazon
+title: Find and Buy the Best Deal
+instruction_template: 'Browse products and find items that are on sale (where the
+  list price is higher than the current price). Among all products on sale, find the
+  one with the biggest discount percentage and purchase it (either via Buy Now or
+  by adding to cart and checking out) using the shipping address for {target.shipping_name}
+  at {target.shipping_street} and the {target.payment_type} card ending in {target.payment_last_four}.
+
+  '
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Resistance Bands Set Pro
+      brand: Fit Simplify
+      category: Sports & Outdoors
+      price: 12.99
+      list_price: 29.99
+      rating: 4.3
+      review_count: 2400
+      features:
+      - 5 resistance levels
+      - Carrying bag included
+      - Natural latex construction
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+    - product_list_price
+  - use: featured_product
+    params:
+      name: Insulated Sport Bottle 32oz
+      brand: HydraPeak
+      category: Sports & Outdoors
+      price: 14.99
+      list_price: 19.99
+      rating: 4.4
+      review_count: 1820
+      features:
+      - Vacuum insulated
+      - Leak-proof lid
+      - BPA-free
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_decoy_1
+  - use: featured_product
+    params:
+      name: Trail Headlamp 500 Lumens
+      brand: TrailGlow
+      category: Sports & Outdoors
+      price: 39.99
+      list_price: 49.99
+      rating: 4.5
+      review_count: 940
+      features:
+      - 500 lumens
+      - USB rechargeable
+      - 3 brightness modes
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_decoy_2
+  targets:
+    deal_product: Resistance Bands Set Pro
+    deal_product_id: '{output.product_id}'
+    list_price: '{output.product_list_price}'
+    sale_price: '{output.product_price}'
+    shipping_name: Jordan Parker
+    shipping_street: 742 Evergreen Terrace
+    payment_type: Visa
+    payment_last_four: '4242'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order placed for the biggest-discount deal product (single item, qty 1)
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['deal_product_id'] and x[0]['quantity'] == 1 and abs(x[0]['unit_price'] - target['sale_price']) < 0.01"
+      status: {eq: confirmed}
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['shipping_name'] and a.street_address == target['shipping_street'] for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == target['payment_type'] and p.last_four == target['payment_last_four'] for p in state.payment_methods)"
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['deal_product_id'] for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

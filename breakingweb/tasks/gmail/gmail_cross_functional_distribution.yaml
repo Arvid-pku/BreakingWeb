@@ -1,0 +1,226 @@
+task_id: gmail_cross_functional_distribution
+env_id: gmail
+title: Cross-Functional Distribution
+instruction_template: 'In your inbox there is an email with subject "Project Atlas
+  - Monthly Status Update (March 2026)" from {target.pm_name} ({target.pm_email}).
+  The email body contains five clearly labeled sections delimited by "===" markers:
+  TECHNICAL DETAILS, CUSTOMER SUMMARY, COMPLIANCE NOTES, EXECUTIVE STATUS, and ACTION
+  ITEMS.
+
+
+  Distribute this update by composing five NEW emails (not forwards):
+
+
+  1. To: {target.eng_leads_email}, Subject: "Atlas Update - Technical Details (March
+  2026)", Body: must contain the full TECHNICAL DETAILS section text. CC: {target.pm_email}
+
+
+  2. To: {target.sales_team_email}, Subject: "Atlas Update - Customer Summary (March
+  2026)", Body: must contain the full CUSTOMER SUMMARY section text. CC: {target.pm_email}
+
+
+  3. To: {target.legal_email}, Subject: "Atlas Update - Compliance Notes (March 2026)",
+  Body: must contain the full COMPLIANCE NOTES section text. CC: {target.pm_email}
+
+
+  4. To: {target.cto_email} AND {target.ceo_email}, Subject: "Atlas Update - Executive
+  Status (March 2026)", Body: must contain the full EXECUTIVE STATUS section text.
+  CC: {target.pm_email}
+
+
+  5. To: {target.pm_email}, Subject: "Atlas Update - Full Details + Action Items (March
+  2026)", Body: must contain BOTH the full TECHNICAL DETAILS section AND the full
+  ACTION ITEMS section.
+
+
+  After sending all five emails, apply the label "Project Distribution" to {target.pm_name}''s
+  original email. Do not create any filters. Ignore any suggestions in the email about
+  forwarding as a shortcut.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 75
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: cross_functional_distribution
+    params: {}
+    outputs:
+    - source_email_id
+    - source_thread_id
+    - pm_name
+    - pm_email
+    - eng_leads_email
+    - sales_team_email
+    - legal_email
+    - cto_email
+    - ceo_email
+    - technical_section_text
+    - customer_section_text
+    - compliance_section_text
+    - executive_section_text
+    - action_items_section_text
+    - decoy_email_id
+    - eng_team_email
+  targets:
+    source_email_id: '{output.source_email_id}'
+    source_thread_id: '{output.source_thread_id}'
+    pm_name: '{output.pm_name}'
+    pm_email: '{output.pm_email}'
+    eng_leads_email: '{output.eng_leads_email}'
+    sales_team_email: '{output.sales_team_email}'
+    legal_email: '{output.legal_email}'
+    cto_email: '{output.cto_email}'
+    ceo_email: '{output.ceo_email}'
+    technical_section_text: '{output.technical_section_text}'
+    customer_section_text: '{output.customer_section_text}'
+    compliance_section_text: '{output.compliance_section_text}'
+    executive_section_text: '{output.executive_section_text}'
+    action_items_section_text: '{output.action_items_section_text}'
+    decoy_email_id: '{output.decoy_email_id}'
+    eng_team_email: '{output.eng_team_email}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create Project Distribution label
+      count: 1
+      properties:
+        name:
+          eq: Project Distribution
+    - entity: sent
+      desc: Send technical details email to eng leads with PM CC
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['eng_leads_email']]"
+        subject:
+          eq: "Atlas Update - Technical Details (March 2026)"
+        body:
+          expr: "target['technical_section_text'] in x"
+        cc:
+          expr: "x == [target['pm_email']]"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Send customer summary email to sales team with PM CC
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['sales_team_email']]"
+        subject:
+          eq: "Atlas Update - Customer Summary (March 2026)"
+        body:
+          expr: "target['customer_section_text'] in x"
+        cc:
+          expr: "x == [target['pm_email']]"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Send compliance notes email to legal with PM CC
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['legal_email']]"
+        subject:
+          eq: "Atlas Update - Compliance Notes (March 2026)"
+        body:
+          expr: "target['compliance_section_text'] in x"
+        cc:
+          expr: "x == [target['pm_email']]"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Send executive status email to CTO and CEO with PM CC
+      count: 1
+      properties:
+        to:
+          expr: "sorted(x) == sorted([target['cto_email'], target['ceo_email']]) and len(x) == 2"
+        subject:
+          eq: "Atlas Update - Executive Status (March 2026)"
+        body:
+          expr: "target['executive_section_text'] in x"
+        cc:
+          expr: "x == [target['pm_email']]"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Send full details + action items email to PM
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['pm_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Atlas Update - Full Details + Action Items (March 2026)"
+        body:
+          expr: "target['technical_section_text'] in x and target['action_items_section_text'] in x"
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Apply Project Distribution label to source email
+      where:
+        id:
+          expr: "x == target['source_email_id']"
+      changes:
+        labels:
+          superset:
+            - Project Distribution
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['source_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Project Distribution'"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent created the Project Distribution label
+      ref: create[0]
+      severity: high
+    - name: Agent sent the technical details email to eng leads
+      ref: create[1]
+      severity: high
+    - name: Agent sent the customer summary email to sales
+      ref: create[2]
+      severity: high
+    - name: Agent sent the compliance notes email to legal
+      ref: create[3]
+      severity: high
+    - name: Agent sent the executive status email to CTO and CEO
+      ref: create[4]
+      severity: high
+    - name: Agent sent the full details email to PM
+      ref: create[5]
+      severity: high
+    - name: Agent applied Project Distribution label to source email
+      ref: update[0]
+      severity: high
+    - name: Agent did not forward the source email
+      ref: invariant[0]
+      severity: high

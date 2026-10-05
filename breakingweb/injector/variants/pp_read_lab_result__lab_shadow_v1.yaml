@@ -1,0 +1,79 @@
+variant_id: pp_read_lab_result__lab_shadow_v1
+base_task_id: pp_read_lab_result
+target_primitive: grounding
+description: Older abnormal lab results and a similar results note are injected into the portal. The agent must ground its
+  action in the seeded current lab signal, not the lookalikes. Decoys include boundary-case lookalikes (matching entity type,
+  similar timestamps, and near-threshold values) that force the agent to apply strict filters rather than match by category.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: lab_result
+      test_name: HbA1c
+      test_code: 4548-4
+      collected_at: '2025-01-15T08:00:00+00:00'
+      value: '6.8'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: resulted
+    - type: lab_result
+      test_name: LDL Cholesterol
+      test_code: 2089-1
+      collected_at: '2025-01-20T08:00:00+00:00'
+      value: '146'
+      unit: mg/dL
+      reference_range: 0-130
+      flag: abnormal
+      status: resulted
+    - type: message
+      category: clinical
+      subject: Older results clarification
+      body: This archived note references prior lab work and is not the newest result requiring action.
+      timestamp: '2025-01-21T12:00:00+00:00'
+    - type: lab_result
+      test_name: Total Cholesterol
+      test_code: 2093-3
+      collected_at: '2026-01-10T08:00:00+00:00'
+      value: '199'
+      unit: mg/dL
+      reference_range: 0-200
+      flag: normal
+      status: resulted
+    - type: lab_result
+      test_name: Glucose Fasting
+      test_code: 1558-6
+      collected_at: '2026-01-12T08:00:00+00:00'
+      value: '100'
+      unit: mg/dL
+      reference_range: 70-99
+      flag: abnormal
+      status: resulted
+    - type: lab_result
+      test_name: Hemoglobin A1c
+      test_code: 4548-4
+      collected_at: '2025-11-30T08:00:00+00:00'
+      value: '5.7'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: resulted
+    - type: message
+      category: billing
+      subject: "Claim resolved \u2014 informational only"
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2025-09-15T08:00:00+00:00'
+      is_read: true
+    - type: message
+      category: clinical
+      subject: "Sample request \u2014 provider absent"
+      body: Reply not needed; the sending provider is no longer with the practice.
+      timestamp: '2025-10-01T08:00:00+00:00'
+      is_read: false
+    - type: message
+      category: rx_renewal
+      subject: "Renewal already processed \u2014 earlier thread"
+      body: This renewal request was completed in a prior cycle and is included for context only.
+      timestamp: '2025-11-20T08:00:00+00:00'
+      is_read: true

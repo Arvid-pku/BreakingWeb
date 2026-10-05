@@ -1,0 +1,17 @@
+{
+  "models": [
+    {
+      "id": "gpt-5.4",
+      "label": "GPT-5.4",
+      "provider": "openai",
+      "tasks": 80
+    },
+    {
+      "id": "qwen3-max",
+      "label": "Qwen3-Max",
+      "provider": "vllm",
+      "tasks": 20
+    }
+  ],
+  "default": "gpt-5.4"
+}

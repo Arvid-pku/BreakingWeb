@@ -1,0 +1,250 @@
+task_id: booking_multi_constraint_search_book
+env_id: booking
+title: Multi-Constraint Hotel Search and Deluxe Room Booking
+instruction_template: 'Search for hotels in London that meet ALL of the following
+  criteria: at least 4 stars, has a pool, under $300 per night, offers free cancellation,
+  includes breakfast, and is within 2 km of the city center. Among the results, find
+  the hotel with the highest review score. Book its "Deluxe Double Room" for 2 guests
+  checking in on 2026-06-15 and checking out on 2026-06-19 (4 nights). Use the default
+  Visa payment method (ending in 4242) and enter your name and email from your account
+  profile.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 22
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  # Skip the real-hotels distractor pool: the prompt is an open-ended
+  # "find the highest-rated London hotel meeting these constraints" search.
+  # Real-hotel rooms are generated procedurally and may satisfy all six
+  # constraints (4+ stars, pool, <$300, free-cancel, breakfast, ≤2km) with
+  # a higher review score than the seeded winner, which would make the
+  # grader's hard-coded property_id lock reject a correct answer.
+  skip_real_hotels: true
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Kensington Grand
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 9.1
+      review_count: 2876
+      price: 245.0
+      neighborhood: Kensington
+      address: 15 Cromwell Road, London SW7 4DN
+      distance_km: 1.5
+      amenities:
+      - Free WiFi
+      - Pool
+      - Spa
+      - Fitness center
+      - Restaurant
+      - Bar
+      - Room service
+      - 24-hour front desk
+      - Air conditioning
+      popular_facilities:
+      - Pool
+      - Spa
+      - Free WiFi
+      - Restaurant
+      rooms:
+      - name: Standard Double Room
+        price: 245.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+      - name: Deluxe Double Room
+        price: 285.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: garden
+        room_size_sqm: 32.0
+      - name: Superior Suite
+        price: 420.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: city
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: decoy_property
+    params:
+      name: The Langham London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.3
+      review_count: 3412
+      price: 450.0
+      neighborhood: Marylebone
+      amenities:
+      - Free WiFi
+      - Spa
+      - Fitness center
+      - Restaurant
+      distance_km: 0.8
+    outputs:
+    - decoy_langham_id
+    - decoy_langham_name
+  - use: decoy_property
+    params:
+      name: Canary Wharf Hotel
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.4
+      review_count: 1845
+      price: 195.0
+      neighborhood: Canary Wharf
+      amenities:
+      - Free WiFi
+      - Pool
+      - Fitness center
+      - Restaurant
+      distance_km: 5.2
+    outputs:
+    - decoy_canary_id
+    - decoy_canary_name
+  - use: featured_property
+    params:
+      name: Paddington Central Hotel
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.7
+      review_count: 2100
+      price: 220.0
+      neighborhood: Paddington
+      address: 22 Praed Street, London W2 1NH
+      distance_km: 1.8
+      amenities:
+      - Free WiFi
+      - Pool
+      - Fitness center
+      - Restaurant
+      - Bar
+      rooms:
+      - name: Standard Room
+        price: 220.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: non_refundable
+      - name: Deluxe Double Room
+        price: 270.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: non_refundable
+    outputs:
+    - alt_property_id
+    - alt_property_name
+    - alt_cheapest_room_id
+    - alt_cheapest_room_name
+  - use: decoy_property
+    params:
+      name: London Budget Inn
+      city: London
+      country: United Kingdom
+      star_rating: 3
+      review_score: 7.5
+      review_count: 980
+      price: 110.0
+      neighborhood: Kings Cross
+      amenities:
+      - Free WiFi
+      - Pool
+      distance_km: 1.0
+    outputs:
+    - decoy_budget_id
+    - decoy_budget_name
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+canonical_diff:
+  create:
+    - entity: Reservation
+      desc: Book the Deluxe Double Room at the highest-rated qualifying London property for 4 nights
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe Double Room"}
+        check_in: {eq: "2026-06-15"}
+        check_out: {eq: "2026-06-19"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {expr: "x < 300.0"}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {expr: "x.full_name == initial.owner_name and x.email == initial.owner_email"}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {expr: "x.type == 'free_cancellation'"}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {eq: breakfast}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "not (a.property_id == target['property_id'] and a.check_in == '2026-06-15')"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent booked the correct property with Deluxe Double Room for 4 nights with 2 guests
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify existing reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

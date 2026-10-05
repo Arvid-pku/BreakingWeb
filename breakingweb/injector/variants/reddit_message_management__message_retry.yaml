@@ -1,0 +1,18 @@
+variant_id: reddit_message_management__message_retry
+base_task_id: reddit_message_management
+target_primitive: backtracking
+description: The first delete of a specific message fails transiently. The agent must verify the spam message is gone and
+  retry the delete. The URL pattern is scoped to per-message endpoints so the error budget is not burned on the earlier mark-all-read
+  bulk call.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/reddit/messages/msg_*'
+    methods:
+    - DELETE
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

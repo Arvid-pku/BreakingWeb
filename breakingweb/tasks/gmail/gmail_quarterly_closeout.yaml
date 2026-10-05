@@ -1,0 +1,284 @@
+task_id: gmail_quarterly_closeout
+env_id: gmail
+title: Quarterly Closeout
+instruction_template: 'End-of-quarter cleanup. In your Primary tab: star the two most
+  important emails (the ones mentioning ''{target.star_keyword_a}'' and ''{target.star_keyword_b}''),
+  and archive the three old FYI emails from {target.fyi_sender_name}. In your Promotions
+  tab: archive the three newsletters and delete the spam email about ''{target.spam_subject}''.
+  In your Updates tab: forward the two update emails about ''{target.update_topic}''
+  to {target.team_digest_email}. Create two labels: ''Q1 Active'' and ''Q1 Archive''.
+  Apply ''Q1 Active'' to the two starred emails. Go to Labels & contacts (click the
+  Labels link in the sidebar), delete the two contacts that have not been in touch
+  for more than 30 days. Update the note for {target.update_contact_name} to ''{target.new_note}''.
+  Go to Settings > Filters and create a filter that archives emails from {target.vendor_domain}
+  and labels them ''{target.vendor_label}''. Change the maximum page size to 25.'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 65
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: quarterly_closeout
+    params:
+      star_keyword_a: board presentation
+      star_keyword_b: renewal deadline
+      update_topic: infrastructure migration
+      team_digest_email: team-digest@thornton.com
+      vendor_domain: brightleaf.io
+      vendor_label: Vendor Invoices
+      new_note: Key contact for Q2 planning.
+    outputs:
+    - star_a_id
+    - star_b_id
+    - star_keyword_a
+    - star_keyword_b
+    - fyi_ids
+    - fyi_sender_name
+    - promo_ids
+    - spam_id
+    - spam_subject
+    - update_ids
+    - update_topic
+    - team_digest_email
+    - stale_a_id
+    - stale_b_id
+    - update_contact_name
+    - update_contact_email
+    - new_note
+    - vendor_domain
+    - vendor_label
+    - active_contact_id
+  targets:
+    star_a_id: '{output.star_a_id}'
+    star_b_id: '{output.star_b_id}'
+    star_keyword_a: '{output.star_keyword_a}'
+    star_keyword_b: '{output.star_keyword_b}'
+    fyi_ids: '{output.fyi_ids}'
+    fyi_sender_name: '{output.fyi_sender_name}'
+    promo_ids: '{output.promo_ids}'
+    spam_id: '{output.spam_id}'
+    spam_subject: '{output.spam_subject}'
+    update_ids: '{output.update_ids}'
+    update_topic: '{output.update_topic}'
+    team_digest_email: '{output.team_digest_email}'
+    stale_a_id: '{output.stale_a_id}'
+    stale_b_id: '{output.stale_b_id}'
+    update_contact_name: '{output.update_contact_name}'
+    update_contact_email: '{output.update_contact_email}'
+    new_note: '{output.new_note}'
+    vendor_domain: '{output.vendor_domain}'
+    vendor_label: '{output.vendor_label}'
+    active_contact_id: '{output.active_contact_id}'
+canonical_diff:
+  create:
+  - entity: sent
+    desc: Forward update email A to team digest
+    count: 1
+    properties:
+      forwarded_from_id:
+        expr: x == target['update_ids'][0]
+      to:
+        expr: x == [target['team_digest_email']]
+      cc:
+        eq: []
+      bcc:
+        eq: []
+  - entity: sent
+    desc: Forward update email B to team digest
+    count: 1
+    properties:
+      forwarded_from_id:
+        expr: x == target['update_ids'][1]
+      to:
+        expr: x == [target['team_digest_email']]
+      cc:
+        eq: []
+      bcc:
+        eq: []
+  - entity: labels
+    desc: Create Q1 Active label
+    count: 1
+    properties:
+      name:
+        eq: Q1 Active
+  - entity: labels
+    desc: Create Q1 Archive label
+    count: 1
+    properties:
+      name:
+        eq: Q1 Archive
+  - entity: filters
+    desc: Create filter archiving emails from vendor domain with vendor label
+    count: 1
+    properties:
+      from_addresses:
+        expr: f"*@{target['vendor_domain']}" in x
+      add_labels:
+        expr: target['vendor_label'] in x
+      archive:
+        eq: true
+  - entity: deleted
+    desc: Spam email appears in trash
+    count: 1
+    properties:
+      id:
+        expr: x == target['spam_id']
+  update:
+  - entity: emails
+    desc: Star email A
+    where:
+      id:
+        expr: x == target['star_a_id']
+    changes:
+      is_starred:
+        eq: true
+      labels:
+        superset:
+        - Q1 Active
+  - entity: emails
+    desc: Star email B
+    where:
+      id:
+        expr: x == target['star_b_id']
+    changes:
+      is_starred:
+        eq: true
+      labels:
+        superset:
+        - Q1 Active
+  - entity: emails
+    desc: Archive FYI emails from fyi sender
+    bijection:
+      over: target['fyi_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      archived:
+        eq: true
+  - entity: emails
+    desc: Archive promo newsletter emails
+    bijection:
+      over: target['promo_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      archived:
+        eq: true
+  - entity: contacts
+    desc: Update contact note for update_contact_name
+    where:
+      email:
+        expr: x == target['update_contact_email']
+    changes:
+      note:
+        expr: x == target['new_note']
+  - entity: settings
+    desc: Maximum page size changed to 25
+    where:
+      id: { any: true }
+    changes:
+      max_page_size: { eq: 25 }
+  delete:
+  - entity: emails
+    desc: Delete spam email from inbox
+    where:
+      id:
+        expr: x == target['spam_id']
+  - entity: contacts
+    desc: Delete stale contact A
+    where:
+      id:
+        expr: x == target['stale_a_id']
+  - entity: contacts
+    desc: Delete stale contact B
+    where:
+      id:
+        expr: x == target['stale_b_id']
+  invariant:
+  - collection: state.emails
+    filter: a.id != target['star_a_id'] and a.id != target['star_b_id'] and a.id not
+      in target['fyi_ids'] and a.id not in target['promo_ids'] and a.id != target['spam_id']
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    filter: 'True'
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    filter: a.id != target['stale_a_id'] and a.id != target['stale_b_id'] and a.email
+      != target['update_contact_email']
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name not in ['Q1 Active', 'Q1 Archive']
+    preserve: ALL
+  - collection: state.filters
+    filter: 'True'
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.display_density == initial.settings.display_density
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.undo_send_seconds == initial.settings.undo_send_seconds
+      and state.settings.default_reply_behavior == initial.settings.default_reply_behavior
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.send_and_archive == initial.settings.send_and_archive
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent forwarded update emails to team digest
+    ref: create[0]
+    severity: high
+  - name: Agent created Q1 Active label
+    ref: create[2]
+    severity: high
+  - name: Agent created Q1 Archive label
+    ref: create[3]
+    severity: high
+  - name: Agent starred and labeled email A
+    ref: update[0]
+    severity: high
+  - name: Agent starred and labeled email B
+    ref: update[1]
+    severity: high
+  - name: Agent archived FYI emails
+    ref: update[2]
+    severity: high
+  - name: Agent updated contact note
+    ref: update[4]
+    severity: high
+  - name: Agent updated maximum page size to 25
+    ref: update[5]
+    severity: high
+  - name: Spam email appears in trash
+    ref: create[5]
+    severity: high
+  - name: Agent deleted spam email from inbox
+    ref: delete[0]
+    severity: high
+  - name: Agent deleted stale contact A
+    ref: delete[1]
+    severity: high
+  - name: Agent deleted stale contact B
+    ref: delete[2]
+    severity: high
+  - name: Agent did not modify other emails
+    ref: invariant[0]
+    severity: high

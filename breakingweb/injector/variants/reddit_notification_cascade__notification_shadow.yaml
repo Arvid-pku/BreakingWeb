@@ -1,0 +1,36 @@
+variant_id: reddit_notification_cascade__notification_shadow
+base_task_id: reddit_notification_cascade
+target_primitive: state_tracking
+description: Unread notifications emphasize lookalike activity in nearby communities and threads, and the
+  bulk notifications mark-all-read endpoint silently no-ops on the first two POSTs (200 + marked_read=0).
+  An agent that bulk-clears the queue without examining per-notification flags fails the canonical_diff
+  invariant on is_read; a per-item read or post-bulk verify recovers.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: notification
+      title: New activity in r/memes_
+      body: u/NeuralNexus_ commented on "Interesting discussion thread" in the lookalike community.
+      subreddit_name: memes_
+      from_user: NeuralNexus_
+      is_read: false
+    - type: notification
+      title: Update on "Interesting discussion thread"
+      body: u/NeuralNexus replied in a nearby thread, but not the exact target branch.
+      subreddit_name: memes
+      from_user: NeuralNexus
+      is_read: false
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/notifications/mark-all-read'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      ok: true
+      marked_read: 0
+    behavior:
+      mode: once

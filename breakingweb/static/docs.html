@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BreakingWeb &mdash; Technical Documentation</title>
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f6f8fa; --surface2: #eef1f5;
+    --border: #d0d7de; --text: #1f2328; --text-dim: #656d76;
+    --accent: #0969da; --green: #1a7f37; --red: #cf222e;
+    --orange: #bf8700; --purple: #8250df; --cyan: #0550ae;
+    --code-bg: #f6f8fa; --code-border: #d0d7de;
+    --blue-light: #ddf4ff; --green-light: #dafbe1;
+    --red-light: #ffebe9; --orange-light: #fff8c5;
+    --purple-light: #fbefff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--text); line-height:1.65;
+         max-width:1100px; margin:0 auto; padding:2.5rem 2rem; }
+  h1 { font-size:2rem; font-weight:700; letter-spacing:-0.02em; }
+  h2 { font-size:1.4rem; font-weight:600; margin:3rem 0 0.8rem;
+       border-bottom:2px solid var(--border); padding-bottom:0.4rem; color:var(--text); }
+  h3 { font-size:1.05rem; font-weight:600; margin:1.5rem 0 0.4rem; color:var(--accent); }
+  h4 { font-size:0.92rem; font-weight:600; margin:1rem 0 0.3rem; color:var(--text); }
+  p { margin-bottom:0.5rem; }
+  a { color:var(--accent); }
+  code { background:var(--code-bg); border:1px solid var(--code-border); padding:1px 5px;
+         border-radius:4px; font-size:0.84em; font-family:'JetBrains Mono','Fira Code',monospace; }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+        padding:1rem 1.2rem; overflow-x:auto; font-size:0.82rem; margin:0.8rem 0; line-height:1.55;
+        font-family:'JetBrains Mono','Fira Code',monospace; color:#24292f; }
+  pre .cm { color:var(--text-dim); }
+  pre .kw { color:var(--purple); font-weight:600; }
+  pre .fn { color:var(--accent); }
+  pre .st { color:var(--green); }
+  pre .hl { background:#fff8c5; display:inline; }
+  .subtitle { color:var(--text-dim); font-size:0.95rem; margin-bottom:2.5rem; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+          padding:1.1rem 1.3rem; margin:0.8rem 0; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:0.8rem; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+  @media(max-width:800px){ .split{grid-template-columns:1fr;} }
+
+  table { width:100%; border-collapse:collapse; margin:0.8rem 0; font-size:0.88rem; }
+  th { text-align:left; padding:8px 10px; background:var(--surface); font-weight:600;
+       border-bottom:2px solid var(--border); }
+  td { padding:7px 10px; border-bottom:1px solid #eaecef; vertical-align:top; }
+  tr:hover td { background:#f9fbfd; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .dim { color:var(--text-dim); }
+  .mono { font-family:'JetBrains Mono','Fira Code',monospace; font-size:0.84em; }
+
+  .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:0.72rem;
+           font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }
+  .badge-file { background:var(--blue-light); color:var(--cyan); }
+  .badge-fn { background:var(--green-light); color:var(--green); }
+  .badge-data { background:var(--orange-light); color:var(--orange); }
+  .badge-red { background:var(--red-light); color:var(--red); }
+  .badge-purple { background:var(--purple-light); color:var(--purple); }
+  .badge-new { background:#fff2d9; color:#9a4b00; border:1px solid #ffd089; }
+
+  .seq { width:100%; overflow-x:auto; margin:1rem 0; }
+  .seq svg { display:block; margin:0 auto; }
+  .seq-label { font-size:11px; font-family:'JetBrains Mono',monospace; }
+  .seq-head { font-size:12px; font-weight:700; }
+
+  .flow-h { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin:0.8rem 0; font-size:0.84rem; }
+  .flow-box { border:1px solid var(--border); border-radius:6px; padding:0.35rem 0.7rem;
+              background:#fff; white-space:nowrap; }
+  .flow-box.active { border-color:var(--accent); background:var(--blue-light); }
+  .flow-box.danger { border-color:var(--red); background:var(--red-light); }
+  .flow-arrow { color:var(--text-dim); font-size:1.1rem; flex-shrink:0; }
+
+  .layer-stack { display:flex; flex-direction:column; gap:3px; margin:1rem 0; }
+  .layer-row { display:grid; grid-template-columns:90px 1fr 210px; align-items:center;
+               border-radius:6px; padding:0.55rem 0.9rem; font-size:0.85rem; gap:0.5rem; }
+  .layer-row .lname { font-weight:700; font-size:0.82rem; }
+  .layer-row .lacts { color:var(--text-dim); font-size:0.8rem; line-height:1.45; }
+  .layer-row .lfile { font-size:0.78rem; }
+  .l-seed { background:#fbefff; border:1px solid #e8d5f5; }
+  .l-server { background:#fff8c5; border:1px solid #ebd98b; }
+  .l-network { background:#ffebe9; border:1px solid #f5c6c2; }
+  .l-client { background:#dafbe1; border:1px solid #aceebb; }
+
+  .stat-row { display:flex; gap:0.8rem; flex-wrap:wrap; margin:1rem 0; }
+  .stat-box { flex:1; min-width:120px; text-align:center; padding:0.8rem;
+              border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+  .stat-box .num { font-size:2rem; font-weight:700; color:var(--accent); line-height:1; }
+  .stat-box .label { font-size:0.78rem; color:var(--text-dim); margin-top:2px; }
+
+  .callout { border-left:4px solid var(--accent); padding:0.7rem 1rem; margin:1rem 0;
+             background:var(--blue-light); border-radius:0 6px 6px 0; font-size:0.9rem; }
+  .callout.warn { border-color:var(--orange); background:var(--orange-light); }
+  .callout.err { border-color:var(--red); background:var(--red-light); }
+
+  .prim-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:0.7rem; margin:1rem 0; }
+  .prim-card { border-radius:8px; padding:0.9rem 1.1rem; border:1px solid var(--border); }
+  .prim-card h4 { margin:0 0 0.3rem; font-size:0.95rem; }
+  .prim-card p { font-size:0.84rem; color:var(--text-dim); margin:0; }
+  .prim-card .prim-fail { font-size:0.8rem; margin-top:0.3rem; padding:3px 0; border-top:1px dashed #e0e0e0; }
+
+  .action-table { font-size:0.84rem; }
+  .action-table td:first-child { font-family:'JetBrains Mono',monospace; white-space:nowrap; font-size:0.8rem; }
+  .action-new td:first-child::after { content:"  NEW"; color:#9a4b00; font-size:0.68rem; font-weight:700; margin-left:4px; }
+
+  .matrix-table th, .matrix-table td { text-align:center; font-size:0.82rem; padding:6px 8px; }
+  .matrix-table td:first-child, .matrix-table th:first-child { text-align:left; font-weight:600; background:var(--surface); }
+  .tick { color:var(--green); font-weight:700; }
+  .cross { color:var(--text-dim); }
+</style>
+</head>
+<body>
+<a href="/launch" style="display:inline-block;margin-bottom:1.5rem;font-size:0.85rem;color:#0969da">&larr; Back to launcher</a>
+
+<h1>BreakingWeb: Controlled Environment Interventions for Browser-Use Agents</h1>
+<p class="subtitle">Construct challenging tasks with deterministic, detectable, recoverable interventions while preserving the user instruction, latent target, and backend success criterion. This checkout contains seven environments, 519 base tasks, and 535 intervention variants; the paper evaluates 519 clean/intervention pairs.</p>
+
+<div class="stat-row">
+  <div class="stat-box"><div class="num">7</div><div class="label">Environments</div></div>
+  <div class="stat-box"><div class="num">519</div><div class="label">Base Tasks</div></div>
+  <div class="stat-box"><div class="num">535</div><div class="label">Available Variants</div></div>
+  <div class="stat-box"><div class="num">7</div><div class="label">Primitives</div></div>
+  <div class="stat-box"><div class="num">4</div><div class="label">Injection Layers</div></div>
+  <div class="stat-box"><div class="num">29</div><div class="label">Intervention Families</div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>1. Motivation</h2>
+
+<p>Existing web-agent benchmarks score whole-task completion. A run either succeeds or fails, and a single scalar gets reported. The scalar is useful for ranking models, yet it carries almost no diagnostic information. When an agent finishes a 15-step checkout with score 0, the log does not say whether the agent misread a product card, accepted a forged "Saved" toast, abandoned a retry after a transient 503, or walked past the only remaining affordance. The benchmark does not know, and the training signal that follows does not know either.</p>
+
+<p>Recovering from an obstacle can require grounding an observation, planning sub-goals, tracking state, backtracking from a blocked path, waiting through a transient failure, exploring alternatives, or verifying a write. These seven <em>cognitive primitives</em> serve as labels for the primary behavioral demand of an intervention. They organize comparisons across environments; a single recovery can involve more than one primitive.</p>
+
+<p>BreakingWeb applies <strong>controlled environment interventions</strong> to a base task while holding its user instruction, latent target, and backend success criterion fixed. The intervention changes seeded content, server state, network responses, or client-side interaction and retains a recoverable path to the target. The paired performance drop measures the cost of the intervention. Grouping variants by their primary primitive shows where that cost concentrates without claiming strict isolation of an underlying capability.</p>
+
+<div class="callout">
+<strong>Matched comparison.</strong> Measure whether an agent still completes the same task after a controlled, recoverable obstacle is introduced, then inspect its recovery behavior.
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>2. Cognitive Primitives as Intervention Labels</h2>
+<p>The seven labels describe recurring recovery demands across browser-use tasks. Each intervention has one primary target label so results can be grouped consistently. The labels can overlap in the behavior needed for successful recovery and do not establish a complete or experimentally independent decomposition of agent competence.</p>
+
+<div class="prim-grid">
+  <div class="prim-card" style="background:#ffebe9">
+    <h4 style="color:#cf222e">Grounding</h4>
+    <p>Map observation to the correct semantic understanding of the UI. Pick the real target when decoys, near-lookalikes, adversarial content, or mislabeled controls are present.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> phishing emails, alias entities, label-input misalignment, distractor modals</div>
+  </div>
+  <div class="prim-card" style="background:#fff8c5">
+    <h4 style="color:#bf8700">Planning</h4>
+    <p>Decompose a goal into ordered sub-goals and respect dependencies between them. Keep the plan consistent as new information arrives.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> scrambled timestamps, missing prerequisites, stale first-search results</div>
+  </div>
+  <div class="prim-card" style="background:#fbefff">
+    <h4 style="color:#8250df">State Tracking</h4>
+    <p>Maintain a working model of what is done versus pending across a multi-step trajectory. Reconcile updates that arrive out of order.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> shuffled contacts, split information, contradictory updates, repeated-contradicted haystacks</div>
+  </div>
+  <div class="prim-card" style="background:#dafbe1">
+    <h4 style="color:#1a7f37">Backtracking</h4>
+    <p>Detect a failure, revert to a prior decision point, and try an alternative. Recognize that the current path is blocked rather than retry the same action.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> session expiry (401), 409 conflicts, planted wrong answer, skeleton that never resolves</div>
+  </div>
+  <div class="prim-card" style="background:#ddf4ff">
+    <h4 style="color:#0969da">Patience</h4>
+    <p>Know when to wait. Calibrate retry timing through slow, flaky, or rate-limited operations, and distinguish a loading state from a failure.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> tail latency, progressive delays, rate limits (429 + Retry-After), correlated slow windows</div>
+  </div>
+  <div class="prim-card" style="background:#fff0f5">
+    <h4 style="color:#bf3989">Exploration</h4>
+    <p>Discover alternative affordances and paths when the obvious one fails. Try the non-default entry point rather than abandon the task.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> restrict_affordance_set (only one of image/title works), hidden prerequisites, intercepting overlays</div>
+  </div>
+  <div class="prim-card" style="background:#f0f3ff">
+    <h4 style="color:#0550ae">Verification</h4>
+    <p>After performing an action, check that it actually achieved its intended effect. Do not take a success banner at face value.</p>
+    <div class="prim-fail"><strong>Stressed by:</strong> silent_fail, misleading_success (toast reads "Saved"), click_swallow, save_drift, input_corruption</div>
+  </div>
+</div>
+
+<h3>Primary Recovery Demands</h3>
+<p>Each variant names one <code>target_primitive</code>. This annotation identifies the recovery behavior it primarily demands, rather than proving that other capabilities are held constant. For example, a verification-labeled intervention can still require grounding and state tracking. The table maps each label to representative stressor classes.</p>
+
+<table class="matrix-table">
+  <tr><th>Primitive</th><th>Primary stressor class</th><th>Representative action</th></tr>
+  <tr><td>Grounding</td><td>Adversarial or near-identical content</td><td><code>inject_adversarial_content</code>, <code>add_confusing_decoys</code>, <code>label_input_misalignment</code></td></tr>
+  <tr><td>Planning</td><td>Disordered prerequisites</td><td><code>scramble_timestamps</code>, <code>hide_prerequisite</code></td></tr>
+  <tr><td>State Tracking</td><td>Divergent or fragmented state</td><td><code>split_information</code>, <code>add_contradictory_update</code>, <code>shuffle_positions</code></td></tr>
+  <tr><td>Backtracking</td><td>Hard failure requiring alternative</td><td><code>session_expiry</code>, <code>concurrent_modification</code>, <code>plant_wrong_answer</code></td></tr>
+  <tr><td>Patience</td><td>Latency or rate pressure</td><td><code>delay</code> (tail_latency, progressive), <code>rate_limit</code></td></tr>
+  <tr><td>Exploration</td><td>Closed default path</td><td><code>restrict_affordance_set</code>, <code>hide_in_non_obvious_location</code>, <code>intercepting_overlay</code></td></tr>
+  <tr><td>Verification</td><td>False positive feedback</td><td><code>silent_fail</code>, <code>misleading_success</code>, <code>save_drift</code>, <code>click_swallow</code></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>3. How We Intervene: Four Layers</h2>
+
+<p>An intervention is not a single mechanism. A phishing email and a 503 retry and a swallowed click are all interventions, but they live at different places in the web stack and fire at different times. Collapsing them into one hook would either paper over real mechanisms (DOM mocks of network failure miss real HTTP timing) or miss mechanisms entirely (a middleware has no view of DOM occlusion). We therefore split the perturbation space by <em>where</em> each action fires.</p>
+
+<h3>Why Four Layers Are Needed</h3>
+<table>
+  <tr><th style="width:120px">Layer</th><th>Captures</th><th>Cannot be expressed by the others</th></tr>
+  <tr><td><strong>Seed</strong></td><td>Content semantics before the session starts (phishing, decoys, adversarial bodies).</td><td>A network hook cannot rewrite the initial dataset the SPA seeds from; a client hook comes too late.</td></tr>
+  <tr><td><strong>Server</strong></td><td>Structural properties of state (ordering, timestamps, hidden labels).</td><td>The SPA consumes server state at boot; client-level shuffling is visible to refresh and easy to undo.</td></tr>
+  <tr><td><strong>Network</strong></td><td>Real HTTP timing and status (503, 429, 401, silent 200).</td><td>Client code cannot forge a Retry-After header that survives a page refresh, and seed data cannot cause latency.</td></tr>
+  <tr><td><strong>Client</strong></td><td>Interaction fidelity at the DOM (swallowed clicks, label drift, typed-input corruption, overlays).</td><td>Network and server see write intent, not whether the click that produced it landed on the right element.</td></tr>
+</table>
+
+<h3>When Each Layer Fires</h3>
+<div class="flow-h">
+  <div class="flow-box" style="border-color:#8250df;background:#fbefff"><strong>Seed</strong> &middot; once, at session creation</div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box" style="border-color:#bf8700;background:#fff8c5"><strong>Server</strong> &middot; once, after seed</div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box danger"><strong>Network</strong> &middot; per request</div>
+  <span class="flow-arrow">&rarr;</span>
+  <div class="flow-box" style="border-color:#1a7f37;background:#dafbe1"><strong>Client</strong> &middot; per interaction</div>
+</div>
+
+<div class="layer-stack">
+  <div class="layer-row l-seed">
+    <div class="lname" style="color:#8250df">Seed</div>
+    <div class="lacts">Data mutations applied at session creation, before the agent sees the page. Typical actions: inject phishing content, add confusing decoys, split information across items, inflate a target body with realistic filler.</div>
+    <div class="lfile"><span class="badge badge-purple">injector/seed.py</span></div>
+  </div>
+  <div class="layer-row l-server">
+    <div class="lname" style="color:#bf8700">Server</div>
+    <div class="lacts">Structural mutations applied after seed, before the first response. Typical actions: shuffle list ordering, scramble timestamps, hide a label, corrupt a single field.</div>
+    <div class="lfile"><span class="badge badge-data">injector/server.py</span></div>
+  </div>
+  <div class="layer-row l-network">
+    <div class="lname" style="color:#cf222e">Network</div>
+    <div class="lacts">HTTP interception on every matching API call. Typical actions: tail latency, 503 then 200, silent 200 with the write dropped, 429 with Retry-After, 401 until reauth, 409 with a newer snapshot.</div>
+    <div class="lfile"><span class="badge badge-red">injector/middleware.py</span></div>
+  </div>
+  <div class="layer-row l-client">
+    <div class="lname" style="color:#1a7f37">Client</div>
+    <div class="lacts">DOM and interaction mutations via document-level delegated listeners. Typical actions: swallow the first N clicks, corrupt typed input, rewrite a submitted date by minus one day, near-invisible overlay, label-input misalignment.</div>
+    <div class="lfile"><span class="badge badge-fn">BenchmarkToolbar.tsx</span></div>
+  </div>
+</div>
+
+<h3>Worked Example: A Patience Intervention</h3>
+<div class="seq">
+<svg viewBox="0 0 1050 560" width="1050" height="560" xmlns="http://www.w3.org/2000/svg">
+  <text x="100" y="22" class="seq-head" text-anchor="middle" fill="#0969da">agent / harness</text>
+  <text x="300" y="22" class="seq-head" text-anchor="middle" fill="#bf8700">BrowserGym task</text>
+  <text x="530" y="22" class="seq-head" text-anchor="middle" fill="#1a7f37">FastAPI routes</text>
+  <text x="780" y="22" class="seq-head" text-anchor="middle" fill="#cf222e">Middleware</text>
+  <text x="950" y="22" class="seq-head" text-anchor="middle" fill="#656d76">injector/*</text>
+
+  <g stroke="#d0d7de" stroke-dasharray="4,3">
+    <line x1="100" y1="32" x2="100" y2="555" />
+    <line x1="300" y1="32" x2="300" y2="555" />
+    <line x1="530" y1="32" x2="530" y2="555" />
+    <line x1="780" y1="32" x2="780" y2="555" />
+    <line x1="950" y1="32" x2="950" y2="555" />
+  </g>
+
+  <rect x="0" y="42" width="1050" height="18" fill="#fbefff" rx="3" />
+  <text x="525" y="55" text-anchor="middle" fill="#8250df" font-size="11" font-weight="700">SETUP &middot; load variant &middot; apply Seed/Server &middot; register Network/Client</text>
+
+  <line x1="100" y1="78" x2="300" y2="78" stroke="#0969da" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="200" y="73" class="seq-label" text-anchor="middle" fill="#0969da">DegradationConfig.from_yaml(path)</text>
+
+  <line x1="300" y1="108" x2="530" y2="108" stroke="#bf8700" stroke-width="2" marker-end="url(#arr2)" />
+  <rect x="155" y="93" width="300" height="17" rx="3" fill="#fff8c5" stroke="#ebd98b" />
+  <text x="305" y="105" text-anchor="middle" fill="#bf8700" font-size="10" font-weight="600">POST /session {task_id, seed, variant_filename}</text>
+
+  <line x1="530" y1="138" x2="950" y2="138" stroke="#1a7f37" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="740" y="133" class="seq-label" text-anchor="middle" fill="#1a7f37">seed.apply_seed_injection(state, params)</text>
+
+  <line x1="530" y1="162" x2="950" y2="162" stroke="#1a7f37" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="740" y="157" class="seq-label" text-anchor="middle" fill="#1a7f37">server.apply_server_injection(state, params)</text>
+
+  <line x1="530" y1="192" x2="780" y2="192" stroke="#1a7f37" stroke-width="2" marker-end="url(#arr2)" />
+  <rect x="545" y="178" width="250" height="17" rx="3" fill="#ffebe9" stroke="#f5c6c2" />
+  <text x="670" y="190" text-anchor="middle" fill="#cf222e" font-size="10" font-weight="600">register_session_degradation(session_id, injections)</text>
+
+  <rect x="0" y="232" width="1050" height="18" fill="#ffebe9" rx="3" />
+  <text x="525" y="245" text-anchor="middle" fill="#cf222e" font-size="11" font-weight="700">RUNTIME &middot; middleware intercepts API calls</text>
+
+  <line x1="100" y1="270" x2="300" y2="270" stroke="#0969da" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="200" y="265" class="seq-label" text-anchor="middle" fill="#0969da">env.step('click("75")') &middot; stars email</text>
+
+  <line x1="300" y1="294" x2="780" y2="294" stroke="#bf8700" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="540" y="289" class="seq-label" text-anchor="middle" fill="#bf8700">SPA: POST /api/env/gmail/emails/email_3/star</text>
+
+  <rect x="710" y="308" width="140" height="76" rx="5" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5" />
+  <text x="780" y="323" text-anchor="middle" fill="#cf222e" font-size="10" font-weight="700">dispatch()</text>
+  <text x="780" y="338" text-anchor="middle" fill="#656d76" font-size="9">1. extract session_id</text>
+  <text x="780" y="350" text-anchor="middle" fill="#656d76" font-size="9">2. match URL pattern</text>
+  <text x="780" y="362" text-anchor="middle" fill="#656d76" font-size="9">3. call_count &le; 2</text>
+  <text x="780" y="376" text-anchor="middle" fill="#cf222e" font-size="9.5" font-weight="700">4. return 503 &uarr;</text>
+
+  <line x1="780" y1="392" x2="300" y2="392" stroke="#cf222e" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr2)" />
+  <rect x="400" y="379" width="180" height="17" rx="3" fill="#ffebe9" stroke="#cf222e" />
+  <text x="490" y="391" text-anchor="middle" fill="#cf222e" font-size="10" font-weight="700">HTTP 503 {"error": "...retry..."}</text>
+
+  <line x1="300" y1="422" x2="100" y2="422" stroke="#8250df" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)" />
+  <text x="200" y="417" class="seq-label" text-anchor="middle" fill="#656d76">obs (star had no visible effect)</text>
+
+  <line x1="100" y1="448" x2="300" y2="448" stroke="#cf222e" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="200" y="443" class="seq-label" text-anchor="middle" fill="#cf222e">send_msg_to_user("Done") &middot; no retry</text>
+
+  <rect x="0" y="470" width="1050" height="18" fill="#dafbe1" rx="3" />
+  <text x="525" y="483" text-anchor="middle" fill="#1a7f37" font-size="11" font-weight="700">EVALUATE &middot; server state (is_starred == False) &rarr; score 0.0</text>
+
+  <line x1="300" y1="502" x2="530" y2="502" stroke="#1a7f37" stroke-width="1.5" marker-end="url(#arr2)" />
+  <text x="415" y="497" class="seq-label" text-anchor="middle" fill="#1a7f37">POST /evaluate</text>
+
+  <line x1="530" y1="526" x2="100" y2="526" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)" />
+  <rect x="200" y="514" width="260" height="17" rx="3" fill="#ffebe9" stroke="#cf222e" />
+  <text x="330" y="526" text-anchor="middle" fill="#cf222e" font-size="10" font-weight="700">{score: 0.0} &middot; email.is_starred == False</text>
+
+  <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#656d76" /></marker></defs>
+</svg>
+</div>
+
+<div class="callout err">
+<strong>Ground truth stays independent of the UI.</strong> The middleware returns a real HTTP 503 for the /star call, not a Playwright mock; the same 503 reaches a human browser. A patient agent retries and succeeds; an impatient agent sends "Done" and scores zero. The evaluator asks the live <code>GmailState</code> whether the email is starred, so a silently-dropped write is caught regardless of what the DOM shows.
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>4. Catalog Map</h2>
+<p>The released checkout contains 519 base task YAMLs and 535 intervention YAMLs across seven environments. These inventory counts include additional variants beyond the 519 clean/intervention pairs reported in the paper.</p>
+
+<h3>Tasks and Variants per Environment</h3>
+<table>
+  <tr><th>Environment</th><th>Domain</th><th class="num">Base Tasks</th><th class="num">Variants</th><th>Adversarial-content surface</th></tr>
+  <tr><td><strong>Gmail</strong></td><td>Email</td><td class="num">84</td><td class="num">94</td><td>Email body and sender display name</td></tr>
+  <tr><td><strong>Amazon</strong></td><td>E-commerce</td><td class="num">70</td><td class="num">70</td><td>Product reviews and notifications</td></tr>
+  <tr><td><strong>Reddit</strong></td><td>Social</td><td class="num">81</td><td class="num">81</td><td>Post body and top comment</td></tr>
+  <tr><td><strong>Robinhood</strong></td><td>Finance</td><td class="num">71</td><td class="num">71</td><td>Notifications (security_alert type)</td></tr>
+  <tr><td><strong>Booking.com</strong></td><td>Travel</td><td class="num">78</td><td class="num">78</td><td>Property reviews</td></tr>
+  <tr><td><strong>LMS</strong></td><td>Education</td><td class="num">65</td><td class="num">67</td><td>Announcements and discussion posts</td></tr>
+  <tr><td><strong>Patient Portal</strong></td><td>Healthcare</td><td class="num">70</td><td class="num">74</td><td>Clinical messages</td></tr>
+  <tr><td><strong>Total</strong></td><td class="dim">7 domains</td><td class="num"><strong>519</strong></td><td class="num"><strong>535</strong></td><td class="dim">&mdash;</td></tr>
+</table>
+
+<h3>Intervention Families by Layer</h3>
+<p>We group dispatch branches into <strong>intervention families</strong>: each family captures one stressor mechanism, and the branches inside it are environment-specific specialisations that impose the same cognitive load. A family is the right unit for reasoning about primitive coverage; the dispatcher split matters only at the implementation level.</p>
+
+<table>
+  <tr><th>Layer</th><th class="num">Families</th><th class="num">Dispatch branches</th><th>Primary primitives targeted</th></tr>
+  <tr><td><strong>Seed</strong></td><td class="num">7</td><td class="num">14</td><td>grounding, state tracking, exploration, backtracking, verification</td></tr>
+  <tr><td><strong>Server</strong></td><td class="num">5</td><td class="num">10</td><td>planning, state tracking, grounding, exploration, verification</td></tr>
+  <tr><td><strong>Network</strong></td><td class="num">7</td><td class="num">8</td><td>patience, verification, backtracking, state tracking</td></tr>
+  <tr><td><strong>Client</strong></td><td class="num">10</td><td class="num">16</td><td>grounding, verification, exploration, backtracking, patience</td></tr>
+  <tr><td><strong>Total</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>48</strong></td><td class="dim">all seven primitives</td></tr>
+</table>
+
+<h4>Seed Families <span class="badge badge-purple">injector/seed.py</span></h4>
+<table class="action-table">
+  <tr><th style="width:200px">Family</th><th>What it does</th><th style="width:170px">Dispatches</th><th style="width:140px">Primitives</th></tr>
+  <tr><td>Decoys &amp; aliases</td><td>Inserts near-identical items or similarly-named entities into the target list to dilute the signal the agent must ground to.</td><td><code>add_confusing_decoys</code>, <code>alias_entities</code>, <code>increase_distractors</code>, <code>add_decoy_notifications</code>, <code>add_noise_orders</code>, <code>add_confusing_positions</code>, <code>add_confusing_stocks</code></td><td>grounding</td></tr>
+  <tr><td>Adversarial content</td><td>Plants hostile items (phishing, prompt injection, urgency, impersonation, authority appeal). Paired with negative checks that fire if the agent follows the injected instruction.</td><td><code>inject_adversarial_content</code>, <code>add_misleading_alert</code></td><td>grounding, verification</td></tr>
+  <tr><td>Split information</td><td>Distributes task-critical information across multiple items so the agent cannot resolve the task from any single one.</td><td><code>split_information</code></td><td>state tracking</td></tr>
+  <tr><td>Contradictory update</td><td>Inserts a newer item that contradicts an older one. The agent must reconcile to the newer value.</td><td><code>add_contradictory_update</code></td><td>state tracking</td></tr>
+  <tr><td>Content inflation</td><td>Pads the target body with realistic filler (threads, legal boilerplate, digests); the answer is preserved at a chosen position (early / middle / late / repeated_contradicted).</td><td><code>inflate_target_content</code></td><td>state tracking, exploration</td></tr>
+  <tr><td>Planted wrong answer</td><td>Places a plausible-but-incorrect answer first, so a greedy agent commits to it without continuing to search.</td><td><code>plant_wrong_answer</code></td><td>backtracking</td></tr>
+  <tr><td>Hidden target</td><td>Buries the target item in an atypical folder, archive, or tab.</td><td><code>hide_in_non_obvious_location</code></td><td>exploration</td></tr>
+</table>
+
+<h4>Server Families <span class="badge badge-data">injector/server.py</span></h4>
+<table class="action-table">
+  <tr><th style="width:200px">Family</th><th>What it does</th><th style="width:170px">Dispatches</th><th style="width:140px">Primitives</th></tr>
+  <tr><td>Timestamp scramble</td><td>Applies random offsets to timestamps within the scope. The apparent chronology no longer matches causal order.</td><td><code>scramble_timestamps</code>, <code>scramble_order_timestamps</code>, <code>scramble_notification_timestamps</code></td><td>planning</td></tr>
+  <tr><td>Ordering shuffle</td><td>Randomises list ordering so visual position is uninformative; the agent must re-derive ordering from semantic fields.</td><td><code>shuffle_contacts</code>, <code>shuffle_positions</code></td><td>state tracking</td></tr>
+  <tr><td>Distractor injection</td><td>Adds realistic-looking but irrelevant entries inline with real ones.</td><td><code>inject_distractor_emails</code>, <code>inject_distractor_notifications</code></td><td>grounding</td></tr>
+  <tr><td>Prerequisite hiding</td><td>Removes a label or list that the task description assumes already exists. The agent must create the prerequisite or find a workaround.</td><td><code>hide_prerequisite</code>, <code>hide_watchlist</code></td><td>exploration</td></tr>
+  <tr><td>Field corruption</td><td>Modifies a specific field to introduce an inconsistency the agent must notice and repair on readback.</td><td><code>corrupt_state</code></td><td>verification</td></tr>
+</table>
+
+<h4>Network Families <span class="badge badge-red">injector/middleware.py</span></h4>
+<table class="action-table">
+  <tr><th style="width:200px">Family</th><th>What it does</th><th style="width:170px">Dispatches</th><th style="width:140px">Primitives</th></tr>
+  <tr><td>Latency</td><td>Inserts delay before forwarding to the real handler. Behaviour modes: <code>once</code>, <code>intermittent</code>, <code>progressive</code>, <code>tail_latency</code> (piecewise-linear p50/p95/p99), <code>correlated_window</code>, <code>write_only_slow</code>.</td><td><code>delay</code></td><td>patience</td></tr>
+  <tr><td>Transient error</td><td>Returns 503 / 500 / 502 / 429 for the first N calls, then passes through. Sets <code>Retry-After</code> on 429.</td><td><code>error_then_success</code></td><td>backtracking, patience</td></tr>
+  <tr><td>Fabricated success</td><td>Returns 200 while the real write is silently dropped. Two variants: <code>silent_fail</code> (quiet body) and <code>misleading_success</code> (loud body with <code>success:true, toast:"Saved"</code>).</td><td><code>silent_fail</code>, <code>misleading_success</code></td><td>verification</td></tr>
+  <tr><td>Stale response</td><td>Returns outdated or empty body for the first N GETs. The agent must reconcile a read that does not reflect a prior write.</td><td><code>stale_data</code></td><td>state tracking</td></tr>
+  <tr><td>Optimistic conflict</td><td>Returns 409 Conflict with a <code>latest_snapshot</code> of the "newer" state. The agent must reload and reconcile before retrying.</td><td><code>concurrent_modification</code></td><td>backtracking</td></tr>
+  <tr><td>Rate limit</td><td>After <code>burst_limit</code> calls, returns 429 with <code>Retry-After</code> for the next <code>cooldown_calls</code> requests. Tests whether the agent reads structured error responses.</td><td><code>rate_limit</code></td><td>patience</td></tr>
+  <tr><td>Session expiry</td><td>After <code>expire_after_calls</code>, returns 401. Cleared by a request to <code>reauth_path</code>.</td><td><code>session_expiry</code></td><td>backtracking</td></tr>
+</table>
+
+<h4>Client Families <span class="badge badge-fn">BenchmarkToolbar.tsx</span></h4>
+<table class="action-table">
+  <tr><th style="width:200px">Family</th><th>What it does</th><th style="width:170px">Dispatches</th><th style="width:140px">Primitives</th></tr>
+  <tr><td>Label misbinding</td><td>Shifts or rotates accessibility associations (<code>aria-label</code>, <code>&lt;label for&gt;</code>, visible text) so agents relying on DOM semantics pick the wrong element.</td><td><code>scramble_aria</code>, <code>swap_labels</code>, <code>label_input_misalignment</code></td><td>grounding</td></tr>
+  <tr><td>Decoy element</td><td>Clones a clickable element and strips its handler, inserted adjacent to the real control.</td><td><code>add_decoy</code></td><td>grounding</td></tr>
+  <tr><td>Hidden/restricted affordance</td><td>Hides the default entry point or disables all but one of a row's redundant controls (image / title / menu / primary button).</td><td><code>hide_affordance</code>, <code>restrict_affordance_set</code></td><td>exploration, backtracking</td></tr>
+  <tr><td>Deceptive banner</td><td>Injects a misleading alert banner above the page content.</td><td><code>false_banner</code></td><td>grounding, verification</td></tr>
+  <tr><td>Swallowed click</td><td>First N clicks on a matching selector are no-ops; subsequent clicks work normally.</td><td><code>click_swallow</code></td><td>verification, patience</td></tr>
+  <tr><td>Input perturbation</td><td>Corrupts what the user typed or selected before it leaves the browser: neighbour-swap on <code>&lt;select&gt;</code> / date / radio, character-level corruption, or single-field drift at submit.</td><td><code>adjacent_selection</code>, <code>input_corruption</code>, <code>save_drift</code></td><td>verification</td></tr>
+  <tr><td>Double-fire trap</td><td>A second click on a submit-style button within <code>window_ms</code> fires the action twice.</td><td><code>double_submit_trap</code></td><td>verification, patience</td></tr>
+  <tr><td>Intercepting overlay</td><td>Near-invisible overlay (opacity 0.02) swallows clicks over a region. Dismissed by Escape or an 18&times;18-px corner button.</td><td><code>intercepting_overlay</code></td><td>exploration, patience</td></tr>
+  <tr><td>Stuck loader</td><td>Loading skeleton on a specific route never resolves; only refresh or navigation clears it.</td><td><code>skeleton_never_resolves</code></td><td>backtracking, patience</td></tr>
+  <tr><td>Interrupting modal</td><td>Injects a cookie / newsletter / survey modal on the Nth navigation. Close control is deliberately small (12 px); Escape dismisses.</td><td><code>distractor_modal</code></td><td>grounding, patience</td></tr>
+</table>
+
+<p class="dim" style="font-size:0.85rem">Families are a conceptual grouping. The underlying 48 dispatch branches exist for two reasons: (1) some families have environment-specific specialisations that share a mechanism but read from different state collections (<code>add_decoy_notifications</code> and <code>add_noise_orders</code> both inject noise, but one writes to the notification list and the other to the orders list); (2) the <code>delay</code> family collapses six behaviour modes into a single dispatch. One infrastructure branch, <code>set_feature_flag</code>, is excluded from both counts: it toggles a <code>window.__wabFeatureFlags</code> boolean and imposes no cognitive load on its own.</p>
+
+<h3>Primitive Coverage Across Environments</h3>
+<p>Coverage is uneven: the released variants leave four environment/primitive cells empty. Report those cells as missing when comparing results by environment and primary primitive.</p>
+<table class="matrix-table">
+  <tr>
+    <th></th><th>Gmail</th><th>Amazon</th><th>Reddit</th><th>Robinhood</th><th>Booking</th><th>LMS</th><th>Portal</th>
+  </tr>
+  <tr><td>Grounding</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+  <tr><td>Planning</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="cross">&mdash;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+  <tr><td>State Tracking</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+  <tr><td>Backtracking</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+  <tr><td>Patience</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="cross">&mdash;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="cross">&mdash;</td></tr>
+  <tr><td>Exploration</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="cross">&mdash;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+  <tr><td>Verification</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td></tr>
+</table>
+
+<h3>Design Invariants</h3>
+<div class="card" style="border-left:4px solid var(--accent)">
+<table>
+  <tr><td style="width:160px"><strong>Deterministic</strong></td><td>Every action takes a seed. The same variant produces the same degradation trajectory across runs.</td></tr>
+  <tr><td><strong>Detectable</strong></td><td>An attentive agent can notice the degradation: the degraded element stays visible in the DOM, the response body carries the HTTP status, and a form readback reveals corrupted values.</td></tr>
+  <tr><td><strong>Recoverable</strong></td><td>A competent agent can work around the degradation with a bounded number of extra actions. Interventions filter capability; they do not block it.</td></tr>
+  <tr><td><strong>Primary label</strong></td><td>One primary target primitive per variant supports consistent grouping. Recovery may involve multiple primitives; the label does not imply strict isolation.</td></tr>
+  <tr><td><strong>Realistic</strong></td><td>Every action corresponds to a real-world failure class: slow network, expired session, phishing email, broken layout, rate limit, 409 conflict.</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>5. Evaluation System</h2>
+<p>Scoring runs against live environment state rather than the DOM. The evaluator reads the Pydantic state objects the real API handlers mutate, so a silently-dropped write is caught even when the UI shows a success toast. Every task declares a <code>canonical_diff</code> block, and matching runs through <span class="badge badge-file">breakingweb/eval_core/</span>. (The legacy expression-based <code>eval.checks</code> path was removed in the 2026-04 refactor; all 519 tasks now carry a <code>canonical_diff</code>.)</p>
+
+<h3>Pipeline</h3>
+<pre>
+<span class="cm"># breakingweb/eval_core/orchestrator.py</span>
+<span class="kw">def</span> <span class="fn">evaluate</span>(task, server_state, targets, trajectory):
+    canonical = task.canonical_diff              <span class="cm"># missing_canonical_diff &rarr; score 0</span>
+    initial   = server_state._initial_state_copy  <span class="cm"># deep-copy taken at session create</span>
+
+    agent_diff = <span class="fn">compute_diff</span>(initial, server_state)   <span class="cm"># eval_core/diff.py</span>
+    report     = <span class="fn">match_diff</span>(agent_diff, canonical,        <span class="cm"># eval_core/matcher.py</span>
+                            targets, initial, server_state, session_start)
+
+    <span class="kw">return</span> {
+        <span class="st">"score"</span>:       report.score,
+        <span class="st">"success"</span>:     report.passed,
+        <span class="st">"checks"</span>:      report.checks,             <span class="cm"># positive match results</span>
+        <span class="st">"negative_checks"</span>: report.negative_checks, <span class="cm"># invariants + constraints + collateral</span>
+        <span class="st">"failures"</span>:    report.failures,
+        <span class="st">"collateral"</span>:  state.compute_collateral(initial),  <span class="cm"># analytics only</span>
+        <span class="st">"bijection_graphs"</span>: report.bijection_graphs,
+    }
+</pre>
+
+<h3>Five Grammar Sections of canonical_diff</h3>
+<table>
+  <tr><th style="width:140px">Section</th><th>Role</th><th>Contributes to score via</th></tr>
+  <tr><td><code>create</code></td><td>Entities the agent must bring into existence (e.g. new <code>CartItem</code>, new <code>Message</code>).</td><td>Weighted positive match; bijection from expected entities to actual diff entries.</td></tr>
+  <tr><td><code>update</code></td><td>Existing entities whose fields must change in specified ways.</td><td>Weighted positive match against <code>UpdateEntry.changes</code>.</td></tr>
+  <tr><td><code>delete</code></td><td>Entities the agent must remove.</td><td>Weighted positive match against observed <code>DeleteEntry</code>s.</td></tr>
+  <tr><td><code>invariant</code></td><td>Collections that must be preserved. Optional <code>filter</code> narrows scope (e.g. every cart item <em>except</em> the target). A matching unmatched diff entry is a violation.</td><td>Negative check (medium penalty by default).</td></tr>
+  <tr><td><code>constraints</code></td><td>Global predicates over final state (read-only). Carry their own <code>severity</code>.</td><td>Negative check, or the sole positive term if no create/update/delete exists.</td></tr>
+</table>
+
+<p>Two auxiliary structures extend the grammar: <code>oneof</code> wraps multiple acceptable alternatives at the block level and the matcher picks the best-scoring applicable alternative; <code>named_invariants</code> attach human-readable names and severities (<code>critical</code> / <code>high</code> / <code>medium</code> / <code>low</code>) to the invariant list.</p>
+
+<pre>
+<span class="cm"># Task YAML (amazon_add_single_item.yaml, abridged)</span>
+canonical_diff:
+  create:
+  - entity: CartItem
+    desc: Target product added to cart with quantity 1
+    properties:
+      product_id: {expr: <span class="st">"x == target['product_id']"</span>}
+      quantity:   {eq: 1}
+      product_name: {any: true}
+  invariant:
+  - collection: state.cart_items
+    filter: <span class="st">"a.product_id != target['product_id']"</span>   <span class="cm"># preserve everything but the target</span>
+    preserve: ALL
+  named_invariants:
+  - {name: Agent did not place orders, ref: invariant[4], severity: high}
+</pre>
+
+<h3>Predicate Grammar (19 keys)</h3>
+<p>Properties of a create/update are matched by predicates, each a single-key mapping. <span class="badge badge-file">eval_core/predicates.py</span></p>
+<table>
+  <tr><th style="width:130px">Category</th><th>Predicates</th></tr>
+  <tr><td>Scalar</td><td><code>eq</code>, <code>in</code>, <code>between</code>, <code>any</code></td></tr>
+  <tr><td>Collection</td><td><code>set_eq</code>, <code>subset</code>, <code>superset</code>, <code>contains</code>, <code>length</code></td></tr>
+  <tr><td>Text</td><td><code>substring</code>, <code>substring_all</code>, <code>substring_any</code>, <code>regex</code>, <code>matches_semantic</code> (difflib ratio, default threshold 0.8)</td></tr>
+  <tr><td>Structural</td><td><code>fields</code> (nested dict predicate)</td></tr>
+  <tr><td>Boolean</td><td><code>not</code>, <code>all_of</code>, <code>any_of</code></td></tr>
+  <tr><td>Expression</td><td><code>expr</code>: restricted Python. Bindings: <code>x</code> (current value), <code>v</code> (bijection variable), <code>target</code>, <code>initial</code>, <code>state</code>, <code>session_start</code>. Allowlist-guarded via <code>eval_core/safe_eval.py</code>.</td></tr>
+</table>
+
+<h3>Automatic Collateral Sweep</h3>
+<p>After matching the explicit sections, the matcher scans every unmatched diff entry and penalises the agent for uncovered state mutations:</p>
+<table>
+  <tr><th>Situation</th><th>Penalty</th></tr>
+  <tr><td>Mutation in a collection the task cares about (mentioned by create/update/delete) but not covered by any matched entry or invariant.</td><td><code>medium</code> (0.15), labelled <em>Unaccounted &lt;kind&gt; in &lt;collection&gt;</em></td></tr>
+  <tr><td>Mutation in a collection the task does not mention at all.</td><td><code>high</code> (0.20), labelled <em>Unexpected &lt;kind&gt; on &lt;collection&gt;</em></td></tr>
+  <tr><td>Inside a <code>filter</code>ed invariant marked <code>comprehensive: true</code>.</td><td>suppressed (filter is treated as covering the whole collection).</td></tr>
+</table>
+<p>The agent is not required to enumerate every side-effect explicitly; a collection-level invariant blocks the sweep. The sweep exists to catch overreach: a successful "add to cart" that also silently writes a review or cancels an order loses score.</p>
+
+<h3>Score Formula</h3>
+<p><span class="badge badge-file">eval_core/matcher.py</span> Severity table: <code>critical</code> 0.30, <code>high</code> 0.20, <code>medium</code> 0.15, <code>low</code> 0.10.</p>
+<pre>
+<span class="kw">if</span> total_weight &gt; 0:                 <span class="cm"># create/update/delete present</span>
+    raw_score = passed_weight / total_weight
+<span class="kw">elif</span> constraints_total:              <span class="cm"># constraint-only task</span>
+    raw_score = constraints_passed / constraints_total
+<span class="kw">else</span>:
+    raw_score = 1.0
+
+penalty_total = <span class="fn">sum</span>(nc.penalty <span class="kw">for</span> nc <span class="kw">in</span> negative_checks <span class="kw">if not</span> nc.passed)
+score         = <span class="fn">max</span>(0.0, <span class="fn">min</span>(1.0, raw_score - penalty_total))
+success       = <span class="kw">not</span> failures     <span class="cm"># any hard failure &rarr; not success</span>
+</pre>
+
+<div class="callout">
+<strong>Why server state.</strong> The DOM is manipulated by client-layer interventions, but <code>state.emails[]</code> and <code>state.cart_items[]</code> mutate only through real API handlers. A silently-failed star earns no credit because the evaluator reads the live <code>GmailState</code>, not the rendered page. An agent that adds the right cart item but also silently triggers a purchase loses score because the collateral sweep flags the unaccounted order.
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>6. Evaluated Agents</h2>
+<p>The paper evaluates six browser-use agents and three GUI-only agents under matched intervention conditions. The browser-use agents use the Browser Use harness; the GUI-only agents receive screenshots and act through the pixel harness. Shared tasks, variants, and seeds support comparison, while differences in observations, actions, and agent implementations limit attribution of the gap to any single primitive.</p>
+
+<table class="matrix-table">
+  <tr>
+    <th></th>
+    <th>Sonnet 4.6</th>
+    <th>Opus 4.7</th>
+    <th>Gemini 3 Flash</th>
+    <th>Gemini 3.1 Pro</th>
+    <th>GPT 5.4 mini</th>
+    <th>GPT 5.4</th>
+  </tr>
+  <tr>
+    <td>GUI-only (pixel harness)</td>
+    <td class="cross">&mdash;</td><td class="tick">&check;</td><td class="cross">&mdash;</td>
+    <td class="tick">&check;</td><td class="cross">&mdash;</td><td class="tick">&check;</td>
+  </tr>
+  <tr>
+    <td>Browser-use (Browser Use)</td>
+    <td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td>
+    <td class="tick">&check;</td><td class="tick">&check;</td><td class="tick">&check;</td>
+  </tr>
+</table>
+
+<p class="dim" style="font-size:0.85rem">The table lists the paper's evaluated configurations. Both harnesses use the same task and intervention definitions and backend evaluator.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>7. Human Baseline</h2>
+<p>Human trajectories serve two distinct purposes. We collect both on every task, across both the baseline and the intervened versions.</p>
+
+<div class="split">
+  <div class="card">
+    <h4 style="color:#1a7f37">Cold-Start Baseline</h4>
+    <p>A participant sees the task for the first time and completes it without prior exposure to the environment. We record <strong>pass rate</strong> (did the task succeed under the scoring rubric) and <strong>completion time</strong>. This is the human headroom reference: the gap between cold-start human accuracy and frontier-agent accuracy quantifies the capability deficit on each primitive.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:#0969da">Optimal Trajectory</h4>
+    <p>A proficient participant who already knows the environment completes the task along the shortest sensible path. We record the action sequence and its length. This trajectory is the <strong>efficiency reference</strong>: an agent's step count is compared against the optimal trajectory to produce an efficiency ratio independent of raw success.</p>
+  </div>
+</div>
+
+<h3>How the Two Baselines Combine</h3>
+<table>
+  <tr><th>Metric</th><th>Human signal</th><th>What it tells us about agents</th></tr>
+  <tr><td>Success rate</td><td>Cold-start pass rate</td><td>Capability ceiling: how much of the task distribution is humanly solvable at all.</td></tr>
+  <tr><td>Primitive delta</td><td>Cold-start pass rate on baseline vs. intervention</td><td>How much each primitive costs a fresh human &mdash; and therefore how much of any agent drop is attributable to the intervention rather than task difficulty.</td></tr>
+  <tr><td>Efficiency</td><td>Optimal trajectory step count</td><td>Agent step count divided by optimal step count gives a normalized efficiency score; successful but inflated agent runs surface here.</td></tr>
+</table>
+
+<div class="callout">
+<strong>Why both baselines.</strong> Raw human pass rate does not separate "fresh user thinking from scratch" from "expert acting optimally." Cold-start pass rate measures the first; optimal trajectory measures the second. Agents are compared against both: accuracy against cold start, efficiency against optimal.
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>8. Environments</h2>
+<p>Seven fully interactive web environments, each a faithful reproduction of a real-world platform. Each ships a React SPA, a FastAPI backend, Pydantic state models, and YAML-seeded initial data.</p>
+
+<table>
+  <tr><th>Environment</th><th>Domain</th><th>Typical task</th><th>Why it is in the set</th></tr>
+  <tr><td><strong>Gmail</strong></td><td>Email</td><td>Find an action item, star a thread, draft a reply.</td><td>High-volume daily task; heavy grounding and state-tracking load.</td></tr>
+  <tr><td><strong>Amazon</strong></td><td>E-commerce</td><td>Add-to-cart, modify quantity, check out.</td><td>Multi-step commitment flow; verification and grounding under adversarial surfaces.</td></tr>
+  <tr><td><strong>Reddit</strong></td><td>Social</td><td>Post, comment, navigate a thread.</td><td>User-generated noise; adversarial content tests.</td></tr>
+  <tr><td><strong>Robinhood</strong></td><td>Finance</td><td>Place or modify an order, check a position, read a notification.</td><td>Irreversible actions with real-world analogue; verification under time pressure.</td></tr>
+  <tr><td><strong>Booking.com</strong></td><td>Travel</td><td>Search, filter, reserve a property.</td><td>Long filter chains; planning and state tracking.</td></tr>
+  <tr><td><strong>LMS</strong></td><td>Education</td><td>Find a syllabus item, submit an assignment, read an announcement.</td><td>Hierarchical navigation; exploration load.</td></tr>
+  <tr><td><strong>Patient Portal</strong></td><td>Healthcare</td><td>Message a provider, schedule a visit, read a lab result.</td><td>High-stakes content; verification and grounding against clinical messages.</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>9. Repository Structure (abridged)</h2>
+
+<pre>
+breakingweb/
+  injector/
+    config.py            <span class="cm"># DegradationConfig dataclass + default templates</span>
+    seed.py              <span class="cm"># seed-layer actions</span>
+    server.py            <span class="cm"># server-layer actions</span>
+    middleware.py        <span class="cm"># DegradationMiddleware (primary network interception)</span>
+    network.py           <span class="cm"># Playwright page.route() parity</span>
+    apply.py             <span class="cm"># orchestrator</span>
+    variants/            <span class="cm"># 535 available YAML variants</span>
+
+  backend/
+    models/{env}.py      <span class="cm"># Pydantic state shapes</span>
+    routes/{env}.py      <span class="cm"># REST endpoints + session create/evaluate</span>
+    seeders/{env}.py     <span class="cm"># YAML &rarr; seeded state</span>
+
+  tasks/
+    _schema.py           <span class="cm"># TaskDefinition, EvalConfig</span>
+    _registry.py         <span class="cm"># YAML discovery</span>
+    _evaluator.py        <span class="cm"># restricted-eval checker</span>
+    {env}/               <span class="cm"># per-env task YAMLs</span>
+
+  environments/
+    {env}/               <span class="cm"># React SPA per env</span>
+    shared/src/components/BenchmarkToolbar.tsx  <span class="cm"># client-layer injections</span>
+</pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>10. Running BreakingWeb</h2>
+
+<pre>
+<span class="cm"># Install</span>
+uv sync
+uv run playwright install chromium
+pnpm -C breakingweb/environments install
+./scripts/breakingweb.sh build
+
+<span class="cm"># Baseline run (no intervention)</span>
+python -m breakingweb.agent_eval \
+    --model gpt-4o --provider openai --api-key $KEY \
+    --tasks gmail_action_item_extraction \
+    --max-steps 50 --seed 42 --output results/baseline.json
+
+<span class="cm"># Intervention run (same task, one variant)</span>
+python -m breakingweb.agent_eval \
+    --model gpt-4o --provider openai --api-key $KEY \
+    --tasks gmail_action_item_extraction \
+    --degradation gmail_action_item_extraction__phishing_inbox.yaml \
+    --max-steps 50 --seed 42 --output results/phishing.json
+
+<span class="cm"># Visualize any result JSON</span>
+python -m breakingweb.visualize results/phishing.json
+
+<span class="cm"># Human play (collects cold-start and optimal trajectories)</span>
+python -m breakingweb.app --host 127.0.0.1 --port 8080
+<span class="cm"># Open http://127.0.0.1:8080/launch</span>
+</pre>
+
+<h3>Migrating from WebStress</h3>
+<p>Use <code>breakingweb</code> imports, <code>python -m breakingweb...</code>, source paths under <code>breakingweb/</code>, and <code>scripts/breakingweb.sh</code>. The old <code>scripts/webstress.sh</code> forwards to the new launcher. BrowserGym task IDs use <code>browsergym/breakingweb.&lt;task_id&gt;</code>.</p>
+<p>Prefer <code>BREAKINGWEB_*</code> environment variables. Corresponding <code>WEBSTRESS_*</code> values are used only when the new variable is absent; an explicitly empty new value takes precedence. Copy local <code>.env</code>, results, and human traces into their corresponding new paths without overwriting newer files, reinstall frontend dependencies, rebuild, and restart the server. Local artifacts are not migrated automatically. The remote remains <a href="https://github.com/Arvid-pku/WebStress">Arvid-pku/WebStress</a>.</p>
+
+<div style="margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text-dim);font-size:0.82rem;">
+  BreakingWeb &middot; Controlled Environment Interventions for Browser-Use Agents
+</div>
+
+</body>
+</html>

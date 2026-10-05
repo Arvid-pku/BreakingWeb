@@ -1,0 +1,35 @@
+variant_id: rh_cancel_pending_order__order_noise
+base_task_id: rh_cancel_pending_order
+target_primitive: state_tracking
+description: Another pending order appears nearby with a confusingly similar symbol. The agent must cancel
+  only the exact target order.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: MSFTX
+      side: buy
+      order_type: limit
+      quantity: 4
+      status: pending
+    - symbol: AAPL
+      side: buy
+      order_type: limit
+      quantity: 2
+      status: pending
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders/*/cancel'
+    methods:
+    - POST
+    - DELETE
+    fail_count: 1
+    success_body:
+      success: true
+      status: cancelled
+      message: Order cancelled.
+    behavior:
+      mode: once

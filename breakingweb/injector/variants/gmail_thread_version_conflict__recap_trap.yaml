@@ -1,0 +1,15 @@
+variant_id: gmail_thread_version_conflict__recap_trap
+base_task_id: gmail_thread_version_conflict
+target_primitive: backtracking
+description: A prominent recap note asserts the wrong release version. The agent must verify the full
+  thread instead of trusting the shortcut summary.
+injections:
+- layer: seed
+  params:
+    action: plant_wrong_answer
+    from_name: Ops Recap Bot
+    subject: Version recap
+    body: 'Fast recap: consensus appears to be version 3.2.0. Please proceed unless someone objects.'
+    labels:
+    - inbox
+    from: ops-bot@thornton.com

@@ -1,0 +1,262 @@
+task_id: pp_complete_account_audit
+env_id: patient_portal
+title: Complete Account Audit
+instruction_template: Audit your entire patient portal account for completeness and
+  accuracy, then schedule exactly one in-person follow-up appointment with an Administration
+  department provider that is currently accepting new patients (open panel). Some
+  Administration providers have closed panels (accepting_new is false) and must not
+  be booked even if they advertise an earlier slot. Considering only the open-panel
+  Administration providers, the appointment must use the single earliest in-person
+  slot that exists across them; if two open-panel Administration providers offer an
+  in-person slot at the same time, book the one whose provider id sorts first alphabetically.
+  Use the appointment reason exactly "Account audit review". Do not cancel, reschedule,
+  or modify any existing appointment, do not request any new referral, and do not touch
+  any insurance claim, prescription, message, immunization, lab result, or pharmacy.
+difficulty: frontier
+time_limit_seconds: 660
+expected_steps: 52
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - insurance_plan_name
+    - member_id
+    - group_number
+  - use: provider_directory
+    params:
+      count: 9
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - admin
+      - billing
+      count_per_specialty:
+        admin: 4
+      # Admin is opted back into open-panel so the closed-panel carve-out below
+      # is a genuine open-vs-closed discriminator (without this, ALL admin
+      # providers are closed by default and "accepting_new" carries no signal).
+      accepting_specialties:
+      - admin
+      # The first 2 of the 4 admin providers are closed-panel (accepting_new=
+      # False). They are a SOFT grounding trap: create_appointment does NOT 422
+      # on accepting_new (it is only a search filter), so the agent can book a
+      # closed-panel slot — it must read the directory, notice the closed panel,
+      # and reject it. Paired with min_slot_specialty below, the GLOBALLY
+      # earliest in-person admin slot is injected onto a closed provider, so the
+      # naive "sort all admin in-person slots, take the min" answer is WRONG.
+      non_accepting_provider_specs:
+        admin: 2
+      # Every admin provider is guaranteed at least one in-person slot, so the
+      # agent must compare in-person availability across all 4 admin providers
+      # (2 open, 2 closed) rather than reading one provider's slot list.
+      force_in_person_specialties:
+      - admin
+      # Injects a strictly-earlier in-person decoy slot into the first
+      # closed-panel admin provider so the cross-provider min is a real trap.
+      min_slot_specialty: admin
+      must_include:
+      - pcp
+      - admin
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+    - admin_earliest_inperson_provider_id
+    - admin_earliest_inperson_slot_datetime
+    - accepting_admin_provider_ids
+    - decoy_admin_provider_id
+  - use: pharmacy_list
+    params:
+      count: 3
+      include_mail_order: true
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+    - mail_order_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      expired_count: 2
+    outputs:
+    - active_rx_ids
+  - use: immunization_record
+    params:
+      completed_count: 4
+      due_count: 2
+    outputs:
+    - due_imm_ids
+    - due_vaccine_names
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  - use: insurance_claims
+    params:
+      approved_count: 3
+      denied_count: 2
+      with_eob: true
+    outputs:
+    - approved_claim_ids
+    - denied_claim_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 4
+      cancelled_count: 1
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  targets:
+    admin_provider_ids: '{output.providers_by_specialty.admin}'
+    accepting_admin_provider_ids: '{output.accepting_admin_provider_ids}'
+    decoy_admin_provider_id: '{output.decoy_admin_provider_id}'
+    audit_admin_provider_id: '{output.admin_earliest_inperson_provider_id}'
+    audit_slot_datetime: '{output.admin_earliest_inperson_slot_datetime}'
+    active_rx_ids: '{output.active_rx_ids}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # Single-appointment audit task (frontier):
+  #   - Create exactly one new Appointment with the specific Administration
+  #     (admin) provider that holds the EARLIEST in-person slot across ALL
+  #     admin providers, at exactly that slot, type "in-person", reason
+  #     "Account audit review", booked during the session.
+  #   - All other collections (prescriptions, referrals, messages, labs,
+  #     claims, immunizations, pharmacies, pre-existing appointments) frozen.
+  create:
+    - entity: Appointment
+      desc: >-
+        Schedule exactly one in-person appointment with the Administration provider
+        holding the earliest in-person admin slot (datetime tie-break: lowest
+        provider id); reason must be "Account audit review" and it must be booked
+        during this session.
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Account audit review"}
+        type: {eq: "in-person"}
+        provider_id:
+          expr: "x == target['audit_admin_provider_id']"
+        datetime:
+          expr: >
+            x == datetime.fromisoformat(target['audit_slot_datetime'])
+            and x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id in target['accepting_admin_provider_ids']
+              and p.accepting_new
+              for s in p.available_slots
+              if s.type == 'in-person'
+            )
+        booked_at:
+          expr: "x >= session_start"
+        location: {eq: "Main Campus"}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+  invariant:
+    # Pre-existing appointments must remain untouched; create[0] above is
+    # the only permitted appointment mutation. The new audit appointment is
+    # excluded by the filter so it is not double-counted as a violation.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    # Audit says: do not modify prescriptions, do not change referral statuses,
+    # do not request new referrals, do not send any messages, do not touch
+    # claims/immunizations/labs/pharmacies. Every collection the agent is told
+    # to leave alone gets a broad preserve-ALL invariant.
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  constraints:
+    # Exactly one new scheduled appointment was created (no double-booking,
+    # no extra exploratory appointments left behind).
+    - desc: "Exactly one new scheduled appointment exists beyond the seeded set"
+      expr: >-
+        len([a for a in state.appointments if a.status == 'scheduled'])
+        == len([a for a in initial.appointments if a.status == 'scheduled']) + 1
+      severity: critical
+    # No new referral was requested while completing the audit (the requested
+    # referral count must not grow — requesting a referral is an honest
+    # forbidden action mapped onto this constraint).
+    - desc: "No new referral was requested during the audit"
+      expr: "len(state.referrals) == len(initial.referrals)"
+      severity: critical
+    # The audit appointment is booked with an Administration-department provider
+    # (defends against booking a same-named slot on a non-admin provider).
+    - desc: "The single new appointment is with an Administration provider"
+      expr: >-
+        all(
+          a.provider_id in target['admin_provider_ids']
+          for a in state.appointments
+          if a.reason == 'Account audit review'
+        )
+      severity: high
+    # The audit appointment is booked with an OPEN-PANEL (accepting_new) admin
+    # provider. The globally-earliest in-person admin slot is deliberately
+    # seeded onto a CLOSED-panel admin provider (a soft grounding/exploration
+    # trap that the backend will not 422 on), so an agent that sorts every
+    # admin in-person slot and books the earliest lands on a provider it must
+    # have rejected. This is the load-bearing exploration discriminator.
+    - desc: "The audit appointment is with an open-panel (accepting_new) admin provider"
+      expr: >-
+        all(
+          a.provider_id in target['accepting_admin_provider_ids']
+          for a in state.appointments
+          if a.reason == 'Account audit review'
+        )
+      severity: critical
+  named_invariants:
+    - name: "Agent did not cancel, reschedule, or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not change referral statuses"
+      ref: invariant[2]
+      severity: critical
+    - name: "Agent did not send any patient messages"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent scheduled exactly one Administration audit appointment at the earliest in-person slot"
+      ref: create[0]
+      severity: high
+secondary_primitives: []

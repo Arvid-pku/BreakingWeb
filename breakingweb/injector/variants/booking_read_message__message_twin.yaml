@@ -1,0 +1,27 @@
+variant_id: booking_read_message__message_twin
+base_task_id: booking_read_message
+target_primitive: grounding
+description: An unread message with the same subject arrives from a similarly named property. The agent
+  must open the exact property thread named in the task.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Alpine Lodge Retreat Suites
+      city: Zurich
+      country: Switzerland
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.6
+      review_count: 420
+      price: 228.8
+      description: Lookalike property with almost identical branding.
+    - type: message
+      property_name: Alpine Lodge Retreat Suites
+      subject: Your upcoming stay - important information
+      body: Automated pre-arrival note from the similar-looking property. Verify the exact property before
+        opening the unread message.
+      sender: property
+      read: false

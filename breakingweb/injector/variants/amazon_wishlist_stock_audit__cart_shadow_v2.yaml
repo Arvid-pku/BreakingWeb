@@ -1,0 +1,69 @@
+variant_id: amazon_wishlist_stock_audit__cart_shadow_v2
+base_task_id: amazon_wishlist_stock_audit
+target_primitive: state_tracking
+description: >
+  Catalog-only wishlist/cart reconciliation trap: three near-duplicate SKUs
+  share names and categories with wishlist targets but are not wishlist items.
+  The agent must preserve the exact wishlist product identities when moving
+  in-stock items to cart. The first two cart-add POSTs and first two
+  wishlist-remove POSTs silently no-op, so the agent must verify both cart
+  state and wishlist state before checkout. No cart rows are pre-seeded; the
+  base task preserves state.cart_items and checkout drains the cart.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Wireless Charging Pad Refurbished
+      brand: ChargeMax
+      category: Electronics
+      price: 29.99
+      rating: 4.5
+      review_count: 220
+      in_stock: true
+      match_image_of: Wireless Charging Pad
+    - type: product
+      name: Yoga Resistance Band Set 2-Pack
+      brand: Endurafit
+      category: Sports & Outdoors
+      price: 19.99
+      rating: 4.4
+      review_count: 180
+      in_stock: true
+      match_image_of: Yoga Resistance Band Set
+    - type: product
+      name: Bamboo Cutting Board Set Outlet
+      brand: CedarCraft
+      category: Home & Kitchen
+      price: 34.99
+      rating: 4.6
+      review_count: 145
+      in_stock: true
+      match_image_of: Bamboo Cutting Board Set
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: 'cart_pending_{request.product_id}'
+        product_id: '{request.product_id}'
+        product_name: 'Pending: {request.product_id}'
+        quantity: '{request.quantity}'
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/wishlist/remove'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      ok: true
+      product_id: '{request.product_id}'
+    behavior: { mode: once }

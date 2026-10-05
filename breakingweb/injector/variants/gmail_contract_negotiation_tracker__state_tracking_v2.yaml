@@ -1,0 +1,21 @@
+variant_id: gmail_contract_negotiation_tracker__state_tracking_v2
+base_task_id: gmail_contract_negotiation_tracker
+target_primitive: state_tracking
+description: 35 topical distractors about contract negotiations
+injections:
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 50
+    topical_count: 10
+    topical_subjects:
+    - 'Re: Contract terms'
+    - 'Fwd: Contract update'
+    - Contract renewal response
+    - 'Re: Contract pricing'
+    - Contract amendment needed
+    - Legal review of terms
+    - Contract status check
+    - Updated contract draft v3
+    - Contract final offer
+    - Contract payment schedule

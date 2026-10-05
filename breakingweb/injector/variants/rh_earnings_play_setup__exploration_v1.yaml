@@ -1,0 +1,41 @@
+variant_id: rh_earnings_play_setup__exploration_v1
+base_task_id: rh_earnings_play_setup
+target_primitive: exploration
+description: >
+  A misleading price alert for AAPL already exists at a wrong price, and
+  distractor notifications about MSFT and GOOGL earnings crowd the
+  notification feed. Agent must explore past the distractors to find AAPL's
+  actual earnings date and current price, ignoring the pre-existing stale alert.
+injections:
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alert:
+      symbol: "AAPL"
+      condition: "below"
+      target_price: "150.00"
+      note: "Earnings protection - old"
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    notifications:
+      - title: "MSFT earnings tomorrow"
+        body: "Microsoft reports Q2 earnings tomorrow before market open. Your 20 shares are up 12%."
+        category: earnings
+      - title: "GOOGL earnings beat"
+        body: "Alphabet beat estimates by $0.15. After-hours move: +4.2%."
+        category: earnings
+      - title: "Earnings season alert"
+        body: "5 stocks in your portfolio report this week. Review your positions."
+        category: earnings
+      - title: "TSLA stop-loss triggered"
+        body: "Your stop-loss on TSLA at $220.00 was triggered. 30 shares sold."
+        category: order
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: NVDA
+      condition: above
+      target_price: 999.00
+      status: triggered

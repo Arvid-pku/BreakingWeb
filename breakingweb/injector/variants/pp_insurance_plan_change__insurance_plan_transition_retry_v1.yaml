@@ -1,0 +1,137 @@
+variant_id: pp_insurance_plan_change__insurance_plan_transition_retry_v1
+base_task_id: pp_insurance_plan_change
+target_primitive: backtracking
+description: >
+  A stacked backtracking stressor on the task's longest-dependency spine (the
+  insurance write + multi-step pharmacy/transfer sequence). (A) The first
+  insurance write is rejected with a 409 concurrent-modification conflict whose
+  latest snapshot shows a DIVERGENT external edit (plan partially changed but
+  member_id still the OLD BlueCross value, deductible_met bumped) — the agent
+  must reload and re-derive the member ID / group number against the changed
+  current state before re-writing, not blindly replay its first payload.
+  (B) The next two insurance writes silently fail (200 with the OLD plan still
+  in the body), so a single verify-and-retry is insufficient: the agent must
+  keep verifying persistence and retry until the plan actually changes.
+  (C) The first pharmacy/medication mutation returns a transient 401
+  re-authentication challenge without persisting, forcing the agent to
+  re-establish the session and re-verify which transfers already landed before
+  continuing the maintenance-subset moves. All three injections attack the
+  backtracking primitive: prior writes are invalidated and partially-applied
+  multi-step work must be reconciled and replayed.
+injections:
+# (A) Concurrent-modification conflict on the FIRST insurance write. Returns
+# 409 with a divergent latest snapshot. inj_idx 0 so it is evaluated before the
+# silent_fail on the same endpoint; conflict_count:1 means only the first write
+# 409s — the session stays solvable (the retry passes this injection).
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/patient_portal/profile/insurance'
+    methods:
+    - POST
+    conflict_count: 1
+    conflict_message: >-
+      This profile was modified by another session while you were editing.
+      Reload the current insurance details and reconcile before retrying.
+    latest_snapshot:
+      id: patient_1
+      name: Jordan Chen
+      sex: female
+      dob: '1985-03-12'
+      phone: (555) 350-4657
+      email: jordan.chen@thornton.com
+      insurance_plan:
+        # Divergent external edit: plan_name was partially advanced toward the
+        # new plan, but the member_id/group_number are still the OLD BlueCross
+        # values and deductible_met was bumped. A blind replay of the agent's
+        # first payload would clobber/desync this — the agent must re-derive the
+        # member ID / group number from the CURRENT (still-old) ids it reads
+        # back, not from a stale local copy.
+        plan_name: Aetna PPO Silver (pending verification)
+        member_id: MBR-8078673
+        group_number: GRP-14165
+        copay: '50.00'
+        deductible: '5000.00'
+        deductible_met: '512.00'
+      pcp_id: prov_1
+      allergies: []
+      conditions: []
+      pharmacy_ids: []
+      emergency_contact:
+        name: ''
+        phone: ''
+        relationship: ''
+      applicable_screenings: []
+      default_pharmacy: null
+# (B) Residual silent_fail on the SAME insurance endpoint (inj_idx 1, evaluated
+# after the conflict). Has its own per-(action:url_pattern:idx) counter, so once
+# the conflict budget is exhausted the next TWO writes silently no-op: the
+# response is a 200 echoing the OLD BlueCross plan, so a single re-read is not
+# enough — the agent must verify persistence and retry until the plan_name and
+# derived member_id actually change in the profile. fail_count:2 (deterministic)
+# keeps it solvable: the third post-conflict write persists.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/profile/insurance'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      id: patient_1
+      name: Jordan Chen
+      sex: female
+      dob: '1985-03-12'
+      phone: (555) 350-4657
+      email: jordan.chen@thornton.com
+      insurance_plan:
+        plan_name: BlueCross PPO Standard
+        member_id: MBR-8078673
+        group_number: GRP-14165
+        copay: '50.00'
+        deductible: '5000.00'
+        deductible_met: '244.00'
+      pcp_id: prov_1
+      allergies: []
+      conditions: []
+      pharmacy_ids: []
+      emergency_contact:
+        name: ''
+        phone: ''
+        relationship: ''
+      applicable_screenings: []
+      default_pharmacy: null
+    behavior:
+      mode: once
+# (C) Mid-task re-auth challenge on the FIRST pharmacy/medication mutation
+# (set-default OR transfer). A transient 401 that clears after one retry
+# (error_then_success, error_count:1) — the corpus-sanctioned solvable
+# session-expiry pattern. Forces the agent to re-establish the session and
+# re-verify which transfers already landed before continuing the
+# maintenance-subset moves, loading backtracking over partially-applied work.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/medications/**'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 401
+    error_message: >-
+      Session expired mid-transfer. Re-authenticate and re-verify which
+      prescriptions have already been moved before continuing.
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/profile/pharmacy/**'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 401
+    error_message: >-
+      Session expired mid-update. Re-authenticate and re-verify the default
+      pharmacy before continuing.
+    behavior:
+      mode: once

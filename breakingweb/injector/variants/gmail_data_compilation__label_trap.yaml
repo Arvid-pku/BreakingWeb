@@ -1,0 +1,22 @@
+variant_id: gmail_data_compilation__label_trap
+base_task_id: gmail_data_compilation
+target_primitive: exploration
+description: One of the source emails has been auto-archived into a custom finance label. The agent must
+  search labels rather than assuming every required email is still in the inbox.
+injections:
+- layer: seed
+  params:
+    action: hide_in_non_obvious_location
+    subject_contains: Q1 budget
+    move_to_label: Finance/Reports
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Auto-Archive Bot
+      from: notifications@thornton.com
+      subject: 'Auto-archive: 1 email moved to Finance/Reports'
+      body: One finance-related message matched your archive rule and was moved to Finance/Reports.
+      labels:
+      - inbox

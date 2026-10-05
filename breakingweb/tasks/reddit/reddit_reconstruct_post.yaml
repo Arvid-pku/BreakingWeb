@@ -1,0 +1,103 @@
+task_id: reddit_reconstruct_post
+env_id: reddit
+title: Resubmit Removed Post with Correct Flair
+instruction_template: 'Your post "{target.original_title}" in r/{target.sub} was removed by moderators for missing flair. The original post (with full body) is still reachable in r/{target.sub} (and linked from the removal notification on your Notifications page). Resubmit it in the same subreddit with the same title and body, but this time add the "{target.required_flair}" flair. Also add "[Resubmitted]" at the start of the body.
+
+  '
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      subscribe:
+      - datascience
+    outputs:
+    - subscriptions
+  - use: owner_post
+    params:
+      subreddit: datascience
+      title: Comparison of XGBoost vs LightGBM on tabular benchmarks
+      body: I ran both libraries on 12 Kaggle datasets with default hyperparameters. LightGBM was faster in 10 out of 12 cases, but XGBoost had slightly better AUC on 7 datasets. Full results and code in the comments.
+      score: 1540
+    outputs:
+    - original_post_id
+    - original_post_title
+  - use: target_notification
+    params:
+      type: mod_removal
+      title: Post removed from r/datascience
+      body: Your post 'Comparison of XGBoost vs LightGBM on tabular benchmarks' was removed because it is missing a required flair. Please resubmit with the appropriate flair.
+      is_read: false
+      subreddit_name: datascience
+    outputs:
+    - removal_notif_id
+  - use: filler_posts
+    params:
+      subreddit: datascience
+      count: 6
+      score_range:
+      - 100
+      - 5000
+      age_range_hours:
+      - 1
+      - 168
+    outputs:
+    - filler_post_ids
+  targets:
+    original_title: '{output.original_post_title}'
+    original_post_id: '{output.original_post_id}'
+    sub: datascience
+    required_flair: Discussion
+    original_body: I ran both libraries on 12 Kaggle datasets with default hyperparameters. LightGBM was faster in 10 out of 12 cases, but XGBoost had slightly better AUC on 7 datasets. Full results and code in the comments.
+canonical_diff:
+  create:
+  - entity: Post
+    desc: Resubmitted post in r/{target.sub} with required flair and [Resubmitted] prefix
+    properties:
+      subreddit_name:
+        expr: x == target['sub']
+      title:
+        expr: x == target['original_title']
+      body:
+        expr: x == '[Resubmitted] ' + target['original_body']
+      author_name:
+        expr: x == state.owner_username
+      flair_text:
+        expr: x == target['required_flair']
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: "a.id in [p.id for p in initial.posts]"
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Resubmitted post with correct flair and preserved body
+    ref: create[0]
+    severity: high
+  - name: Existing posts (including original removed post) not modified
+    ref: invariant[1]
+    severity: high

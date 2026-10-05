@@ -1,0 +1,62 @@
+variant_id: pp_pay_claim__claim_pay_state_tracking_v2
+base_task_id: pp_pay_claim
+target_primitive: state_tracking
+description: >-
+  State-tracking stressor for the top-3-payable bijection. (1) The claims LIST
+  view (GET /claims) returns an EMPTY list for the first two reads, so the agent
+  cannot eyeball-and-sort the balances from the list; it must open each approved
+  claim's DETAIL view (GET /claims/{id}) and hold the running highest-balance
+  ranking across many reads. (2) The first TWO pay POSTs silently succeed (200
+  with patient_responsibility 0.00) while the backend leaves the balance unpaid,
+  so the agent must re-verify more than one payment and re-issue it while
+  tracking which of the three target claims are actually zeroed. The pay-counter
+  is keyed per url-pattern, so the two silent failures span DIFFERENT claims.
+injections:
+# (1) network state_tracking: defeat the one-glance "sort the list" shortcut.
+#     The first two GET /claims list reads return an empty list, forcing the
+#     agent onto per-claim detail reads to assemble the ranking. The detail
+#     route (/claims/{id}) is a deeper path and is NOT matched by this pattern
+#     (the **/ prefix anchors the suffix to end-of-path), so the true balances
+#     stay recoverable — the difficulty is holding the cross-claim ranking, not
+#     a dead end.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/claims'
+    stale_count: 2
+    stale_body:
+      items: []
+    behavior:
+      mode: once
+# (2) network verification layer hardened for state_tracking: the first TWO pay
+#     POSTs return a fake-paid body (balance 0.00) without mutating the backend.
+#     Because the counter is keyed by url_pattern, the two failures hit the first
+#     two DISTINCT pay attempts (different claim ids), so the agent must
+#     re-verify and re-pay across more than one of the three target claims while
+#     tracking which are genuinely zeroed. The body mirrors the real /pay
+#     response shape (top-level keys present) so it reads as a genuine success.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/claims/*/pay'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      id: clm_fake_paid
+      service_date: '2026-01-10'
+      provider_id: prov_fake
+      appointment_id: apt_fake
+      procedure_code: '99213'
+      diagnosis_code: I10
+      status: approved
+      amount_billed: '180.00'
+      amount_covered: '180.00'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-12-31T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    behavior:
+      mode: once

@@ -1,0 +1,245 @@
+task_id: booking_diagnose_wrong_dates
+env_id: booking
+title: Diagnose and Fix Wrong Check-In Date on Reservation
+instruction_template: You just realized one of your upcoming hotel reservations has
+  the wrong check-in date — it should be {target.correct_check_in} instead of what's
+  currently booked. Find the incorrect reservation, cancel it (accept any cancellation
+  fee shown). After cancelling, open the system's Rebooking Options page for the
+  cancelled reservation to see the same-city alternatives it generated — use that page
+  to identify a matching property in the correct city. Then rebook the same hotel
+  ("{target.hotel_name}") with the CORRECT dates from the hotel's confirmation email
+  ({target.correct_check_in} to {target.correct_check_out}). Keep the same room type
+  and guest count.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Savoy London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.4
+      review_count: 6200
+      price: 550.0
+      neighborhood: Strand
+      address: Strand, London WC2R 0EZ
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Room service
+      - Fitness center
+      - Concierge
+    outputs:
+    - target_prop_id
+    - target_prop_name
+    - target_room_id
+    - target_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.target_prop_id}'
+      check_in: '2026-07-10'
+      check_out: '2026-07-14'
+      price_per_night: 550.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 5
+      cancellation_policy:
+        type: partial_refund
+        penalty_percentage: 25
+        description: "25% cancellation fee"
+    outputs:
+    - wrong_res_id
+    - wrong_conf_num
+    - wrong_res_prop_id
+  - use: decoy_property
+    params:
+      name: Strand Palace Hotel
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.2
+      review_count: 4500
+      price: 195.0
+      neighborhood: Strand
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      distance_km: 0.2
+    outputs:
+    - decoy_prop_id
+    - decoy_prop_name
+  - use: decoy_property
+    params:
+      name: The Ritz London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.2
+      review_count: 5100
+      price: 620.0
+      neighborhood: Piccadilly
+      address: 150 Piccadilly, London W1J 9BR
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+    outputs:
+    - london_extra1_prop_id
+    - london_extra1_prop_name
+  - use: decoy_property
+    params:
+      name: Kimpton Fitzroy London
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.7
+      review_count: 3900
+      price: 320.0
+      neighborhood: Bloomsbury
+      address: 1-8 Russell Square, London WC1B 5BE
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+    outputs:
+    - london_extra2_prop_id
+    - london_extra2_prop_name
+  - use: featured_property
+    params:
+      name: Hotel Grande Bretagne Athens
+      city: Athens
+      country: Greece
+      star_rating: 5
+      review_score: 9.1
+      price: 420.0
+    outputs:
+    - other_prop_id
+    - other_prop_name
+    - other_room_id
+    - other_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.other_prop_id}'
+      check_in: '2026-08-01'
+      check_out: '2026-08-05'
+      status: confirmed
+      guests: 2
+      booked_days_ago: 12
+    outputs:
+    - other_res_id
+    - other_conf_num
+    - other_res_prop_id
+  targets:
+    wrong_res_id: '{output.wrong_res_id}'
+    target_prop_id: '{output.target_prop_id}'
+    hotel_name: '{output.target_prop_name}'
+    target_room_id: '{output.target_room_id}'
+    target_room_name: '{output.target_room_name}'
+    correct_check_in: '2026-07-15'
+    correct_check_out: '2026-07-19'
+    guest_count: 2
+    other_res_id: '{output.other_res_id}'
+    decoy_prop_id: '{output.decoy_prop_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the original wrong-date reservation at The Savoy London
+      where:
+        id: {expr: "x == target['wrong_res_id']"}
+      changes:
+        status: {eq: cancelled}
+  create:
+    - entity: Reservation
+      desc: Rebook The Savoy London with corrected check-in date, same room and guest count
+      properties:
+        property_id: {expr: "x == target['target_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {expr: "x == target['target_room_id']"}
+        room_type_name: {any: true}
+        check_in: {eq: "2026-07-15"}
+        check_out: {eq: "2026-07-19"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {expr: "x.full_name == initial.owner_name and x.email == initial.owner_email"}
+        payment_method_id: {any: true}
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['wrong_res_id'] and not (a.property_id == target['target_prop_id'] and a.check_in == '2026-07-15')"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). System-only side effect; whitelisted.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the wrong-date reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent rebooked with correct dates same room and guest count
+      ref: create[0]
+      severity: critical
+    - name: Agent did not cancel or modify unrelated reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low

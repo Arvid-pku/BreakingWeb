@@ -1,0 +1,20 @@
+variant_id: booking_frontier_loyalty_maximizer__property_shadow_v2
+base_task_id: booking_frontier_loyalty_maximizer
+target_primitive: grounding
+description: Search results include a same-city sibling property with a nearly identical name and overlapping
+  amenities. The agent must still book or compare the exact target hotel.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Genius Club London Suites
+      city: London
+      country: United Kingdom
+      price: 291.2
+      review_score: 8.6
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Air conditioning

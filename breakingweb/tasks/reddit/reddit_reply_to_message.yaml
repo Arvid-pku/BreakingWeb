@@ -1,0 +1,96 @@
+task_id: reddit_reply_to_message
+env_id: reddit
+title: Reply to an Inbox Message
+instruction_template: >
+  Go to your Messages inbox. Find the unread message from u/{target.from_user}
+  with subject "{target.message_subject}". Mark it as read, then send a reply
+  to u/{target.from_user} with subject "Re: {target.message_subject}" and body
+  exactly: "Thanks for reaching out! I'd love to discuss this further."
+  Do not reply to any other messages.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: DataWizard42
+      subject: "Collaboration on open-source project"
+      body: "Hi! I saw your recent post about your CLI tool and I'm working on something similar. Would you be interested in collaborating?"
+      is_read: false
+    outputs:
+    - message_id
+    - message_subject
+    - from_user
+  - use: decoy_messages
+    params:
+      count: 2
+      subject_pattern: "Re: {topic}"
+    outputs:
+    - decoy_message_ids
+  targets:
+    message_id: "{output.message_id}"
+    message_subject: "{output.message_subject}"
+    from_user: "{output.from_user}"
+canonical_diff:
+  create:
+  - entity: Message
+      # Reddit has two Message collections (state.messages for the inbox,
+      # state.sent_messages for the outbox). The reply lands in the outbox.
+    collection: sent_messages
+    desc: Send the reply to the target user
+    properties:
+      to_user:
+        expr: "x == target['from_user']"
+      subject:
+        expr: "x == 'Re: ' + target['message_subject']"
+      body:
+        eq: "Thanks for reaching out! I'd love to discuss this further."
+      from_user:
+        expr: "x == state.owner_username"
+      parent_id:
+        expr: "x == target['message_id']"
+  update:
+  - entity: Message
+      # Reddit has two Message collections; explicit override routes
+      # this update at the inbox (state.messages) rather than the
+      # last-one-wins sent_messages.
+    collection: state.messages
+    desc: Mark the target inbox message as read
+    where:
+      id:
+        expr: "x == target['message_id']"
+    changes:
+      is_read:
+        eq: true
+  invariant:
+  - collection: state.messages
+    filter: "a.id != target['message_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent sent the reply with the exact required body and subject
+    ref: create[0]
+    severity: high
+  - name: Agent marked the target inbox message as read
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify any other inbox messages
+    ref: invariant[0]
+    severity: high

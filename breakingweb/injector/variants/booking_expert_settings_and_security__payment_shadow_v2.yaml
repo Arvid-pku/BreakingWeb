@@ -1,0 +1,24 @@
+variant_id: booking_expert_settings_and_security__payment_shadow_v2
+base_task_id: booking_expert_settings_and_security
+target_primitive: grounding
+description: Account surfaces include a near-match card and a same-city property decoy. The agent must
+  update or use the exact requested account configuration rather than the shadow record.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: payment_method
+      card_type: Visa
+      last_four: '4243'
+      expiry: 11/29
+      holder_name: Jordan Parker
+    - type: property
+      name: '{target.property_name} Residences'
+      city: London
+      country: United Kingdom
+      price: 200.85
+      review_score: 8.2
+      amenities:
+      - Free WiFi
+      - Restaurant

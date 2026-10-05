@@ -1,0 +1,264 @@
+task_id: amazon_wishlist_curation
+env_id: amazon
+title: Curate Wishlist and Buy Remaining Items
+instruction_template: 'Curate your wishlist by adding 5 products from different categories,
+  then optimize it. Add "{target.prod1_name}" (Electronics), "{target.prod2_name}"
+  (Books), "{target.prod3_name}" (Home & Kitchen), "{target.prod4_name}" (Sports &
+  Outdoors), and "{target.prod5_name}" (Office Supplies) to your wishlist. Then remove
+  the 2 most expensive items from the wishlist. Finally, buy the remaining 3 items
+  using the shipping address for Jordan Parker at 742 Evergreen Terrace and the Visa
+  card ending in 4242.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 17
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Smart Watch Fitness Tracker
+      brand: Garmin
+      category: Electronics
+      price: 199.99
+      rating: 4.5
+      features:
+      - GPS tracking
+      - Heart rate monitor
+      - 7-day battery
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_1
+    - product_name_1
+    - product_price_1
+  - use: featured_product
+    params:
+      name: Atomic Habits Hardcover
+      brand: Penguin Random House
+      category: Books
+      price: 16.99
+      rating: 4.8
+      features:
+      - Hardcover
+      - 320 pages
+      - New York Times Bestseller
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_2
+    - product_name_2
+    - product_price_2
+  - use: featured_product
+    params:
+      name: Air Purifier HEPA Filter
+      brand: Dyson
+      category: Home & Kitchen
+      price: 249.99
+      rating: 4.6
+      features:
+      - HEPA H13 filter
+      - Covers 400 sq ft
+      - Auto mode
+      - Quiet operation
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_3
+    - product_name_3
+    - product_price_3
+  - use: featured_product
+    params:
+      name: Foam Roller Recovery Set
+      brand: TriggerPoint
+      category: Sports & Outdoors
+      price: 34.99
+      rating: 4.4
+      features:
+      - Multi-density foam
+      - Includes massage ball
+      - Travel friendly
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_4
+    - product_name_4
+    - product_price_4
+  - use: featured_product
+    params:
+      name: Desk Organizer Bamboo
+      brand: MobileVision
+      category: Office Supplies
+      price: 27.99
+      rating: 4.2
+      features:
+      - Multiple compartments
+      - Sustainable bamboo
+      - Phone holder slot
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_5
+    - product_name_5
+    - product_price_5
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 300.0
+    outputs:
+    - catalog_elec
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 15.0
+      - 300.0
+    outputs:
+    - catalog_home
+  targets:
+    prod1_name: Smart Watch Fitness Tracker
+    prod1_id: '{output.product_id_1}'
+    prod1_price: '199.99'
+    prod2_name: Atomic Habits Hardcover
+    prod2_id: '{output.product_id_2}'
+    prod2_price: '16.99'
+    prod3_name: Air Purifier HEPA Filter
+    prod3_id: '{output.product_id_3}'
+    prod3_price: '249.99'
+    prod4_name: Foam Roller Recovery Set
+    prod4_id: '{output.product_id_4}'
+    prod4_price: '34.99'
+    prod5_name: Desk Organizer Bamboo
+    prod5_id: '{output.product_id_5}'
+    prod5_price: '27.99'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed containing the three cheapest curated wishlist items
+    properties:
+      items:
+        expr: "len(x) == 3 and {it['product_id'] for it in x} == {target['prod2_id'],
+          target['prod4_id'], target['prod5_id']} and not any(it['product_id'] in
+          [target['prod1_id'], target['prod3_id']] for it in x) and all(it['quantity']
+          == 1 for it in x)"
+      status:
+        eq: confirmed
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address
+          == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for
+          p in state.payment_methods)"
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  - entity: wishlist
+    desc: Cheap product 2 (Atomic Habits) added to wishlist
+    properties:
+      value:
+        expr: x == target['prod2_id']
+  - entity: wishlist
+    desc: Cheap product 4 (Foam Roller) added to wishlist
+    properties:
+      value:
+        expr: x == target['prod4_id']
+  - entity: wishlist
+    desc: Cheap product 5 (Desk Organizer) added to wishlist
+    properties:
+      value:
+        expr: x == target['prod5_id']
+  invariant:
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['prod2_id'] for it in
+      (a.items or [])) and any(it.get('product_id') == target['prod4_id'] for it
+      in (a.items or [])) and any(it.get('product_id') == target['prod5_id'] for
+      it in (a.items or [])))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value not in [target['prod1_id'], target['prod2_id'], target['prod3_id'],
+      target['prod4_id'], target['prod5_id']]"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

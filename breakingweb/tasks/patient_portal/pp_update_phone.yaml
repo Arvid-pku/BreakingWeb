@@ -1,0 +1,265 @@
+task_id: pp_update_phone
+env_id: patient_portal
+title: Update Contact Details After a Move
+instruction_template: >-
+  You recently moved and switched carriers, so your contact information on file
+  is out of date and is NOT the number/address you should keep. Update your
+  profile so the phone number is exactly {target.new_phone} and the email address
+  is exactly {target.new_email}. Then replace your emergency contact entirely: set
+  the emergency contact name to {target.ec_name}, the emergency contact phone to
+  {target.ec_new_phone}, and the emergency contact relationship to
+  {target.ec_relationship}. Several values already on file or referenced in your
+  messages look almost identical to these (a digit transposed, a hyphen added) --
+  verify each value character-by-character before you save, because saving a
+  look-alike instead of the exact target counts as a failure. Change only those
+  contact fields. Do not alter any other profile field (name, date of birth, sex,
+  insurance, primary care provider, allergies, conditions, or pharmacies), do not
+  send any messages, and do not create, cancel, or modify any appointment,
+  prescription, lab result, referral, or insurance claim.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 9
+primary_primitives:
+- verification
+start_path: /profile
+seed:
+  # NOTE: `distractors` is a no-op in the Patient Portal seeder. Real search
+  # space noise comes from the builder count params below (providers across
+  # specialties, prescriptions, appointments, claims, labs, message threads).
+  distractors: 5
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+      # --- Verification lever: the values ALREADY ON FILE are deliberate
+      # near-misses of the targets the agent must write. The on-file phone is
+      # the new phone with its last two digits transposed (...5390 vs target
+      # ...5309); the on-file email is the new email with a hyphen inserted in
+      # the domain (meridian-health vs meridianhealth). The OLD emergency
+      # contact is a DIFFERENT person whose phone is a look-alike of the
+      # patient's NEW phone (cross-wire bait) and a different relationship.
+      # A careless agent that re-saves what it sees, copies the wrong look-alike,
+      # or cross-wires the EC number trips a high/critical constraint.
+      phone: (555) 867-5390
+      email: jordan.casey@meridian-health.org
+      emergency_contact:
+        name: Morgan Pratt
+        phone: (555) 867-5093
+        relationship: Parent
+    outputs:
+    - pcp_id
+    - patient_name
+    - insurance_plan_name
+    - member_id
+    - on_file_phone
+    - on_file_email
+    - on_file_ec_name
+    - on_file_ec_phone
+    - on_file_ec_relationship
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+  - use: pharmacy_list
+    params:
+      count: 3
+    outputs:
+    - default_pharmacy_id
+    - pharmacy_ids
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+      expired_count: 1
+    outputs:
+    - active_rx_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+      cancelled_count: 1
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: lab_results_panel
+    params:
+      resulted_count: 2
+      abnormal_count: 1
+    outputs:
+    - resulted_lab_ids
+  - use: message_threads
+    params:
+      thread_count: 3
+      unread_count: 2
+      include_billing: true
+    outputs:
+    - thread_ids
+    - unread_msg_ids
+  - use: insurance_claims
+    params:
+      approved_count: 1
+      denied_count: 1
+      with_eob: true
+    outputs:
+    - approved_claim_ids
+    - denied_claim_ids
+  targets:
+    # `new_phone` is preserved verbatim from the original easy task so the paired
+    # intervention variant keeps resolving. The remaining targets are the new
+    # contact values the agent must write through POST /profile/demographics.
+    new_phone: (555) 867-5309
+    new_email: jordan.casey@meridianhealth.org
+    ec_name: Avery Sloane
+    ec_new_phone: (555) 318-7742
+    ec_relationship: Spouse
+    # The exact on-file (pre-task) look-alikes, surfaced as targets so the
+    # disambiguation constraints can compare against the precise baseline the
+    # agent must NOT re-save. (Also recoverable via initial.patient.*.)
+    on_file_phone: '{output.on_file_phone}'
+    on_file_email: '{output.on_file_email}'
+    on_file_ec_phone: '{output.on_file_ec_phone}'
+canonical_diff:
+  # `state.patient` is a diffable singleton with a real id field, so the
+  # contact-info change appears as a single Update("patient", "<id>", {...}).
+  # Because one Update already covers the patient row, untouched fields cannot
+  # be guarded by a singleton preserve:ALL invariant -- they MUST be pinned with
+  # field-level `expr: x == initial.patient.<field>` predicates inside the same
+  # changes: block (Singleton Update field-guard rule). The three contact
+  # fields are exact-matched; every other patient field is frozen.
+  update:
+    - entity: patient
+      desc: >-
+        Phone, email, and emergency contact updated to the EXACT target values
+        (not the on-file look-alikes), with every other profile field frozen.
+      where: { id: { any: true } }
+      changes:
+        # --- positive contact writes (exact value, must beat the look-alikes) ---
+        phone:
+          expr: >-
+            x == target['new_phone']
+            and x != initial.patient.phone
+            and x != initial.patient.emergency_contact.phone
+            and x != target['ec_new_phone']
+        email:
+          expr: >-
+            x == target['new_email']
+            and x != initial.patient.email
+        emergency_contact:
+          expr: >-
+            x.get('name') == target['ec_name']
+            and x.get('phone') == target['ec_new_phone']
+            and x.get('relationship') == target['ec_relationship']
+            and x.get('name') != initial.patient.emergency_contact.name
+            and x.get('phone') != initial.patient.emergency_contact.phone
+            and x.get('phone') != target['new_phone']
+        # --- frozen singleton fields (untouched-field guard) ---
+        name:
+          expr: "x == initial.patient.name"
+        dob:
+          expr: "str(x) == str(initial.patient.dob)"
+        sex:
+          expr: "x == initial.patient.sex"
+        pcp_id:
+          expr: "x == initial.patient.pcp_id"
+        allergies:
+          expr: "list(x) == list(initial.patient.allergies)"
+        conditions:
+          expr: "list(x) == list(initial.patient.conditions)"
+        pharmacy_ids:
+          expr: "list(x) == list(initial.patient.pharmacy_ids)"
+        insurance_plan:
+          expr: >-
+            x.get('plan_name') == initial.patient.insurance_plan.plan_name
+            and x.get('member_id') == initial.patient.insurance_plan.member_id
+            and x.get('group_number') == initial.patient.insurance_plan.group_number
+            and str(x.get('copay')) == str(initial.patient.insurance_plan.copay)
+            and str(x.get('deductible')) == str(initial.patient.insurance_plan.deductible)
+            and str(x.get('deductible_met')) == str(initial.patient.insurance_plan.deductible_met)
+        applicable_screenings:
+          expr: >-
+            [s.get('screening_name') for s in x]
+            == [s.screening_name for s in initial.patient.applicable_screenings]
+  constraints:
+    # Honest disambiguation guards. Because the on-file values are deliberate
+    # one-character look-alikes of the targets, an agent that re-saves the
+    # displayed value, copies a look-alike, or cross-wires the EC number will
+    # trip one of these -- and a single failed constraint forces success=False.
+    - desc: New patient phone is the exact target, not the look-alike already on file
+      expr: "state.patient.phone == target['new_phone'] and state.patient.phone != initial.patient.phone"
+      severity: critical
+    - desc: New patient email is the exact target, not the look-alike already on file
+      expr: "state.patient.email == target['new_email'] and state.patient.email != initial.patient.email"
+      severity: high
+    - desc: Patient phone and emergency-contact phone are not cross-wired
+      expr: "state.patient.phone != state.patient.emergency_contact.phone"
+      severity: critical
+    - desc: Emergency-contact phone is the exact new EC number, not the patient's new number or the old EC number
+      expr: >-
+        state.patient.emergency_contact.phone == target['ec_new_phone']
+        and state.patient.emergency_contact.phone != target['new_phone']
+        and state.patient.emergency_contact.phone != initial.patient.emergency_contact.phone
+      severity: high
+    - desc: Emergency contact was genuinely replaced (name and relationship reflect the new contact, not the old one)
+      expr: >-
+        state.patient.emergency_contact.name == target['ec_name']
+        and state.patient.emergency_contact.relationship == target['ec_relationship']
+        and state.patient.emergency_contact.name != initial.patient.emergency_contact.name
+      severity: high
+  invariant:
+  - collection: state.appointments
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not create, cancel, or modify appointments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify prescriptions
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not send unsolicited messages
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify lab results
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[5]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not modify pharmacies
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify providers
+    ref: invariant[8]
+    severity: medium
+secondary_primitives: []

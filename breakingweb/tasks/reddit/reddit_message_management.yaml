@@ -1,0 +1,88 @@
+task_id: reddit_message_management
+env_id: reddit
+title: Message Inbox Management
+instruction_template: 'Go to your Messages inbox. Mark all messages as read. Then find the message with subject "{target.delete_subject}" and delete it. Finally, compose a new message to u/{target.new_msg_to} with subject "{target.new_msg_subject}" and body exactly: "{target.new_msg_body}"'
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: HerrMilkmann
+      subject: 'Spam: You won a free iPhone!'
+      body: Click here to claim your prize. Totally legit.
+      is_read: false
+    outputs:
+    - message_id
+    - message_subject
+    - from_user
+  targets:
+    delete_msg_id: '{output.message_id}'
+    delete_subject: '{output.message_subject}'
+    new_msg_to: DataWizard42
+    new_msg_subject: Quick question about data pipelines
+    new_msg_body: Hi! I saw you work with data pipelines. What tool do you recommend for orchestrating ETL jobs - Airflow or Prefect?
+canonical_diff:
+  # Positive form. Three positive entries express the per-entity diffs
+  # (mark-unread inbox messages as read via bijection; delete the spam
+  # message; compose the new outbound message). Adding these flips
+  # constraint_only=False so the unaccounted-collateral sweep runs on
+  # sibling collections (matcher.py:330).
+  update:
+  - entity: Message
+    collection: messages
+    bijection:
+        # Exclude the spam message (which is deleted, not updated).
+      over: "[m.id for m in initial.messages if not m.is_read and m.id != target['delete_msg_id']]"
+      variable: v
+    desc: "Mark every unread non-spam inbox message as read"
+    where:
+      id: {expr: "x == v"}
+    changes:
+      is_read: {eq: true}
+  delete:
+  - entity: Message
+    collection: messages
+    desc: "Delete the spam message identified by target.delete_msg_id"
+    where:
+      id:
+        expr: "x == target['delete_msg_id']"
+  create:
+  - entity: Message
+    collection: sent_messages
+    desc: "Compose the new data-pipelines message to the requested recipient"
+    properties:
+      to_user:
+        expr: "x == target['new_msg_to']"
+      subject:
+        expr: "x == target['new_msg_subject']"
+      body:
+        expr: "x == target['new_msg_body']"
+      from_user:
+        expr: "x == state.owner_username"
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  constraints:
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high

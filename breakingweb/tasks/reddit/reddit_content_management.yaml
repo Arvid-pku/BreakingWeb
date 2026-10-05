@@ -1,0 +1,181 @@
+task_id: reddit_content_management
+title: Content and Feed Management
+instruction_template: '1. Hide the post "{target.hide_title}" in r/{target.hide_sub}.
+
+  2. Unsave any saved posts from r/memes.
+
+  3. Save "{target.save_title}" in r/{target.save_sub}.
+
+  4. Create a text post in r/programming with title exactly: "{target.create_title}" and body exactly: "{target.create_body}"
+
+  5. Set default feed sort to "new" and enable compact view.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: funny
+      title: 'POV: You try to cancel a subscription in 2026'
+      body: 15 steps to click unsubscribe.
+      score: 71000
+    outputs:
+    - hide_id
+    - hide_title
+    - hide_sub
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_ids
+  - use: target_post
+    params:
+      subreddit: science
+      title: Researchers create room-temperature superconductor that actually replicates
+      body: Three independent labs confirmed the results.
+      score: 95000
+    outputs:
+    - save_id
+    - save_title
+    - save_sub
+  targets:
+    hide_title: '{output.hide_title}'
+    hide_id: '{output.hide_id}'
+    hide_sub: '{output.hide_sub}'
+    save_title: '{output.save_title}'
+    save_id: '{output.save_id}'
+    save_sub: '{output.save_sub}'
+    saved_ids: '{output.saved_ids}'
+    meme_ids: '{output.meme_ids}'
+    create_title: Why I stopped using ORMs and went back to raw SQL
+    create_body: After 5 years of fighting with ORMs, I found that well-structured raw SQL with a thin query builder is simpler and more performant.
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Funny post hidden
+    where:
+      id:
+        expr: x == target['hide_id']
+    changes:
+      is_hidden:
+        eq: true
+  - entity: Post
+    desc: Science post saved
+    where:
+      id:
+        expr: x == target['save_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    desc: Meme post unsaved
+    bijection:
+      over: target['meme_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_saved:
+        eq: false
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_feed_sort: {eq: new}
+      compact_view: {eq: true}
+  create:
+  - entity: Post
+    desc: Post created in r/programming with exact title and body
+    properties:
+      subreddit_name:
+        eq: programming
+      title:
+        expr: x == target['create_title']
+      body:
+        expr: x == target['create_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent hid the funny post
+    ref: update[0]
+    severity: high
+  - name: Agent saved the science post
+    ref: update[1]
+    severity: high
+  - name: Agent unsaved every meme post
+    ref: update[2]
+    severity: high
+  - name: Agent created the exact programming write-up
+    ref: create[0]
+    severity: high
+  - name: Agent did not modify subreddit memberships
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not mutate posts unrelated to hide/save/unsave/create
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not create, delete, or modify comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not touch inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send any direct messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not touch notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and
+      state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

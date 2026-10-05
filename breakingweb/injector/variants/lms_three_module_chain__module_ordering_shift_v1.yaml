@@ -1,0 +1,83 @@
+variant_id: lms_three_module_chain__module_ordering_shift_v1
+base_task_id: lms_three_module_chain
+target_primitive: planning
+description: >-
+  Planning stressor. The base course already interleaves three off-chain
+  "available" decoy modules among (and before) the real chain segment. This
+  variant strengthens the misdirection so the load-bearing predicate — "which
+  available module is the start of the prerequisite chain, and which three
+  modules follow it in order" — can no longer be shortcut. Seed-layer injection
+  plants additional modules that genuinely pass the unlock check (they gate on a
+  real, already-completed module) and are titled exactly like chain modules, so
+  "complete the modules that are unlocked / show as available" is wrong; one of
+  them anchors a LOCKED wrong-branch look-alike whose only prerequisite is a
+  decoy, so "complete the prerequisites of locked modules" walks the wrong
+  branch. Their positions sit at the head of and between the real chain modules,
+  so position order is no signal. A server-layer timestamp scramble shuffles the
+  surrounding course entities the agent reads while navigating, adding honest
+  surface noise. The correct prerequisite DAG remains fully derivable from the
+  unlock_condition / unlock_value the modules API returns, so the task stays
+  fair and solvable — only the shortcuts are closed.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Trap A — looks like the genuine next-chain module: available AND truly
+    # unlocked (prerequisite is the real last-completed module), titled like a
+    # chain module, positioned at the very head of the list so it is the FIRST
+    # module the agent sees and the first that shows as "available". Completing
+    # it (instead of the real segment start) is the canonical wrong move.
+    - type: module
+      id: module_trap_a
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Module 3: Core Methods'
+      position: 0
+      status: available
+      unlock_condition: prerequisite
+      unlock_value:
+      - '{target.last_completed_module_id}'
+    # Trap B — a second genuinely-unlocked available look-alike interleaved
+    # between the real chain modules (position 3), so "the available modules in
+    # order" yields the wrong set and position order separates nothing.
+    - type: module
+      id: module_trap_b
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Module 4: Applied Practice'
+      position: 3
+      status: available
+      unlock_condition: prerequisite
+      unlock_value:
+      - '{target.last_completed_module_id}'
+    # Trap C — a LOCKED wrong-branch look-alike whose sole prerequisite is the
+    # decoy Trap A (NOT a real chain module). A "complete the prerequisites of
+    # locked modules to advance the chain" heuristic will complete Trap A to
+    # unlock Trap C, walking entirely off the real chain.
+    - type: module
+      id: module_trap_c
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Module 5: Synthesis'
+      position: 5
+      status: locked
+      unlock_condition: prerequisite
+      unlock_value:
+      - module_trap_a
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 42
+# NOTE (audit_reports/w05.md): the stale_data network injection was removed
+# because the React module list does not re-fetch after a stale empty response.
+# scramble_timestamps is a no-op on Module.position (server.py never touches
+# modules and the route sorts by position), so the load-bearing misdirection is
+# carried entirely by the seed layer: the injected decoys are genuinely
+# unlocked, titled identically to chain modules, and positioned at the head of
+# and between the real segment so neither "first available", "available set",
+# nor "first-three-by-position" yields the answer. The server timestamp
+# scramble remains only to perturb the surrounding course entities the agent
+# reads while navigating (honest surface noise), keeping the variant
+# multi-layer. The correct chain stays derivable from unlock_value, so the task
+# is fair.

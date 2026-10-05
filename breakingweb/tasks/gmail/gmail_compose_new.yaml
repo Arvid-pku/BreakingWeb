@@ -1,0 +1,71 @@
+task_id: gmail_compose_new
+env_id: gmail
+title: Compose and Send a New Email
+instruction_template: Compose a new email to alice@thornton.com with subject "Weekly
+  Report" and body "Hi Alice, please find the weekly report attached. Best regards."
+  Then send it.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 5
+  steps:
+  - use: compose_new
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose a new email to alice@thornton.com with subject Weekly Report
+      count: 1
+      properties:
+        to:
+          expr: "x == ['alice@thornton.com']"
+        subject:
+          eq: Weekly Report
+        body:
+          eq: "Hi Alice, please find the weekly report attached. Best regards."
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the required email to alice@thornton.com
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not create or modify drafts
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not send extra emails
+      ref: create[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

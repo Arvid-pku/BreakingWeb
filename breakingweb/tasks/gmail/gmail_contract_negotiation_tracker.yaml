@@ -1,0 +1,119 @@
+task_id: gmail_contract_negotiation_tracker
+env_id: gmail
+title: Contract Negotiation Tracker
+instruction_template: 'Over the past 2 weeks, Legal, Finance, and Product teams negotiated
+  contract terms with vendor Lattice Works across 6 email threads. Read all 6 threads
+  to determine the status of each contract term. A term is "agreed" only if the last
+  message referencing it from each involved party accepts it. A term is "open" if
+  any involved party''s last message rejects or counters it. The 9 terms are: (1)
+  payment schedule, (2) liability cap, (3) IP ownership, (4) termination clause, (5)
+  SLA uptime guarantee, (6) data residency, (7) audit rights, (8) renewal pricing,
+  (9) support response time. Identify the 3 terms that remain open. Compose a new
+  email to nora.zhang@ops.thornton.com with subject "Contract Status — Lattice Works"
+  containing a section "Open items:" listing exactly the 3 open terms and for each
+  term, which department last objected and their stated concern. For each open item,
+  quote the objecting department''s exact words from their most recent message. Create
+  a label "Lattice Works Contract" and apply it to every email in the 6 negotiation
+  threads. Do not apply the label to any other email.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 72
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: contract_negotiation_tracker
+    params: {}
+    outputs:
+    - all_negotiation_email_ids
+    - intern_summary_email_id
+    - vendor_pressure_email_id
+    - liability_cap_concern
+    - renewal_pricing_concern
+    - support_response_concern
+  targets:
+    all_negotiation_email_ids: '{output.all_negotiation_email_ids}'
+    intern_summary_email_id: '{output.intern_summary_email_id}'
+    vendor_pressure_email_id: '{output.vendor_pressure_email_id}'
+    liability_cap_concern: '{output.liability_cap_concern}'
+    renewal_pricing_concern: '{output.renewal_pricing_concern}'
+    support_response_concern: '{output.support_response_concern}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose contract status email with open items to Nora Zhang
+      count: 1
+      properties:
+        to:
+          expr: "x == ['nora.zhang@ops.thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Contract Status — Lattice Works"
+        body:
+          expr: >-
+            'Open items:' in x
+            and 'liability cap' in x
+            and 'renewal pricing' in x
+            and 'support response time' in x
+            and target['liability_cap_concern'] in x
+            and target['renewal_pricing_concern'] in x
+            and target['support_response_concern'] in x
+        in_reply_to:
+          eq: null
+    - entity: labels
+      desc: Create Lattice Works Contract label
+      count: 1
+      properties:
+        name:
+          eq: Lattice Works Contract
+  update:
+    - entity: emails
+      desc: Apply Lattice Works Contract label to all negotiation emails
+      bijection:
+        over: "target['all_negotiation_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - Lattice Works Contract
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['all_negotiation_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Lattice Works Contract'"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent contract status email to Nora Zhang
+      ref: create[0]
+      severity: high
+    - name: Agent created the Lattice Works Contract label
+      ref: create[1]
+      severity: high
+    - name: Agent applied the label to all negotiation emails
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify non-negotiation emails
+      ref: invariant[0]
+      severity: high

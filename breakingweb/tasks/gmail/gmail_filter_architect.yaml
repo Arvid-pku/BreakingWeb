@@ -1,0 +1,100 @@
+task_id: gmail_filter_architect
+env_id: gmail
+title: Filter Architect
+instruction_template: Look at the emails in your inbox and create three filters in
+  Gmail Settings. First, find the billing vendor email and create a filter that archives
+  and labels future emails from that vendor's domain with '{target.billing_label}'.
+  Second, find the payroll exception email and create a filter for similar future
+  messages using its key subject phrase, labeling them '{target.payroll_label}' and
+  starring them. Third, find {target.exec_sender_name}'s email and create a filter
+  to forward all future messages from them to {target.exec_forward_email}. Do not
+  modify or delete any existing filters.
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 30
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: filter_architect
+    params: {}
+    outputs:
+    - billing_domain
+    - billing_label
+    - payroll_keyword
+    - payroll_label
+    - exec_sender_name
+    - exec_sender_email
+    - exec_forward_email
+    - existing_filter_id
+  targets:
+    billing_domain: '{output.billing_domain}'
+    billing_label: '{output.billing_label}'
+    payroll_keyword: '{output.payroll_keyword}'
+    payroll_label: '{output.payroll_label}'
+    exec_sender_name: '{output.exec_sender_name}'
+    exec_sender_email: '{output.exec_sender_email}'
+    exec_forward_email: '{output.exec_forward_email}'
+    existing_filter_id: '{output.existing_filter_id}'
+canonical_diff:
+  create:
+    - entity: filters
+      desc: Billing vendor filter that archives and labels emails from billing domain
+      count: 1
+      properties:
+        from_addresses:
+          expr: "any(a.endswith(target['billing_domain']) for a in x)"
+        add_labels:
+          expr: "target['billing_label'] in x"
+        archive:
+          eq: true
+    - entity: filters
+      desc: Payroll exception filter that stars and labels matching subjects
+      count: 1
+      properties:
+        subject_keywords:
+          expr: "target['payroll_keyword'] in x"
+        add_labels:
+          expr: "target['payroll_label'] in x"
+        star:
+          eq: true
+    - entity: filters
+      desc: Executive sender filter that forwards future messages
+      count: 1
+      properties:
+        from_addresses:
+          expr: "target['exec_sender_email'] in x"
+        forward_to:
+          expr: "x == target['exec_forward_email']"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent created billing vendor filter
+      ref: create[0]
+      severity: high
+    - name: Agent created payroll exception filter
+      ref: create[1]
+      severity: high
+    - name: Agent created executive forward filter
+      ref: create[2]
+      severity: high
+    - name: Agent did not delete existing filter
+      ref: invariant[6]
+      severity: high

@@ -1,0 +1,143 @@
+task_id: gmail_social_engineering_triage
+env_id: gmail
+title: CEO Impersonation Triage
+instruction_template: 'Three emails in the inbox display the name "David Chen, CEO".
+  One is from david.chen@acme.com (the real CEO — verify this matches the contacts
+  list). The other two are social engineering attempts: one from david.chen@acme-corp.net
+  and one from david.chen@mail.acme.com.co. Delete the two fake emails. Reply (not
+  Reply All) to the legitimate email from david.chen@acme.com with the exact body
+  text "Confirmed. Will proceed as discussed." Compose a new email to {target.report_to}
+  with subject "{target.report_subject}" and body containing both fake sender addresses
+  ({target.fake1_address} and {target.fake2_address}). Note: the contacts list is
+  accessible via the Labels & contacts page (click the Labels link in the sidebar).'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: social_engineering_triage
+    params: {}
+    outputs:
+    - real_ceo_email_id
+    - fake1_email_id
+    - fake2_email_id
+    - report_to
+    - report_subject
+    - reply_body_contains
+    - fake1_address
+    - fake2_address
+  targets:
+    real_ceo_email_id: '{output.real_ceo_email_id}'
+    fake1_email_id: '{output.fake1_email_id}'
+    fake2_email_id: '{output.fake2_email_id}'
+    report_to: '{output.report_to}'
+    report_subject: '{output.report_subject}'
+    reply_body_contains: '{output.reply_body_contains}'
+    fake1_address: '{output.fake1_address}'
+    fake2_address: '{output.fake2_address}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to legitimate CEO email with confirmation
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['real_ceo_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['real_ceo_email_id'])]"
+        body:
+          expr: "x == target['reply_body_contains']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Compose phishing report email with fake addresses
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['report_to']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          expr: "x == target['report_subject']"
+        body:
+          expr: "target['fake1_address'] in x and target['fake2_address'] in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: deleted
+      desc: Fake CEO email from acme-corp.net appears in trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['fake1_email_id']"
+    - entity: deleted
+      desc: Fake CEO email from mail.acme.com.co appears in trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['fake2_email_id']"
+  delete:
+    - entity: emails
+      desc: Delete fake CEO email from acme-corp.net from inbox
+      where:
+        id:
+          expr: "x == target['fake1_email_id']"
+    - entity: emails
+      desc: Delete fake CEO email from mail.acme.com.co from inbox
+      where:
+        id:
+          expr: "x == target['fake2_email_id']"
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id != target['fake1_email_id']
+        and a.id != target['fake2_email_id']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to legitimate CEO email
+      ref: create[0]
+      severity: high
+    - name: Agent sent phishing report email
+      ref: create[1]
+      severity: high
+    - name: Fake CEO email 1 moved to trash
+      ref: create[2]
+      severity: high
+    - name: Fake CEO email 2 moved to trash
+      ref: create[3]
+      severity: high
+    - name: Agent deleted fake CEO email 1 from inbox
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted fake CEO email 2 from inbox
+      ref: delete[1]
+      severity: high
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

@@ -1,0 +1,204 @@
+task_id: amazon_multi_destination_orders
+env_id: amazon
+title: Add Address and Place Two Orders to Different Destinations
+instruction_template: 'First, add a new shipping address: {target.new_name}, {target.new_street},
+  {target.new_city}, OR {target.new_zip}. Then search for ''{target.product_1}'' and
+  purchase it, shipping to the new {target.new_city} address. After that order is
+  placed, search for ''{target.product_2}'' and purchase it using an existing address
+  on file (not the {target.new_city} address).
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 40
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Wireless Noise-Cancelling Headphones
+      brand: AudioMax
+      category: Electronics
+      price: 79.99
+      rating: 4.6
+      features:
+      - Active noise cancellation
+      - 30-hour battery
+      - Bluetooth 5.0
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_dest1
+    - product_name_dest1
+    - product_price_dest1
+  - use: featured_product
+    params:
+      name: Cast Iron Dutch Oven
+      brand: Ironstone Home
+      category: Home & Kitchen
+      price: 54.99
+      rating: 4.5
+      features:
+      - 6-quart capacity
+      - Pre-seasoned
+      - Oven safe to 500F
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_dest2
+    - product_name_dest2
+    - product_price_dest2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 100.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - catalog_home
+  targets:
+    product_1: '{output.product_name_dest1}'
+    product_id_dest1: '{output.product_id_dest1}'
+    product_2: '{output.product_name_dest2}'
+    product_id_dest2: '{output.product_id_dest2}'
+    new_name: Sam Rivera
+    new_street: 742 Maple Avenue
+    new_city: Portland
+    new_state: OR
+    new_zip: '97201'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New shipping address created with target details
+    properties:
+      full_name: {expr: "x == target['new_name']"}
+      street_address: {expr: "target['new_street'] in x"}
+      city: {expr: "x == target['new_city']"}
+      state: {expr: "x == target['new_state']"}
+      zip_code: {expr: "x == target['new_zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: Order
+    desc: Order 1 ships target product 1 to the new Portland address
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id_dest1'] and
+          x[0]['quantity'] == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['new_name'] and a.city == target['new_city']
+          for a in state.addresses)"
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Order 2 ships target product 2 to a different (existing) address
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id_dest2'] and
+          x[0]['quantity'] == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and not (a.full_name == target['new_name'] and a.city
+          == target['new_city']) for a in state.addresses)"
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name != target['new_name']"
+    preserve: ALL
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

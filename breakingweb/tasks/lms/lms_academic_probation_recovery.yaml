@@ -1,0 +1,162 @@
+task_id: lms_academic_probation_recovery
+env_id: lms
+title: Academic Probation Recovery Plan
+instruction_template: You are currently on academic probation with a GPA of {target.gpa}.
+  You need to raise your GPA above 2.0 by end of semester. Review all your courses,
+  determine the minimum letter grade needed in each to bring your cumulative GPA above
+  2.0, and identify the single missing assignment of any type (homework, quiz, exam,
+  or project) with the highest projected impact (course credits × category weight,
+  ties by higher points possible and later due date). Submit that assignment with file
+  "recovery_priority.pdf". Then send a brief recovery plan message to your advisor
+  ({target.advisor_name}).
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 25
+primary_primitives:
+- grounding
+start_path: /dashboard
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params:
+      gpa: '1.85'
+      enrollment_status: probation
+    outputs:
+    - student_id
+    - advisor_name
+    - gpa
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.5
+      late_count: 1
+      missing_count: 1
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+  targets:
+    advisor_name: '{output.advisor_name}'
+    gpa: '{output.gpa}'
+    course_codes: '{output.course_codes}'
+    current_weighted_scores: '{output.current_weighted_scores}'
+canonical_diff:
+  update:
+  - entity: Assignment
+    desc: Submit the most critical missing assignment with recovery_priority.pdf
+    where:
+      id:
+        expr: >-
+          x == max(
+            (
+              a.id
+              for a in initial.assignments
+              if a.submission_status == 'not_submitted'
+            ),
+            key=lambda aid: (
+              initial.get_course(initial.get_assignment(aid).course_id).credits,
+              initial.get_course(initial.get_assignment(aid).course_id).syllabus.grading_policy[
+                initial.get_assignment(aid).weight_category
+              ].weight,
+              initial.get_assignment(aid).points_possible,
+              initial.get_assignment(aid).due_at.timestamp(),
+            ),
+          )
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: recovery_priority.pdf
+      attempt_count:
+        expr: "x >= 1"
+      submitted_at:
+        expr: "x is not None"
+  invariant:
+  - collection: state.assignments
+    filter: "not (a.file_name == 'recovery_priority.pdf' and a.submission_status in ('submitted', 'late'))"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  # Removed two constraints that conflicted with the instruction (it tells the
+  # user to send a recovery-plan message). They penalised users who followed
+  # the instruction — the expr predicates required body+to+advisor-name in a
+  # specific shape that the LMS message UI does not always produce. The
+  # "excessive messages" guard below is preserved.
+  - desc: Agent did not send excessive messages
+    expr: "len(state.sent_messages) <= 3"
+    severity: medium
+  named_invariants:
+  - name: Agent submitted the most critical missing assignment
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify other assignments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+secondary_primitives: []

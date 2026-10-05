@@ -1,0 +1,125 @@
+task_id: amazon_browse_category
+env_id: amazon
+title: Browse Category and Add Cheapest Item
+instruction_template: 'Browse the Electronics category, find the cheapest item available,
+  and add it to your cart.
+
+  '
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 10
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: USB-C Charging Cable 6ft
+      brand: CableTech
+      category: Electronics
+      price: 7.99
+      rating: 4.3
+      features:
+      - Fast charging support
+      - Braided nylon cable
+      - 6 foot length
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 15.0
+      - 200.0
+    outputs:
+    - product_ids
+  targets:
+    cheapest_id: '{output.product_id}'
+    cheapest_name: '{output.product_name}'
+canonical_diff:
+  create:
+  - entity: CartItem
+    desc: Cheapest Electronics product added to cart
+    properties:
+      product_id: {expr: "x == target['cheapest_id']"}
+      quantity: {eq: 1}
+      product_name: {expr: "x == target['cheapest_name']"}
+      unit_price: {any: true}        # auto-populated from product price
+      variant_selections: {any: true} # no variants on this product
+      added_at: {any: true}           # server-generated timestamp
+  invariant:
+  - collection: state.cart_items
+    filter: "a.product_id != target['cheapest_id']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not add extra items to cart
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

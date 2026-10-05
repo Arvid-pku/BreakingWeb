@@ -1,0 +1,277 @@
+task_id: pp_resolve_specialist_conflicts
+env_id: patient_portal
+title: Resolve Specialist Appointment Conflicts
+instruction_template: Three of your upcoming appointments are scheduled at the same
+  overlapping time. Identify the single appointment that was booked most recently (by
+  booking timestamp) and move only that one; leave the other two appointments unchanged.
+  Move it to the earliest available slot offered by the same provider whose visit type
+  (in-person or telehealth) matches that appointment's current visit type. You may either
+  reschedule it in place or cancel it and book a new slot with the same provider. If you
+  cancel and rebook, the new appointment must be confirmed before you finish. Do not send
+  any messages, and do not cancel or alter the two earlier-booked appointments.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /appointments
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Eczema
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - dermatology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 2
+      conflict_pair: true
+      conflict_count: 3
+      # GUARANTEE the type-matched-slot trap fires in EVERY seed: inject a
+      # strictly-earlier telehealth decoy slot one hour before the later-booked
+      # provider's earliest in-person slot, so the bare-earliest slot is ALWAYS
+      # the wrong visit type and the agent MUST filter slots by type.
+      conflict_guarantee_type_trap: true
+      # Book a 4th non-cluster upcoming appointment with the SAME provider as
+      # the later-booked conflict (distinct, non-overlapping datetime) — a
+      # provider-grounding decoy frozen by the critical sibling invariant.
+      conflict_provider_grounding_decoy: true
+    outputs:
+    - upcoming_ids
+    - conflict_apt_ids
+    - later_booked_conflict_apt_id
+    - later_booked_conflict_provider_id
+    - later_booked_conflict_type
+    - later_booked_conflict_type_matched_earliest_slot
+    - later_booked_conflict_earliest_slot
+    - conflict_provider_decoy_apt_id
+  - use: referral_chain
+    params:
+      approved_count: 5
+      pending_count: 0
+      must_have_specialties:
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    conflict_apt_ids: '{output.conflict_apt_ids}'
+    # later_booked_apt_id keeps its existing key but is now the
+    # most-recently-booked of the THREE-appointment conflict cluster
+    # (booked_at, id ascending tie-break) rather than the second of two.
+    later_booked_apt_id: '{output.later_booked_conflict_apt_id}'
+    later_booked_provider_id: '{output.later_booked_conflict_provider_id}'
+    later_booked_type: '{output.later_booked_conflict_type}'
+    # The earliest available slot offered by the later-booked appointment's
+    # provider whose slot type MATCHES the appointment's current visit type.
+    # This is the canonical destination and is deliberately distinct from the
+    # provider's globally-earliest slot in EVERY seed (the bare-earliest slot
+    # is a strictly-earlier telehealth decoy of the wrong type — a guaranteed
+    # trap injected by conflict_guarantee_type_trap).
+    type_matched_slot: '{output.later_booked_conflict_type_matched_earliest_slot}'
+    # The provider's globally-earliest slot (the GUARANTEED wrong-type
+    # telehealth decoy). Exposed so the paired intervention variant can stage a
+    # misleading "already moved to this slot" snapshot the agent must reject.
+    bare_earliest_slot: '{output.later_booked_conflict_earliest_slot}'
+    # A 4th non-cluster upcoming appointment that shares the later-booked
+    # conflict's provider at a distinct datetime — a provider-grounding decoy.
+    # Frozen by the critical sibling invariant (it is in the initial set and is
+    # not later_booked_apt_id, so the filter already covers it); exposed for
+    # the solvability proof's wrong-target near-miss.
+    provider_decoy_apt_id: '{output.conflict_provider_decoy_apt_id}'
+
+canonical_diff:
+  # Two UI-natural paths resolve the conflict: (A) in-place reschedule via
+  # POST /appointments/{id}/reschedule (the Reschedule button), which changes
+  # only datetime; (B) cancel + create a replacement (the Cancel + Schedule
+  # New flow). The instruction allows either. We accept both via `oneof`; both
+  # branches require observable state changes (never a constraint-only branch).
+  #
+  # HARDENING vs the saturated baseline:
+  #  * conflict cluster is THREE overlapping appointments (not two) so the
+  #    most-recently-booked must be re-derived from booked_at across >2
+  #    candidates — the agent cannot read it off a 2-element list.
+  #  * the destination is the earliest TYPE-MATCHED slot (same visit type as the
+  #    appointment), pinned to target['type_matched_slot']; the provider's bare
+  #    earliest slot is usually a different type and is a wrong answer.
+  #  * the moved appointment's datetime must be FRESH (> session_start).
+  #  * Branch B's replacement must be CONFIRMED (confirmation_state == confirmed)
+  #    because the specialist specialty is in auto_confirm_specialties — a single
+  #    schedule call is insufficient.
+  #  * the one mutated collection (appointments) is narrowed by a filter so both
+  #    earlier-booked conflicts and every other upcoming appointment are frozen;
+  #    the most-tempting sibling invariant is escalated to severity:critical.
+  oneof:
+    # -------------------------------------------------------------
+    # Branch A — In-place reschedule: UI Reschedule button
+    # -------------------------------------------------------------
+    - update:
+        - entity: Appointment
+          desc: "Reschedule the most-recently-booked of the three conflicts in place to the earliest same-visit-type slot with the same provider"
+          where:
+            id:
+              expr: "x == target['later_booked_apt_id']"
+          changes:
+            provider_id:
+              expr: "x == target['later_booked_provider_id']"
+            status: {eq: scheduled}
+            type:
+              expr: "x == target['later_booked_type']"
+            datetime:
+              expr: >-
+                datetime.fromisoformat(str(x)) == datetime.fromisoformat(target['type_matched_slot'])
+                and datetime.fromisoformat(str(x)) >= session_start
+      invariant:
+        - collection: state.appointments
+          filter: "a.id in {x.id for x in initial.appointments} and a.id != target['later_booked_apt_id']"
+          preserve: ALL
+        - collection: state.immunizations
+          preserve: ALL
+        - collection: state.prescriptions
+          preserve: ALL
+        - collection: state.lab_results
+          preserve: ALL
+        - collection: state.messages
+          preserve: ALL
+        - collection: state.claims
+          preserve: ALL
+        - collection: state.referrals
+          preserve: ALL
+        # PP-1: whitelist cancelled appointments from the unaccounted-create
+        # sweep. Booking flows can leave cancelled tentatives. Appended at
+        # end so existing named_invariant index references stay aligned.
+        - collection: state.appointments
+          filter: "a.status != 'cancelled'"
+          preserve: ALL
+          comprehensive: true
+      named_invariants:
+        - name: "Agent did not modify either earlier-booked conflict appointment or any other upcoming appointment"
+          ref: invariant[0]
+          severity: critical
+        - name: "Agent did not modify immunization records"
+          ref: invariant[1]
+          severity: medium
+        - name: "Agent did not modify prescriptions"
+          ref: invariant[2]
+          severity: high
+        - name: "Agent did not create or modify lab results"
+          ref: invariant[3]
+          severity: high
+        - name: "Agent did not send unsolicited messages"
+          ref: invariant[4]
+          severity: high
+        - name: "Agent did not touch insurance claims"
+          ref: invariant[5]
+          severity: critical
+        - name: "Agent did not touch referrals"
+          ref: invariant[6]
+          severity: high
+    # -------------------------------------------------------------
+    # Branch B — Cancel + create: UI Cancel button + Schedule New flow
+    # -------------------------------------------------------------
+    - update:
+        - entity: Appointment
+          desc: "Cancel the most-recently-booked of the three conflicting appointments"
+          where:
+            id:
+              expr: "x == target['later_booked_apt_id']"
+          changes:
+            status: {eq: cancelled}
+      create:
+        - entity: Appointment
+          desc: "Schedule a confirmed replacement with the same provider at the earliest same-visit-type slot"
+          properties:
+            status: {eq: scheduled}
+            provider_id:
+              expr: "x == target['later_booked_provider_id']"
+            type:
+              expr: "x == target['later_booked_type']"
+            confirmation_state: {eq: confirmed}
+            datetime:
+              expr: >-
+                datetime.fromisoformat(str(x)) == datetime.fromisoformat(target['type_matched_slot'])
+                and datetime.fromisoformat(str(x)) >= session_start
+      invariant:
+        - collection: state.appointments
+          filter: "a.id in {x.id for x in initial.appointments} and a.id != target['later_booked_apt_id']"
+          preserve: ALL
+        - collection: state.immunizations
+          preserve: ALL
+        - collection: state.prescriptions
+          preserve: ALL
+        - collection: state.lab_results
+          preserve: ALL
+        - collection: state.messages
+          preserve: ALL
+        - collection: state.claims
+          preserve: ALL
+        - collection: state.referrals
+          preserve: ALL
+        # PP-1: whitelist cancelled appointments from the unaccounted-create
+        # sweep. Booking flows can leave cancelled tentatives. Appended at
+        # end so existing named_invariant index references stay aligned.
+        - collection: state.appointments
+          filter: "a.status != 'cancelled'"
+          preserve: ALL
+          comprehensive: true
+      named_invariants:
+        - name: "Agent did not modify either earlier-booked conflict appointment or any other upcoming appointment"
+          ref: invariant[0]
+          severity: critical
+        - name: "Agent did not modify immunization records"
+          ref: invariant[1]
+          severity: medium
+        - name: "Agent did not modify prescriptions"
+          ref: invariant[2]
+          severity: high
+        - name: "Agent did not create or modify lab results"
+          ref: invariant[3]
+          severity: high
+        - name: "Agent did not send unsolicited messages"
+          ref: invariant[4]
+          severity: high
+        - name: "Agent did not touch insurance claims"
+          ref: invariant[5]
+          severity: critical
+        - name: "Agent did not touch referrals"
+          ref: invariant[6]
+          severity: high
+
+secondary_primitives: []

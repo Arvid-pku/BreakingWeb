@@ -1,0 +1,228 @@
+task_id: amazon_review_aggregation
+env_id: amazon
+title: Write Reviews for 3 Products
+instruction_template: 'Write reviews for three different products. For "{target.product1_name}",
+  give a 5-star rating with the title "{target.product1_title}". For "{target.product2_name}",
+  give a 3-star rating with the title "{target.product2_title}". For "{target.product3_name}",
+  give a 4-star rating with the title "{target.product3_title}". Each review body
+  should be at least one sentence describing your experience.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 30
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: product_with_reviews
+    params:
+      product_name: Premium Bluetooth Speaker
+      category: Electronics
+      price: 79.99
+      reviews:
+      - rating: 4
+        title: Good sound quality
+        body: Impressive bass and clear highs for the price.
+    outputs:
+    - product_id
+    - review_ids
+  - use: product_with_reviews
+    params:
+      product_name: Ceramic Plant Pot Set
+      category: Home & Kitchen
+      price: 34.99
+      reviews:
+      - rating: 5
+        title: Beautiful pots
+        body: These look amazing on my windowsill.
+    outputs:
+    - product_id_2
+    - review_ids_2
+  - use: product_with_reviews
+    params:
+      product_name: Running Shoes Ultra Lite
+      category: Sports & Outdoors
+      price: 119.99
+      reviews:
+      - rating: 4
+        title: Comfortable fit
+        body: Great for long distance runs.
+      - rating: 2
+        title: Wore out quickly
+        body: Sole started peeling after 3 months.
+    outputs:
+    - product_id_3
+    - review_ids_3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 200.0
+    outputs:
+    - catalog_ids
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 10.0
+      - 100.0
+    outputs:
+    - catalog_home
+  targets:
+    product1_name: Premium Bluetooth Speaker
+    product1_id: '{output.product_id}'
+    product1_title: Absolutely perfect
+    product2_name: Ceramic Plant Pot Set
+    product2_id: '{output.product_id_2}'
+    product2_title: Decent but has flaws
+    product3_name: Running Shoes Ultra Lite
+    product3_id: '{output.product_id_3}'
+    product3_title: Great value purchase
+canonical_diff:
+  create:
+  - entity: Review
+    desc: 5-star review for product 1 with the target title
+    properties:
+      product_id: {expr: "x == target['product1_id']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['product1_title']"}
+      body: {expr: "len(x.strip()) >= 20 and any(ch in x for ch in '.!?')"}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  - entity: Review
+    desc: 3-star review for product 2 with the target title
+    properties:
+      product_id: {expr: "x == target['product2_id']"}
+      rating: {eq: 3}
+      title: {expr: "x == target['product2_title']"}
+      body: {expr: "len(x.strip()) >= 20 and any(ch in x for ch in '.!?')"}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  - entity: Review
+    desc: 4-star review for product 3 with the target title
+    properties:
+      product_id: {expr: "x == target['product3_id']"}
+      rating: {eq: 4}
+      title: {expr: "x == target['product3_title']"}
+      body: {expr: "len(x.strip()) >= 20 and any(ch in x for ch in '.!?')"}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented for product 1 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['product1_id']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['product1_id'])
+          + 1"
+  - entity: Product
+    desc: Product review_count incremented for product 2 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['product2_id']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['product2_id'])
+          + 1"
+  - entity: Product
+    desc: Product review_count incremented for product 3 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['product3_id']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['product3_id'])
+          + 1"
+  invariant:
+  - collection: state.reviews
+    filter: "a.product_id not in (target['product1_id'], target['product2_id'], target['product3_id'])"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id not in (target['product1_id'], target['product2_id'], target['product3_id'])"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify reviews on non-target products
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not add items to cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

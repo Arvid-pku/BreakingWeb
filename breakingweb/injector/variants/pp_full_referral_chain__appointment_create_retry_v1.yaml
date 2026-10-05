@@ -1,0 +1,68 @@
+variant_id: pp_full_referral_chain__appointment_create_retry_v1
+base_task_id: pp_full_referral_chain
+target_primitive: backtracking
+description: >-
+  Two stacked verify-after-write traps that load backtracking on the task's two
+  load-bearing persisted fields. (1) The first POST /appointments/create returns
+  a LOUD misleading success — a 200 whose body claims status=scheduled and a
+  NON-null linked_referral_id pointing at the WRONG (approved-but-preauth-pending)
+  neurology referral — but nothing is persisted. An agent that trusts the
+  response records the wrong link and never re-creates the appointment; it must
+  re-read the persisted appointment, notice it is absent / mis-linked, and
+  re-book linked to the eligible referral. (2) The first POST
+  /appointments/{id}/confirm silently fakes a 200 with confirmation_state
+  'confirmed' and a confirmed_at timestamp without persisting, so the backend
+  confirmation_state stays 'pending'. The agent must verify the persisted
+  confirmation_state and re-confirm. Both injections force a backtrack-and-verify
+  loop on a distinct persisted field, so the agent must succeed twice.
+injections:
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/appointments/create'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      id: apt_pending_9f3
+      provider_id: '{target.eligible_neuro_provider_id}'
+      datetime: '2026-06-15T10:00:00+00:00'
+      duration_minutes: 30
+      type: in-person
+      status: scheduled
+      reason: Neurology specialist consultation
+      notes: Appointment booked and linked successfully.
+      linked_referral_id: '{target.ineligible_neuro_ref_id}'
+      pre_auth_status: approved
+      booked_at: '2026-04-26T08:00:00+00:00'
+      location: Main Campus
+      requires_confirmation: true
+      confirmation_state: pending
+      confirmed_at: null
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/appointments/*/confirm'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: apt_pending_9f3
+      provider_id: '{target.eligible_neuro_provider_id}'
+      datetime: '2026-06-15T10:00:00+00:00'
+      duration_minutes: 30
+      type: in-person
+      status: scheduled
+      reason: Neurology specialist consultation
+      notes: ''
+      linked_referral_id: '{target.eligible_neuro_ref_id}'
+      pre_auth_status: approved
+      booked_at: '2026-04-26T08:00:00+00:00'
+      location: Main Campus
+      requires_confirmation: true
+      confirmation_state: confirmed
+      confirmed_at: '2026-04-26T08:05:00+00:00'
+    behavior:
+      mode: once

@@ -1,0 +1,67 @@
+task_id: rh_recurring_optimization
+env_id: robinhood
+title: Optimize Recurring Investments
+instruction_template: Analyze all active recurring investments. Pause any where the
+  average purchase price from history is more than 5% above the current stock price.
+  Also pause any that are for stocks with earnings in the next 3 days. Report what
+  you changed.
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+    outputs: []
+  - use: recurring_investments
+    params:
+      count: 5
+      include_history: true
+      overpaying_count: 2
+    outputs:
+    - overpaying_symbols
+    - total_active_before
+  - use: earnings_calendar
+    params:
+      days_ahead: 7
+      include_symbols:
+      - AAPL
+      - GOOGL
+    outputs:
+    - earnings_symbols
+    - should_pause_symbols
+  targets:
+    overpaying_symbols: '{output.overpaying_symbols}'
+    earnings_symbols: '{output.earnings_symbols}'
+    should_pause_symbols: '{output.should_pause_symbols}'
+    total_active_before: '{output.total_active_before}'
+canonical_diff:
+  update:
+  - entity: recurring_investments
+    desc: Should-pause recurring investments set to paused
+    bijection:
+      over: "[r for r in initial.recurring_investments if r.symbol in target['should_pause_symbols'] and not r.id.startswith('ri_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      status: {eq: paused}
+  invariant:
+  - collection: state.recurring_investments
+    filter: "a.symbol not in target['should_pause_symbols'] and not a.id.startswith('ri_decoy_')"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+secondary_primitives: []

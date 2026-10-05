@@ -1,0 +1,22 @@
+variant_id: rh_buy_market_order__adjacent_selection
+base_task_id: rh_buy_market_order
+target_primitive: verification
+description: >
+  The order-type select dropdown: first two selections are off by one
+  (agent picks "limit", registers as "market", etc). Readback catches it.
+injections:
+  - layer: client
+    params:
+      action: adjacent_selection
+      selector: "select, input[type=radio]"
+      offset: -1
+      trigger_count: 4
+      behavior: { mode: persistent }
+  - layer: client
+    params:
+      action: save_drift
+      form_selector: "form"
+      field: "shares"
+      offset: 1
+      apply_count: 1
+      behavior: { mode: persistent }

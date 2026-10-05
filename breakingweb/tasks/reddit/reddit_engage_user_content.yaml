@@ -1,0 +1,72 @@
+task_id: reddit_engage_user_content
+env_id: reddit
+title: Find and Engage with User Content
+instruction_template: Visit u/{target.target_user}'s profile page. Find their post titled "{target.user_post_title}". Upvote that post and save it. Do not vote on or save any other posts.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 12
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: gaming
+      title: I recreated the entire Zelda overworld in Minecraft and it took 14 months
+      body: Album link in comments. Every dungeon is fully explorable.
+      author: PhotonWave
+      score: 55000
+      flair_text: OC
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    target_user: PhotonWave
+    user_post_title: '{output.post_title}'
+    post_id: '{output.post_id}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Upvote and save the target user's post
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent upvoted and saved the target post
+    ref: update[0]
+    severity: high
+  - name: Agent did not vote on or save other posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+secondary_primitives: []

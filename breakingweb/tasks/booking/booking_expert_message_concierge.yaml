@@ -1,0 +1,255 @@
+task_id: booking_expert_message_concierge
+env_id: booking
+title: Message Concierge with Context-Aware Replies and Preference Updates
+instruction_template: "Manage your inbox and update preferences accordingly:\n1. Go\
+  \ to your messages and find all unread messages.\n2. You should find these unread\
+  \ messages:\n   - From \"{target.msg_hotel_1}\": asking about your check-in time\n\
+  \   - From \"{target.msg_hotel_2}\": suggesting a room upgrade with breakfast\n\
+  \   - From \"{target.msg_hotel_3}\": confirming a spa appointment\n3. Reply to each\
+  \ message:\n   - Reply to \"{target.msg_hotel_1}\": subject \"Re: Check-in Time\"\
+  , body \"We expect to arrive around 3pm. Please have the room ready by then.\"\n\
+  \   - Reply to \"{target.msg_hotel_2}\": subject \"Re: Room Upgrade Offer\", body\
+  \ \"Yes, please proceed with the upgrade including breakfast. Thank you for the\
+  \ offer.\"\n   - Reply to \"{target.msg_hotel_3}\": subject \"Re: Spa Appointment\"\
+  , body \"Confirmed. Please also book a couples massage for 5pm if available.\"\n\
+  4. Mark all three original messages as read.\n5. Based on the room upgrade suggestion,\
+  \ update your travel preferences:\n   set preferred bed type to \"king\" and enable\
+  \ accessibility needs.\n"
+difficulty: expert
+time_limit_seconds: 400
+expected_steps: 28
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /messages
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Grand Hotel Tremezzo
+      city: Lake Como
+      country: Italy
+      star_rating: 5
+      review_score: 9.4
+      review_count: 3210
+      price: 550.0
+      neighborhood: Tremezzo
+    outputs:
+    - hotel_id_1
+    - hotel_name_1
+    - room_id_1
+    - room_name_1
+  - use: featured_property
+    params:
+      name: Mandarin Oriental Munich
+      city: Munich
+      country: Germany
+      star_rating: 5
+      review_score: 9.3
+      review_count: 2890
+      price: 480.0
+      neighborhood: Altstadt
+    outputs:
+    - hotel_id_2
+    - hotel_name_2
+    - room_id_2
+    - room_name_2
+  - use: featured_property
+    params:
+      name: Aman Tokyo
+      city: Tokyo
+      country: Japan
+      star_rating: 5
+      review_score: 9.6
+      review_count: 1780
+      price: 720.0
+      neighborhood: Otemachi
+    outputs:
+    - hotel_id_3
+    - hotel_name_3
+    - room_id_3
+    - room_name_3
+  - use: send_message
+    params:
+      property_id: '{output.hotel_id_1}'
+      property_name: '{output.hotel_name_1}'
+      subject: Check-in Time Inquiry
+      body: Dear guest, could you please let us know your expected arrival time so
+        we can prepare your room? Best regards, Front Desk
+      sender: property
+      read: false
+    outputs:
+    - msg_id_1
+  - use: send_message
+    params:
+      property_id: '{output.hotel_id_2}'
+      property_name: '{output.hotel_name_2}'
+      subject: Complimentary Room Upgrade Available
+      body: Dear Mr. Parker, we are pleased to offer you a complimentary upgrade to
+        our King Suite with breakfast included. Would you like us to proceed with
+        this upgrade? Warm regards, Guest Relations
+      sender: property
+      read: false
+    outputs:
+    - msg_id_2
+  - use: send_message
+    params:
+      property_id: '{output.hotel_id_3}'
+      property_name: '{output.hotel_name_3}'
+      subject: Spa Appointment Confirmation
+      body: Dear Mr. Parker, your spa appointment has been scheduled for 3pm on your
+        arrival day. Please let us know if you need any changes. Regards, Aman Spa
+      sender: property
+      read: false
+    outputs:
+    - msg_id_3
+  - use: send_message
+    params:
+      property_id: '{output.hotel_id_1}'
+      property_name: '{output.hotel_name_1}'
+      subject: Welcome to Lake Como!
+      body: Hello and thank you for choosing Grand Hotel Tremezzo. We look forward
+        to your visit!
+      sender: property
+      read: true
+    outputs:
+    - distractor_msg_id
+  - use: set_preferences
+    params:
+      preferred_bed_type: queen
+      accessibility_needs: false
+    outputs:
+    - updated
+  targets:
+    hotel_id_1: '{output.hotel_id_1}'
+    msg_hotel_1: '{output.hotel_name_1}'
+    hotel_id_2: '{output.hotel_id_2}'
+    msg_hotel_2: '{output.hotel_name_2}'
+    hotel_id_3: '{output.hotel_id_3}'
+    msg_hotel_3: '{output.hotel_name_3}'
+    msg_id_1: '{output.msg_id_1}'
+    msg_id_2: '{output.msg_id_2}'
+    msg_id_3: '{output.msg_id_3}'
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Preferred bed type set to king
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_bed_type: {eq: king}
+    - entity: Message
+      desc: Mark first original message as read
+      where:
+        id: {expr: "x == target['msg_id_1']"}
+      changes:
+        read: {eq: true}
+    - entity: Message
+      desc: Mark second original message as read
+      where:
+        id: {expr: "x == target['msg_id_2']"}
+      changes:
+        read: {eq: true}
+    - entity: Message
+      desc: Mark third original message as read
+      where:
+        id: {expr: "x == target['msg_id_3']"}
+      changes:
+        read: {eq: true}
+    - entity: Message
+      desc: Any property-origin message may be marked read while reviewing the inbox
+      where:
+        sender: {eq: property}
+      changes:
+        read: {any: true}
+  create:
+    - entity: Message
+      desc: Reply to hotel_1 about 3pm arrival
+      properties:
+        property_id: {expr: "x == target['hotel_id_1']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {eq: "Re: Check-in Time"}
+        body:
+          expr: "'arrive around 3pm' in x.lower() or '3pm' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Message
+      desc: Reply to hotel_2 about room upgrade with breakfast
+      properties:
+        property_id: {expr: "x == target['hotel_id_2']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {eq: "Re: Room Upgrade Offer"}
+        body:
+          expr: "'upgrade' in x.lower() and 'breakfast' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Message
+      desc: Reply to hotel_3 about spa and couples massage
+      properties:
+        property_id: {expr: "x == target['hotel_id_3']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {eq: "Re: Spa Appointment"}
+        body:
+          expr: "'couples massage' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+  invariant:
+    - collection: state.messages
+      filter: >-
+        a.id not in (target['msg_id_1'], target['msg_id_2'], target['msg_id_3']) and
+        (a.sender == 'property' or
+        a.property_id not in (target['hotel_id_1'], target['hotel_id_2'], target['hotel_id_3']))
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Preferred bed type updated to king
+      ref: update[0]
+      severity: high
+    - name: Agent replied to hotel_1 with correct arrival information
+      ref: create[0]
+      severity: high
+    - name: Agent replied to hotel_2 accepting upgrade with breakfast
+      ref: create[1]
+      severity: high
+    - name: Agent replied to hotel_3 requesting couples massage
+      ref: create[2]
+      severity: high
+    - name: Agent did not send messages to unrelated properties
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

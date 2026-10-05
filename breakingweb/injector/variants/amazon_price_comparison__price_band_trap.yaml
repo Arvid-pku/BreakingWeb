@@ -1,0 +1,55 @@
+variant_id: amazon_price_comparison__price_band_trap
+base_task_id: amazon_price_comparison
+target_primitive: verification
+description: "Three near-duplicate Home & Kitchen SKUs share the target Premium Silicone Kitchen Mat's brand and thumbnail with subtly different prices around the $50-$100 allowed band — one inside the band at the same top rating (looks like a winner), one just outside the band at the top rating, one inside the band but at a slightly lower rating. Sort-by-rating-then-price cannot uniquely pick the canonical target; the agent must verify each candidate's price IS in the band AND matches the target product_id. The first two cart-add calls silently no-op so the agent must verify the cart."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Premium Silicone Kitchen Mat - Pro Edition"
+      brand: HomeStyle
+      seller: HomeStyle
+      category: Home & Kitchen
+      price: 74.99
+      rating: 4.95
+      review_count: 820
+      match_image_of: Premium Silicone Kitchen Mat
+      description: "Pro-edition sibling at the same in-band price and top rating; sort cannot disambiguate."
+    - type: product
+      name: "Premium Silicone Kitchen Mat 2-Pack"
+      brand: HomeStyle
+      seller: HomeStyle
+      category: Home & Kitchen
+      price: 104.99
+      rating: 4.95
+      review_count: 580
+      match_image_of: Premium Silicone Kitchen Mat
+      description: "Two-unit bundle just above the $100 ceiling; tempting top rating but fails the price band."
+    - type: product
+      name: "Premium Silicone Kitchen Mat Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Home & Kitchen
+      price: 64.99
+      rating: 4.85
+      review_count: 410
+      match_image_of: Premium Silicone Kitchen Mat
+      description: "Marketplace refurbished listing in the band but rated below the target; fails the highest-rating rule."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

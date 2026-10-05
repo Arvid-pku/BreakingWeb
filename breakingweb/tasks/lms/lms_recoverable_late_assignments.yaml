@@ -1,0 +1,161 @@
+task_id: lms_recoverable_late_assignments
+env_id: lms
+title: Identify Recoverable Late Assignments
+instruction_template: Review all your courses and identify which late or missing assignments
+  are still worth submitting. For each recoverable assignment, check the course's
+  late policy to determine if submitting now would yield any points (i.e., not past
+  the max late days). Submit all recoverable assignments with file "recovery_submission.pdf".
+  Do NOT submit assignments that are past the maximum late days allowed (they would
+  score 0).
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 25
+primary_primitives:
+- exploration
+start_path: /dashboard
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+      - PHYS201
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.4
+      late_count: 2
+      missing_count: 2
+    outputs:
+    - assignment_ids
+    - missing_assignment_ids
+    - late_assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+  targets:
+    missing_assignment_ids: '{output.missing_assignment_ids}'
+    late_assignment_ids: '{output.late_assignment_ids}'
+    course_codes: '{output.course_codes}'
+canonical_diff:
+  update:
+  - entity: Assignment
+    desc: Submit every recoverable missing assignment and the first recoverable late assignment with recovery_submission.pdf
+    bijection:
+      over: "[aid.strip() for aid in target['missing_assignment_ids'].split(',') if aid.strip()] + [target['late_assignment_ids'].split(',')[0].strip()]"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: recovery_submission.pdf
+      attempt_count:
+        expr: "x >= initial.get_assignment(v).attempt_count + 1"
+      submitted_at:
+        expr: "x is not None and x >= session_start"
+  - entity: Assignment
+    desc: Submit the remaining recoverable late assignment with recovery_submission.pdf
+    bijection:
+      over: "[target['late_assignment_ids'].split(',')[1].strip()]"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      file_name:
+        eq: recovery_submission.pdf
+      attempt_count:
+        expr: "x >= initial.get_assignment(v).attempt_count + 1"
+      submitted_at:
+        expr: "x is not None and x >= session_start"
+  invariant:
+  - collection: state.assignments
+    filter: "a.id not in [mid.strip() for mid in target['missing_assignment_ids'].split(',') if mid.strip()] and a.id not in [lid.strip() for lid in target['late_assignment_ids'].split(',') if lid.strip()]"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent submitted every recoverable missing assignment
+    ref: update[0]
+    severity: high
+  - name: Agent submitted every recoverable late assignment
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other assignments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

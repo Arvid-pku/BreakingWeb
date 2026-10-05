@@ -1,0 +1,62 @@
+variant_id: lms_submit_late__assignment_update_shadow_v2
+base_task_id: lms_submit_late
+target_primitive: state_tracking
+description: The per-course late-submission window the decision hinges on is served
+  STALE and FLICKERING. Reads of a course's Syllabus tab intermittently return a cached
+  snapshot with an inflated max_late_days (so out-of-window look-alikes appear recoverable),
+  then flip to the real, stricter window on re-read. An agent that anchors on its first
+  read of a course policy submits an out-of-window assignment; only an agent that keeps
+  re-reading and reconciling the CURRENT per-course window across reads picks the sole
+  recoverable assignment. A pinned correction notice tells the agent the earlier value
+  was cached and to recheck — a load-bearing clue, not a content-free announcement.
+injections:
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: late-submission window for {target.course_code} was revised'
+    body: 'Correction: the late-submission window (max days past the due date) shown
+      earlier for {target.course_code} and your other courses was a cached, out-of-date
+      value and has been tightened. Re-open each course''s Syllabus tab and use the
+      CURRENT max-late-days for that course before you submit anything — do not rely
+      on the first value you saw, which may overstate how long late work is accepted.'
+    priority: urgent
+    course_id: '{target.target_course_id}'
+    type: announcement
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/syllabus'
+    stale_body:
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Cached syllabus snapshot (out of date)
+      syllabus:
+        grading_policy: {}
+        late_policy:
+          penalty_per_day: '0.05'
+          max_late_days: 30
+          grace_period_hours: 6
+    stale_count: 3
+    behavior:
+      mode: intermittent
+      probability: 0.6
+      seed: 42
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    stale_body:
+      course_id: '{target.target_course_id}'
+      weighted_score: '0'
+      category_scores: {}
+      grades:
+      - assignment_id: '{target.lookalike_assignment_id}'
+        submission_status: graded
+        score: null
+        points_possible: '100'
+        is_dropped: false
+        late_penalty_applied: '0'
+    stale_count: 1
+    behavior:
+      mode: once

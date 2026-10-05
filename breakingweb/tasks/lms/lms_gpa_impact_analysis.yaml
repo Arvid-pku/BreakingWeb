@@ -1,0 +1,242 @@
+task_id: lms_gpa_impact_analysis
+env_id: lms
+title: GPA Impact Analysis — Submit or Acknowledge
+instruction_template: Analyze how your final grades would affect your cumulative GPA.
+  For each course, determine your projected letter grade from the current weighted
+  score shown in the LMS, using only currently graded work and ignoring ungraded
+  future assignments. Use the standard 4.0 GPA scale shown by the LMS. If any
+  course's projected grade would lower your cumulative GPA below {target.gpa},
+  submit "improvement_plan.pdf" for the highest-impact unsubmitted assignment of any
+  type (homework, quiz, exam, or project) in that course — repeat for every such
+  course. If all courses maintain or improve GPA, mark all announcements as read to
+  confirm your review.
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 25
+primary_primitives:
+- state_tracking
+start_path: /dashboard
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params:
+      gpa: '3.15'
+    outputs:
+    - student_id
+    - student_name
+    - gpa
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.6
+      late_count: 1
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - gpa_risk_course_ids
+    - improvement_assignment_ids
+    - no_risk_flag
+  - use: announcements_feed
+    params:
+      count: 4
+      unread_count: 2
+    outputs:
+    - announcement_ids
+    - unread_announcement_ids
+  targets:
+    gpa: '{output.gpa}'
+    gpa_risk_course_ids: '{output.gpa_risk_course_ids}'
+    improvement_assignment_ids: '{output.improvement_assignment_ids}'
+    no_risk_flag: '{output.no_risk_flag}'
+    unread_announcement_ids: '{output.unread_announcement_ids}'
+canonical_diff:
+  oneof:
+  # Branch discriminator baked into the Update where-clause (was a critical constraint).
+  # Bijection still produces slots; where-clause rejects unless no_risk_flag indicates risk.
+  - update:
+    - entity: Assignment
+      desc: Submit improvement_plan.pdf for each risky course's highest-impact unsubmitted assignment (GPA at risk)
+      bijection:
+        over: "target['improvement_assignment_ids'].split(',') if target['improvement_assignment_ids'] else []"
+        variable: v
+      where:
+        id:
+          expr: "x == v and target['no_risk_flag'] == 'false'"
+      changes:
+        submission_status:
+          in:
+          - submitted
+          - late
+        file_name:
+          eq: improvement_plan.pdf
+        attempt_count:
+          expr: "x >= 1"
+        submitted_at:
+          expr: "x is not None"
+    invariant:
+    - collection: state.assignments
+      filter: "a.id not in (target['improvement_assignment_ids'].split(',') if target['improvement_assignment_ids'] else [])"
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: medium
+    named_invariants:
+    - name: Agent submitted improvement plans for all risky courses
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify non-target assignments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify announcements
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify course records
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+  # Branch 2: only matches when no GPA risk.
+  - update:
+    - entity: Announcement
+      desc: Mark all unread announcements as read after confirming GPA is safe (no risk)
+      bijection:
+        over: "target['unread_announcement_ids'].split(',') if target['unread_announcement_ids'] else []"
+        variable: v
+      where:
+        id:
+          expr: "x == v and target['no_risk_flag'] == 'true'"
+      changes:
+        is_read:
+          eq: true
+    invariant:
+    - collection: state.announcements
+      filter: "a.id not in (target['unread_announcement_ids'].split(',') if target['unread_announcement_ids'] else [])"
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    - collection: state.student
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: medium
+    named_invariants:
+    - name: Agent marked unread announcements as read
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify announcements outside the unread set
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify assignments
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify course records
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+secondary_primitives: []

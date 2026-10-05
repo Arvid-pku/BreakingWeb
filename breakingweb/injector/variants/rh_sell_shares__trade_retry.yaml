@@ -1,0 +1,29 @@
+variant_id: rh_sell_shares__trade_retry
+base_task_id: rh_sell_shares
+target_primitive: backtracking
+description: The first order submission fails transiently. The agent must verify the order exists and retry if it does not.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order placed.
+      toast: Your order has been submitted.
+    behavior:
+      mode: once

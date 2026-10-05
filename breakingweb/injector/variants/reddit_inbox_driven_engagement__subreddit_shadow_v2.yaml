@@ -1,0 +1,42 @@
+variant_id: reddit_inbox_driven_engagement__subreddit_shadow_v2
+base_task_id: reddit_inbox_driven_engagement
+target_primitive: grounding
+description: "Three lookalike usernames in the inbox impersonate the reply target and the outreach recipient using underscore, mod-suffix, and case-variant attacks. The first two reply/compose sends silently no-op so the agent must verify each message actually landed in the recipient's inbox."
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    entities:
+    - type: user
+      original_name: '{target.r_from}'
+      alias_name: '{target.r_from}_'
+      message_subject: 'Re: {target.r_sub}'
+      message_body: Lookalike account — do not reply here.
+    - type: user
+      original_name: '{target.r_from}'
+      alias_name: '{target.r_from}.mod'
+      message_subject: 'Re: {target.r_sub}'
+      message_body: Mod-suffix typosquat. Verify the username before replying.
+    - type: user
+      original_name: '{target.mt}'
+      alias_name: '{target.mt}_'
+      message_subject: Quick check
+      message_body: Lookalike account that mirrors the outreach recipient. Do not compose here.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/messages'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      message:
+        id: msg_fake_send
+        from_user: pending
+        to_user: pending
+        subject: Pending
+        body: ''
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_read: false
+    behavior:
+      mode: once

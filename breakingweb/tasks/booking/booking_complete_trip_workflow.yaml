@@ -1,0 +1,253 @@
+task_id: booking_complete_trip_workflow
+env_id: booking
+title: Complete Trip Planning Workflow with Search, Save, Book, and Review
+instruction_template: "Complete this end-to-end trip planning workflow for Barcelona:\n\
+  1. Search for hotels in Barcelona and find \"{target.property_name}\". 2. Save it\
+  \ to a new list called \"Barcelona 2026\". 3. Book its \"Deluxe Sea View Room\"\
+  \ for 2 guests checking in on 2026-09-10\n   and checking out on 2026-09-15 (5 nights).\
+  \ Use the default Visa payment\n   method (ending in 4242).\n4. You also have a\
+  \ completed stay at \"{target.review_prop_name}\" in Barcelona.\n   Write a review\
+  \ for it: overall score 8.5, title \"Lovely Barcelona stay\",\n   positive comment\
+  \ \"Perfect location near Las Ramblas with excellent tapas\n   restaurant\", no\
+  \ negative comment, travel purpose leisure, traveled with\n   family.\n5. Update\
+  \ your travel preferences: set preferred bed type to \"queen\" and\n   add \"halal\"\
+  \ to dietary restrictions.\n"
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: W Barcelona
+      city: Barcelona
+      country: Spain
+      star_rating: 5
+      review_score: 8.9
+      review_count: 6789
+      price: 380.0
+      neighborhood: Barceloneta
+      address: Placa de la Rosa dels Vents 1, 08039 Barcelona
+      distance_km: 2.0
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Beach access
+      - Concierge
+      popular_facilities:
+      - Pool
+      - Spa
+      - Beach access
+      - Restaurant
+      rooms:
+      - name: Wonderful Room
+        price: 380.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+        view_type: city
+      - name: Deluxe Sea View Room
+        price: 480.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: sea
+        room_size_sqm: 40.0
+      - name: Extreme WOW Suite
+        price: 1200.0
+        bed_type: king
+        max_occupancy: 4
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: sea
+    outputs:
+    - book_prop_id
+    - book_prop_name
+    - first_cheapest_room_id
+    - first_cheapest_room_name
+  - use: featured_property
+    params:
+      name: Hotel Casa Camper Barcelona
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.6
+      review_count: 2345
+      price: 220.0
+      neighborhood: El Raval
+      address: Carrer d'Elisabets 11, 08001 Barcelona
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Fitness center
+      - 24-hour front desk
+    outputs:
+    - review_prop_id
+    - review_prop_name
+    - second_cheapest_room_id
+    - second_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_prop_id}'
+      check_in: '2026-01-15'
+      check_out: '2026-01-19'
+      price_per_night: 220.0
+      status: completed
+      guests: 4
+      booked_days_ago: 90
+    outputs:
+    - review_res_id
+    - review_conf_num
+    - property_id
+  - use: set_preferences
+    params:
+      preferred_bed_type: king
+      dietary_restrictions:
+      - vegetarian
+    outputs:
+    - updated
+  targets:
+    book_prop_id: '{output.book_prop_id}'
+    property_name: '{output.book_prop_name}'
+    review_prop_id: '{output.review_prop_id}'
+    review_prop_name: '{output.review_prop_name}'
+    review_res_id: '{output.review_res_id}'
+canonical_diff:
+  create:
+    - entity: SavedList
+      desc: Create new 'Barcelona 2026' saved list with target property
+      properties:
+        name: {eq: "Barcelona 2026"}
+        property_ids:
+          expr: "target['book_prop_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Reservation
+      desc: Book the Deluxe Sea View Room at W Barcelona
+      properties:
+        property_id: {expr: "x == target['book_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe Sea View Room"}
+        check_in: {eq: "2026-09-10"}
+        check_out: {eq: "2026-09-15"}
+        nights: {eq: 5}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Review
+      desc: Write review for Hotel Casa Camper with score 8.5
+      properties:
+        property_id: {expr: "x == target['review_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.5}
+        scores: {any: true}
+        title: {eq: "Lovely Barcelona stay"}
+        positive: {expr: "'las ramblas' in x.lower()"}
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: family}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  update:
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the reviewed reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: travel_preferences
+      desc: Preferred bed type set to queen and halal added to dietary restrictions
+      where:
+        id: {eq: "__singleton_travel_preferences__"}
+      changes:
+        preferred_bed_type: {eq: queen}
+        dietary_restrictions: {expr: "'halal' in x"}
+  invariant:
+    - collection: state.saved_lists
+      filter: "a.name != 'Barcelona 2026'"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.property_id != target['book_prop_id'] or a.check_in != '2026-09-10'"
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_prop_id']"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent created the Barcelona 2026 list with target property
+      ref: create[0]
+      severity: high
+    - name: Agent booked Deluxe Sea View Room at W Barcelona
+      ref: create[1]
+      severity: critical
+    - name: Agent wrote review for Hotel Casa Camper with correct score
+      ref: create[2]
+      severity: high
+    - name: Travel preferences updated (queen bed, halal dietary)
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify other saved lists
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify other reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not create reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low

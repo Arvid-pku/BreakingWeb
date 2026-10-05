@@ -1,0 +1,27 @@
+variant_id: pp_refill_prescription__medication_refill_retry_v1
+base_task_id: pp_refill_prescription
+target_primitive: backtracking
+description: The first write to refill returns a fake successful response without persisting. The agent must verify that refills_remaining
+  actually decremented on the real prescription before declaring the task done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/medications/*/refill'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: rx_8c1e4f72b3
+      medication: Lisinopril 10mg
+      dosage: 10mg
+      frequency: once daily
+      refills_remaining: 2
+      last_filled: '2026-04-26T08:00:00+00:00'
+      expires_at: '2027-04-26T08:00:00+00:00'
+      status: active
+      interactions: []
+      pharmacy_id: pharm_1a8e2c4f
+      provider_id: prov_a82c441f
+    behavior:
+      mode: once

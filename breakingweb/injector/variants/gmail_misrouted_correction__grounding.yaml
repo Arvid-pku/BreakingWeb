@@ -1,0 +1,33 @@
+variant_id: gmail_misrouted_correction__grounding_v1
+base_task_id: gmail_misrouted_correction
+target_primitive: grounding
+description: Ambiguous routing rules and confusing recipient information make identifying
+  correct recipients hard
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - Email to correct team but wrong person
+    - Correctly routed but looks wrong
+    - Multiple valid recipients
+    - Recipient changed teams
+    - Email with ambiguous topic
+- layer: seed
+  params:
+    action: alias_entities
+    multiplier: 2
+    aliases:
+      - name: "D. Rivera"
+        email: "d.rivera@thornton.com"
+        note: "Operations staff"
+      - name: "Donna B."
+        email: "donna.b@thornton.com"
+        note: "Former team member"
+      - name: "A. Chen"
+        email: "a.chen@thornton.com"
+        note: "Department assistant"
+- layer: server
+  params:
+    action: shuffle_contacts

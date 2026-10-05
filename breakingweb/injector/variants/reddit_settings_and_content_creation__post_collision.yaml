@@ -1,0 +1,97 @@
+variant_id: reddit_settings_and_content_creation__post_collision
+base_task_id: reddit_settings_and_content_creation
+target_primitive: grounding
+description: Three lookalike Python and join-sub communities collide with the
+  canonical r/Python and r/{target.join_sub}, plus same-title decoy posts; the
+  agent must create the post in the canonical r/Python and subscribe to the
+  canonical join-sub, not their lookalikes. Pair with silent_fail (fail_count:2)
+  on the create-post endpoint so the first two submissions silently no-op and
+  the agent must verify via the feed.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: PythonOfficial
+      display_name: r/PythonOfficial
+      description: Official-sounding splinter of the real Python community.
+      subscribers: 512000
+    - type: subreddit
+      name: Python2
+      display_name: r/Python2
+      description: Lookalike with a distinct URL.
+      subscribers: 98000
+    - type: subreddit
+      name: Python_
+      display_name: r/Python_
+      description: Underscore-suffixed lookalike of r/Python.
+      subscribers: 110000
+    - type: post
+      subreddit: PythonOfficial
+      title: '{target.post_title}'
+      author: shadow_mod
+      score: 318
+      comments: 24
+      body: Same title crossposted to the official-sounding lookalike community.
+    - type: post
+      subreddit: Python2
+      title: '{target.post_title}'
+      author: lookalike_helper
+      score: 422
+      comments: 31
+      body: Same title in a Python2 lookalike community.
+    - type: post
+      subreddit: Python_
+      title: '{target.post_title}'
+      author: crosspost_helper
+      score: 215
+      comments: 19
+      body: Same title in an underscore-suffixed lookalike community.
+    - type: subreddit
+      name: '{target.join_sub}official'
+      display_name: r/{target.join_sub}official
+      description: Official-sounding {target.join_sub} community, distinct URL.
+      subscribers: 144000
+    - type: subreddit
+      name: '{target.join_sub}_'
+      display_name: r/{target.join_sub}_
+      description: Underscore-suffixed lookalike of r/{target.join_sub}.
+      subscribers: 92000
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: post_fake_retry
+        subreddit_id: sub_python
+        subreddit_name: Python
+        author_name: TechNomad_42
+        author_is_op: true
+        title: '{target.post_title}'
+        body: '{target.post_body}'
+        url: ''
+        post_type: text
+        score: 1
+        upvote_ratio: 1.0
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: false
+        is_hidden: false
+        vote_direction: 1
+        permalink: /r/Python/comments/post_fake_retry
+    behavior:
+      mode: once

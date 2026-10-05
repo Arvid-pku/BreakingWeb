@@ -1,0 +1,317 @@
+task_id: booking_expert_reservation_audit
+env_id: booking
+title: Audit Reservations with Cancellations, Modification, and Messages
+instruction_template: "Perform a full audit of your current reservations:\n1. Review\
+  \ all your confirmed upcoming reservations and identify their total prices.\n2.\
+  \ Cancel the 2 reservations with the highest total prices.\n3. Find your cheapest\
+  \ confirmed reservation. Modify it to extend by 2 extra nights: change check-out\
+  \ from {target.original_checkout} to {target.new_checkout}.\n4. Send a message\
+  \ to the most expensive of the cancelled reservations with subject \"Cancellation\
+  \ - Schedule Change\" and body \"I regret to inform you that I must cancel my reservation\
+  \ due to a work schedule change. I hope to rebook in the future.\"\n5. Send a message\
+  \ to the second most expensive of the cancelled reservations with subject \"Cancellation\
+  \ - Trip Replanning\" and body \"I am cancelling this reservation as I am replanning\
+  \ my trip itinerary. Thank you for your understanding.\"\n"
+difficulty: expert
+time_limit_seconds: 460
+expected_steps: 35
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Ritz London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.4
+      review_count: 6780
+      price: 650.0
+      neighborhood: Piccadilly
+      address: 150 Piccadilly, London W1J 9BR
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Fitness center
+      - Concierge
+      rooms:
+      - name: Superior Room
+        price: 650.0
+        bed_type: king
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Executive Suite
+        price: 1100.0
+        bed_type: king
+        max_occupancy: 3
+        cancel_type: free_cancellation
+    outputs:
+    - exp1_prop_id
+    - exp1_prop_name
+    - exp1_room_id
+    - exp1_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.exp1_prop_id}'
+      check_in: '2026-09-01'
+      check_out: '2026-09-05'
+      price_per_night: 650.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 20
+    outputs:
+    - exp1_res_id
+    - exp1_conf_num
+    - exp1_res_prop_id
+  - use: featured_property
+    params:
+      name: Park Hyatt Sydney
+      city: Sydney
+      country: Australia
+      star_rating: 5
+      review_score: 9.2
+      review_count: 4560
+      price: 520.0
+      neighborhood: The Rocks
+      address: 7 Hickson Road, Sydney NSW 2000
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      rooms:
+      - name: Park Room
+        price: 520.0
+        bed_type: king
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - exp2_prop_id
+    - exp2_prop_name
+    - exp2_room_id
+    - exp2_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.exp2_prop_id}'
+      check_in: '2026-10-10'
+      check_out: '2026-10-14'
+      price_per_night: 520.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 15
+    outputs:
+    - exp2_res_id
+    - exp2_conf_num
+    - exp2_res_prop_id
+  - use: featured_property
+    params:
+      name: Ibis Styles Berlin Mitte
+      city: Berlin
+      country: Germany
+      star_rating: 3
+      review_score: 7.8
+      review_count: 2340
+      price: 95.0
+      neighborhood: Mitte
+      address: Brunnenstrasse 1, 10119 Berlin
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - 24-hour front desk
+      rooms:
+      - name: Standard Twin Room
+        price: 95.0
+        bed_type: twin
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - cheap_prop_id
+    - cheap_prop_name
+    - cheap_room_id
+    - cheap_room_name
+  - use: modify_reservation
+    params:
+      property_id: '{output.cheap_prop_id}'
+      check_in: '2026-08-20'
+      check_out: '2026-08-23'
+      price_per_night: 95.0
+      guests: 2
+      booked_days_ago: 25
+    outputs:
+    - cheap_res_id
+    - cheap_conf_num
+    - cheap_res_prop_id
+    - cheap_check_in
+    - cheap_check_out
+  - use: featured_property
+    params:
+      name: Hotel Amigo Brussels
+      city: Brussels
+      country: Belgium
+      star_rating: 4
+      review_score: 8.6
+      review_count: 1870
+      price: 240.0
+      neighborhood: Grand Place
+      rooms:
+      - name: Classic Room
+        price: 240.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - mid_prop_id
+    - mid_prop_name
+    - mid_room_id
+    - mid_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.mid_prop_id}'
+      check_in: '2026-11-05'
+      check_out: '2026-11-08'
+      price_per_night: 240.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 10
+    outputs:
+    - mid_res_id
+    - mid_conf_num
+    - mid_res_prop_id
+  targets:
+    exp1_res_id: '{output.exp1_res_id}'
+    exp1_prop_id: '{output.exp1_prop_id}'
+    expensive_name_1: '{output.exp1_prop_name}'
+    exp2_res_id: '{output.exp2_res_id}'
+    exp2_prop_id: '{output.exp2_prop_id}'
+    expensive_name_2: '{output.exp2_prop_name}'
+    cheap_res_id: '{output.cheap_res_id}'
+    cheap_prop_id: '{output.cheap_prop_id}'
+    cheap_name: '{output.cheap_prop_name}'
+    original_checkout: '2026-08-23'
+    new_checkout: '2026-08-25'
+    mid_res_id: '{output.mid_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the most expensive reservation
+      where:
+        id: {expr: "x == target['exp1_res_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Cancel the second most expensive reservation
+      where:
+        id: {expr: "x == target['exp2_res_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Extend cheapest reservation check-out by 2 nights
+      where:
+        id: {expr: "x == target['cheap_res_id']"}
+      changes:
+        check_out: {eq: "2026-08-25"}
+  create:
+    - entity: Message
+      desc: Send cancellation message to first expensive hotel
+      properties:
+        property_id: {expr: "x == target['exp1_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject:
+          expr: "'cancellation' in x.lower() and 'schedule change' in x.lower()"
+        body:
+          expr: "'schedule change' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Message
+      desc: Send cancellation message to second expensive hotel
+      properties:
+        property_id: {expr: "x == target['exp2_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject:
+          expr: "'cancellation' in x.lower() and 'replanning' in x.lower()"
+        body:
+          expr: "'replanning' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: >-
+        a.id not in (target['exp1_res_id'], target['exp2_res_id'], target['cheap_res_id'])
+      preserve: ALL
+    - collection: state.messages
+      filter: >-
+        a.sender == 'property' or
+        a.property_id not in (target['exp1_prop_id'], target['exp2_prop_id'])
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the most expensive reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent cancelled the second most expensive reservation
+      ref: update[1]
+      severity: critical
+    - name: Agent extended the cheapest reservation checkout
+      ref: update[2]
+      severity: high
+    - name: Agent sent cancellation message to first hotel
+      ref: create[0]
+      severity: high
+    - name: Agent sent cancellation message to second hotel
+      ref: create[1]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent only messaged the two cancelled hotels
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low
+    - name: Rebooking suggestions are system-generated side effects
+      ref: invariant[7]
+      severity: low

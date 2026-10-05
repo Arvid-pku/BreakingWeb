@@ -1,0 +1,182 @@
+task_id: gmail_new_hire_setup
+env_id: gmail
+title: New Hire Setup
+instruction_template: "It is your first day. Set up your Gmail. Go to Settings and\
+  \ change: display density to comfortable, undo send to 30 seconds, default reply\
+  \ behavior to reply, and enable Send and Archive. Then create three team labels:\
+  \ 'Engineering', 'Design', and 'Product'. Set up two filters in Settings: one that\
+  \ stars emails from {target.team_list_email} and labels them 'Engineering', and\
+  \ one that stars emails from {target.manager_email}. Find the three welcome emails\
+  \ from your team leads in your inbox and add each as a contact (use their name,\
+  \ email, and company from the email). Reply to the welcome email from {target.welcome_sender_name}\
+  \ with the phrase '{target.intro_phrase}' and CC {target.hiring_manager_email} \u2014\
+  \ but do not Reply All (the original email CC'd the entire team)."
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 52
+primary_primitives:
+- patience
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: new_hire_setup
+    params:
+      team_list_email: eng-team@thornton.com
+      manager_email: manager@thornton.com
+      hiring_manager_email: hiring-manager@thornton.com
+      intro_phrase: Thanks for the warm welcome! Looking forward to working with the
+        team.
+      company_name: Northwind Labs
+      team_cc:
+      - dev-a@thornton.com
+      - dev-b@thornton.com
+      - dev-c@thornton.com
+      - dev-d@thornton.com
+      - dev-e@thornton.com
+    outputs:
+    - team_list_email
+    - manager_email
+    - hiring_manager_email
+    - intro_phrase
+    - welcome_sender_name
+    - welcome_id
+    - new_contact_emails
+  targets:
+    team_list_email: '{output.team_list_email}'
+    manager_email: '{output.manager_email}'
+    hiring_manager_email: '{output.hiring_manager_email}'
+    intro_phrase: '{output.intro_phrase}'
+    welcome_sender_name: '{output.welcome_sender_name}'
+    welcome_id: '{output.welcome_id}'
+    new_contact_emails: '{output.new_contact_emails}'
+canonical_diff:
+  create:
+  - entity: labels
+    desc: Create Engineering label
+    count: 1
+    properties:
+      name:
+        eq: Engineering
+  - entity: labels
+    desc: Create Design label
+    count: 1
+    properties:
+      name:
+        eq: Design
+  - entity: labels
+    desc: Create Product label
+    count: 1
+    properties:
+      name:
+        eq: Product
+  - entity: filters
+    desc: Create filter for team list email that stars and labels Engineering
+    count: 1
+    properties:
+      from_addresses:
+        expr: target['team_list_email'] in x
+      star:
+        eq: true
+      add_labels:
+        set_eq:
+        - Engineering
+  - entity: filters
+    desc: Create filter for manager email that stars matching messages
+    count: 1
+    properties:
+      from_addresses:
+        expr: target['manager_email'] in x
+      star:
+        eq: true
+  - entity: sent
+    desc: Reply to welcome email with intro phrase and CC hiring manager
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['welcome_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['welcome_id'])]"
+      cc:
+        expr: "x == [target['hiring_manager_email']]"
+      bcc:
+        eq: []
+      body:
+        expr: target['intro_phrase'] in x
+      forwarded_from_id:
+        eq: null
+  - entity: contacts
+    desc: Add all three team leads as contacts
+    bijection:
+      over: target['new_contact_emails']
+      variable: v
+    properties:
+      email:
+        expr: x == v
+  update:
+  - entity: settings
+    desc: Display density, undo send delay, default reply, and send-and-archive configured
+    where:
+      id: { any: true }
+    changes:
+      display_density: { eq: comfortable }
+      undo_send_seconds: { eq: 30 }
+      default_reply_behavior: { eq: reply }
+      send_and_archive: { eq: true }
+  invariant:
+  - collection: state.emails
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    filter: 'True'
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name not in ['Engineering', 'Design', 'Product']
+    preserve: ALL
+  - collection: state.filters
+    filter: 'True'
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.max_page_size == initial.settings.max_page_size
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent created Engineering label
+    ref: create[0]
+    severity: high
+  - name: Agent created Design label
+    ref: create[1]
+    severity: high
+  - name: Agent created Product label
+    ref: create[2]
+    severity: high
+  - name: Agent created team list filter
+    ref: create[3]
+    severity: high
+  - name: Agent created manager filter
+    ref: create[4]
+    severity: high
+  - name: Agent replied to welcome email
+    ref: create[5]
+    severity: high
+  - name: Agent updated all four required settings
+    ref: update[0]
+    severity: high

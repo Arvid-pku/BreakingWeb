@@ -1,0 +1,49 @@
+task_id: reddit_privacy_overhaul
+env_id: reddit
+title: Privacy Settings Overhaul
+instruction_template: 'Go to Settings and make the following changes: 1. Disable "Show online status". 2. Disable "Allow followers". 3. Disable "Show active communities in profile". 4. Disable all email notification settings (comment replies, post replies, mentions, messages, and digest). Do not change display or content settings.'
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 15
+primary_primitives:
+- verification
+start_path: /feed
+seed:
+  distractors: 0
+  actors: {}
+  steps: []
+  targets: {}
+canonical_diff:
+  update:
+  - entity: settings
+    desc: Privacy settings disabled (online status, followers, active communities, all email notifications)
+    where: {id: {any: true}}
+    changes:
+      show_online_status: {eq: false}
+      allow_followers: {eq: false}
+      show_active_communities: {eq: false}
+      email_comment_reply: {eq: false}
+      email_post_reply: {eq: false}
+      email_mentions: {eq: false}
+      email_messages: {eq: false}
+      email_digest: {eq: false}
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+secondary_primitives: []

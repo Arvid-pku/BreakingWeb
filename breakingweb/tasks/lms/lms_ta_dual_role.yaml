@@ -1,0 +1,250 @@
+task_id: lms_ta_dual_role
+env_id: lms
+title: TA Dual Role Management
+instruction_template: 'You are a TA in two courses ({target.ta_course_code} and {target.sibling_ta_course_code})
+  and a student in {target.student_course_code}. Complete the following without confusing
+  your roles. (1) You have peer reviews assigned to you across BOTH of your TA courses,
+  but you are only responsible for the ones in {target.ta_course_code} (course id {target.ta_course_id}).
+  Open every pending peer review whose underlying submission belongs to {target.ta_course_code}
+  (there are exactly {target.pending_review_count}) and complete each one. Leave every
+  peer review that belongs to your other TA course {target.sibling_ta_course_code} untouched
+  even though it is also assigned to you. Score all three rubric criteria (clarity, depth,
+  originality) with whole numbers from 1 to 5. For any review that was returned for revision,
+  your new score on each criterion that was previously scored must be strictly higher than
+  the previous score shown on that review. Each comment must be at least 60 characters long
+  and must address the reviewee by their first name as shown on that review. (2) In your
+  student course {target.student_course_code}, submit the assignment "{target.student_assignment_title}"
+  with file "ta_student_submission.pdf" exactly once. Do not submit to the wrong course, do
+  not touch any peer review outside {target.ta_course_code}, and do not send any messages.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- exploration
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS201
+      - MATH201
+    outputs:
+    - course_ids
+    - course_codes
+    - course_id_1
+    - course_id_2
+    - course_id_3
+    - course_code_2
+    - course_code_3
+  - use: enrollment_set
+    params:
+      roles:
+        course_1: ta
+        course_3: ta
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 8
+      graded_fraction: 0.4
+      target_assignment_status: not_submitted
+      exclude_course_ids:
+      - course_1
+      - course_3
+      restrict_target_course_id: '{output.course_id_2}'
+    outputs:
+    - assignment_ids
+    - target_assignment_id
+    - target_assignment_title
+    - target_course_id
+    - target_course_code
+    - decoy_assignment_id
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+  - use: peer_review_assignments
+    params:
+      count: 8
+      course_id: course_1
+      returned_review_count: 3
+      statuses:
+      - assigned
+      - assigned
+      - in_progress
+      - assigned
+      - in_progress
+      - in_progress
+      - assigned
+      - in_progress
+    outputs:
+    - review_ids
+    - pending_review_ids
+    - completed_review_ids
+    - returned_review_ids
+    - pending_review_min_scores
+    - pending_review_name_tokens
+    - pending_review_count
+  - use: peer_review_assignments
+    params:
+      count: 4
+      course_id: course_3
+      returned_review_count: 1
+      result_key_suffix: _sibling
+      statuses:
+      - assigned
+      - in_progress
+      - assigned
+      - in_progress
+    outputs:
+    - pending_review_ids_sibling
+    - review_ids_sibling
+  targets:
+    ta_course_code: CS201
+    sibling_ta_course_code: '{output.course_code_3}'
+    student_course_code: '{output.target_course_code}'
+    student_assignment_title: '{output.target_assignment_title}'
+    target_assignment_id: '{output.target_assignment_id}'
+    decoy_assignment_id: '{output.decoy_assignment_id}'
+    ta_course_id: '{output.course_id_1}'
+    sibling_ta_course_id: '{output.course_id_3}'
+    pending_review_ids: '{output.pending_review_ids}'
+    pending_review_min_scores: '{output.pending_review_min_scores}'
+    pending_review_name_tokens: '{output.pending_review_name_tokens}'
+    pending_review_count: '{output.pending_review_count}'
+    sibling_pending_review_ids: '{output.pending_review_ids_sibling}'
+    sibling_review_ids: '{output.review_ids_sibling}'
+canonical_diff:
+  update:
+    - entity: PeerReview
+      desc: Complete every pending TA peer review with improving rubric scores and a 60+ character comment that names the reviewee
+      bijection:
+        over: "[v.strip() for v in target['pending_review_ids'].split(',') if v.strip()]"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        rubric_scores:
+          expr: >-
+            len(x) == 3
+            and set(x) == {'clarity', 'depth', 'originality'}
+            and all(int(s) >= 1 and int(s) <= 5 for s in x.values())
+            and all(
+              int(x[c]) >= int(
+                next(e for e in target['pending_review_min_scores'].split('|') if e.split('=')[0] == v).split('=')[1].split('~')[i]
+              )
+              for i, c in enumerate(['clarity', 'depth', 'originality'])
+            )
+        comments:
+          expr: >-
+            len(x.strip()) >= 60
+            and next(e for e in target['pending_review_name_tokens'].split('|') if e.split(':')[0] == v).split(':')[1].lower() in x.lower()
+        status: {eq: submitted}
+    - entity: Assignment
+      desc: Submit the student-course assignment exactly once with the required file name
+      where:
+        id:
+          expr: "x == target['target_assignment_id']"
+      changes:
+        submission_status:
+          in:
+          - submitted
+          - late
+        file_name:
+          eq: ta_student_submission.pdf
+        attempt_count:
+          expr: "int(x) == 1"
+        submitted_at:
+          expr: "x >= session_start"
+  invariant:
+    - collection: state.peer_reviews
+      filter: "a.id not in [v.strip() for v in target['pending_review_ids'].split(',') if v.strip()]"
+      preserve: ALL
+    - collection: state.assignments
+      filter: "a.id != target['target_assignment_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  - desc: Agent completed exactly the pending peer reviews in scope, no more and no fewer
+    expr: >-
+      len([r for r in state.peer_reviews if r.status == 'submitted'])
+      == len([r for r in initial.peer_reviews if r.status == 'submitted'])
+      + len([v.strip() for v in target['pending_review_ids'].split(',') if v.strip()])
+    severity: critical
+  - desc: Agent did not touch any peer review belonging to the sibling TA course
+    expr: >-
+      all(
+        r.status != 'submitted'
+        for r in state.peer_reviews
+        if r.id in [s.strip() for s in target['sibling_pending_review_ids'].split(',') if s.strip()]
+      )
+    severity: critical
+  named_invariants:
+    - name: Agent completed every pending TA peer review with improving named feedback
+      ref: update[0]
+      severity: critical
+    - name: Agent submitted the student-course assignment exactly once
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify other peer reviews (including the sibling TA course look-alikes)
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify other assignments
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify course records
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+secondary_primitives: []

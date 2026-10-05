@@ -1,0 +1,79 @@
+task_id: gmail_create_label
+env_id: gmail
+title: Create a New Label
+instruction_template: Create a new label called "Important Projects".
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 5
+  steps:
+  - use: create_label
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create the "Important Projects" label
+      count: 1
+      properties:
+        name:
+          eq: Important Projects
+        color:
+          any: true
+        system:
+          eq: false
+        show_in_label_list:
+          any: true
+        show_in_message_list:
+          any: true
+        show_in_imap:
+          any: true
+  invariant:
+    - collection: state.labels
+      filter: "a.name != 'Important Projects'"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent created the "Important Projects" label
+      ref: create[0]
+      severity: high
+    - name: Agent did not create extra labels beyond the one required
+      ref: create[0]
+      severity: medium
+    - name: Agent did not modify existing labels
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify emails
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not create or modify drafts
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not send emails
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[4]
+      severity: high
+    - name: Agent did not modify contacts
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or modify filters
+      ref: invariant[6]
+      severity: medium

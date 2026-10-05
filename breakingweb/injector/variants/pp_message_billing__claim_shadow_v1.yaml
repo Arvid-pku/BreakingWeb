@@ -1,0 +1,103 @@
+variant_id: pp_message_billing__claim_shadow_v1
+base_task_id: pp_message_billing
+target_primitive: state_tracking
+description: >-
+  A state_tracking stressor stack aimed at the two sub-tasks the clean upgrade
+  created. (A) A seed-layer approved-claim lookalike that is MORE RECENT than the
+  real answer and carries a DIFFERENT positive balance, plus contradictory billing
+  threads, so the agent that copies the most-recent or list-view balance derives
+  the wrong claim-balance reason string. (C) A confirm-endpoint verification trap:
+  the first confirm call returns a loud fake-success toast (the write is skipped, so
+  confirmation_state stays pending) followed by a transient 409, so an agent that
+  fires confirm once and assumes success leaves the billing appointment unconfirmed
+  — directly weaponizing the confirmation_state predicate that already broke the
+  strongest model. The canonical answer (billing_followup_reason,
+  billing_earliest_slot_provider_id) is unchanged; only the path to it is contested.
+injections:
+# --- (A) SEED layer: contest the most-recent-positive-approved reason string ---
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Approved + EOB + positive balance, but MORE RECENT (service_date) than the
+    # real answer claim. An agent that picks "the latest approved claim with a
+    # balance" by recency alone (without reconciling that this lookalike is a
+    # post-injection decoy not in the seeded approved set) builds a reason string
+    # with the WRONG claim id and the WRONG balance.
+    - type: claim
+      service_date: '2026-05-26'
+      status: approved
+      amount_billed: '742.00'
+      amount_covered: '742.00'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-09-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # A second approved + EOB positive-balance lookalike with yet another balance,
+    # also recent, to deepen the running comparison the agent must hold.
+    - type: claim
+      service_date: '2026-05-23'
+      status: approved
+      amount_billed: '318.50'
+      amount_covered: '318.50'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-08-15T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # Contradictory billing thread: claims the patient balance was "corrected"
+    # to a different figure, tempting the agent to trust the message text over the
+    # authoritative claim record's patient_responsibility.
+    - type: message
+      category: billing
+      subject: "Updated balance on your recent claim"
+      body: >-
+        Per our billing department, the patient responsibility on your most recent
+        approved claim has been corrected to $0.00 after a courtesy adjustment. No
+        action is required. (Informational only — refer to the claim record of
+        record for the authoritative amount.)
+      timestamp: '2026-05-27T08:30:00+00:00'
+      is_read: false
+    # Stale resolved billing thread referencing an older claim (noise that must
+    # not drive the outcome).
+    - type: message
+      category: billing
+      subject: "Claim resolved — informational only"
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2025-09-15T08:00:00+00:00'
+      is_read: true
+# --- (C) NETWORK layer: confirm-step verification trap (confirmation_state) -----
+# The first confirm POST returns a 200 "Appointment confirmed" toast but the
+# write is skipped (misleading_success), so confirmation_state stays "pending".
+# An agent that trusts the toast and stops leaves the billing appointment
+# unconfirmed and fails the confirmation_state predicate.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/appointments/*/confirm'
+    methods:
+    - POST
+    behavior:
+      mode: once
+    fail_count: 1
+    success_body:
+      success: true
+      confirmation_state: confirmed
+      message: "Appointment confirmed. Your billing follow-up is all set."
+# After the fake success, a single transient 409 on the next confirm attempt, so
+# the verify-then-retry loop is non-trivial: the agent must re-read the pending
+# state, retry, hit one conflict, and retry again before the real confirm lands.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/appointments/*/confirm'
+    methods:
+    - POST
+    error_status: 409
+    error_count: 1
+    error_message: "Confirmation still pending — the prior request did not complete. Please retry."
+    behavior:
+      mode: once

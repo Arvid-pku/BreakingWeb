@@ -1,0 +1,157 @@
+task_id: gmail_invoice_dispute_reversal
+env_id: gmail
+title: Retract Incorrect Invoice Rejection After Discovering CFO Exception
+instruction_template: 'Read the finance policy email from finance-policy@company.com
+  titled "Q1 Invoice Processing Rules" which states: reject any vendor invoice exceeding
+  $10,000 by replying "This invoice exceeds our processing limit and is rejected."
+  Read each vendor invoice in your inbox and apply the policy: reply with the rejection
+  message to every invoice that exceeds the limit, and do not reply to invoices under
+  the limit. After processing the invoices, check the Updates tab for exceptions.
+  Find the email from CFO Marcus Webb (cfo@company.com) — its subject may not look
+  like an exception approval. Read it carefully. The CFO has approved a one-time
+  exception for one specific vendor''s invoice. Send a follow-up reply to that vendor
+  retracting the rejection with: "Please disregard our previous rejection. Invoice
+  #{target.approved_invoice_number} has been approved under a one-time exception."
+  Reply to the CFO confirming: "Exception applied for {target.approved_vendor_name}
+  invoice #{target.approved_invoice_number}." Star the CFO''s approval email. Any
+  other over-limit vendor with no exception must remain rejected.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: invoice_dispute_reversal
+    params: {}
+    outputs:
+    - approved_vendor_name
+    - approved_invoice_number
+    - policy_email_id
+    - sterling_email_id
+    - hawthorne_email_id
+    - ridgeline_email_id
+    - cfo_approval_email_id
+    - adversarial_vendor_email_id
+  targets:
+    approved_vendor_name: '{output.approved_vendor_name}'
+    approved_invoice_number: '{output.approved_invoice_number}'
+    policy_email_id: '{output.policy_email_id}'
+    sterling_email_id: '{output.sterling_email_id}'
+    hawthorne_email_id: '{output.hawthorne_email_id}'
+    ridgeline_email_id: '{output.ridgeline_email_id}'
+    cfo_approval_email_id: '{output.cfo_approval_email_id}'
+    adversarial_vendor_email_id: '{output.adversarial_vendor_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Initial rejection reply to Hawthorne
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['hawthorne_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['hawthorne_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring: "exceeds our processing limit and is rejected"
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Rejection reply to Ridgeline
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['ridgeline_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['ridgeline_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring: "exceeds our processing limit and is rejected"
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Correction reply to Hawthorne retracting rejection per CFO exception
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['hawthorne_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['hawthorne_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring_all:
+            - "disregard our previous rejection"
+            - "approved under a one-time exception"
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Confirmation reply to CFO about exception
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['cfo_approval_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['cfo_approval_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring: "Exception applied"
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star the CFO approval email
+      where:
+        id:
+          expr: "x == target['cfo_approval_email_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['cfo_approval_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent initial rejection to Hawthorne
+      ref: create[0]
+      severity: high
+    - name: Agent sent rejection to Ridgeline
+      ref: create[1]
+      severity: high
+    - name: Agent sent correction to Hawthorne per CFO exception
+      ref: create[2]
+      severity: high
+    - name: Agent confirmed exception to CFO
+      ref: create[3]
+      severity: high
+    - name: Agent starred CFO approval email
+      ref: update[0]
+      severity: high

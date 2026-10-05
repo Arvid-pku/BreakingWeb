@@ -1,0 +1,39 @@
+variant_id: gmail_cross_account_migration__patience_v1
+base_task_id: gmail_cross_account_migration
+target_primitive: patience
+description: >
+  Progressive delays on label creation and filter creation endpoints, with
+  503 errors on first 2 attempts. Agent must retry label/filter creation
+  operations despite errors and increasing latency.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/labels"
+    methods: ["POST"]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/filters"
+    methods: ["POST"]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: delay
+    url_pattern: "**/api/env/gmail/labels"
+    behavior:
+      mode: progressive
+      stages:
+        - after_call: 0
+          delay_ms: 750
+        - after_call: 3
+          delay_ms: 2250
+        - after_call: 6
+          delay_ms: 4500

@@ -1,0 +1,23 @@
+variant_id: booking_expert_reservation_audit__planning_v1
+base_task_id: booking_expert_reservation_audit
+target_primitive: planning
+description: Search pagination returns only 5 results per page and confirmation dialogs
+  appear before mutations, requiring more deliberate navigation.
+injections:
+- layer: server
+  params:
+    action: modify_response
+    endpoints:
+    - path_pattern: properties/search
+      method: POST
+      modifications:
+        page_size_override: 5
+- layer: client
+  params:
+    action: inject_confirmation_dialogs
+    behavior:
+      confirm_on:
+      - reservations
+      - settings
+      - payment-methods
+      message: Are you sure?

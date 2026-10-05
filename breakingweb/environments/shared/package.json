@@ -1,0 +1,27 @@
+{
+  "name": "@breakingweb/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles/base.css": "./src/styles/base.css"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --pretty false --noEmit",
+    "typecheck": "tsc --pretty false --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "react-router-dom": "^6.28.0",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,34 @@
+variant_id: rh_multi_leg_options__planning_v1
+base_task_id: rh_multi_leg_options
+target_primitive: planning
+description: >
+  Confusing existing options positions on SPY with similar strikes and
+  expirations force the agent to distinguish its new iron condor legs
+  from pre-existing positions and plan the order carefully.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: SPY
+      option_type: call
+      side: sell
+      strike: "555.00"
+      expiration_days: 28
+      quantity: 2
+      average_cost: "3.40"
+    - symbol: SPY
+      option_type: put
+      side: buy
+      strike: "520.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "4.10"
+    - symbol: SPY
+      option_type: call
+      side: buy
+      strike: "560.00"
+      expiration_days: 35
+      quantity: 3
+      average_cost: "2.80"

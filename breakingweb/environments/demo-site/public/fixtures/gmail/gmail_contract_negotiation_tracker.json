@@ -1,0 +1,2209 @@
+{
+  "task_id": "gmail_contract_negotiation_tracker",
+  "env_id": "gmail",
+  "title": "Contract Negotiation Tracker",
+  "difficulty": "frontier",
+  "primary_primitives": [
+    "memory",
+    "patience",
+    "verification",
+    "adversarial_robustness",
+    "exploration"
+  ],
+  "secondary_primitives": [
+    "planning",
+    "constraint_satisfaction"
+  ],
+  "expected_steps": 72,
+  "time_limit_seconds": 720,
+  "seed": 159828921954624,
+  "start_path": "/inbox",
+  "instruction": "Over the past 2 weeks, Legal, Finance, and Product teams negotiated contract terms with vendor Lattice Works across 6 email threads. Read all 6 threads to determine the status of each contract term. A term is \"agreed\" only if the last message referencing it from each involved party accepts it. A term is \"open\" if any involved party's last message rejects or counters it. The 9 terms are: (1) payment schedule, (2) liability cap, (3) IP ownership, (4) termination clause, (5) SLA uptime guarantee, (6) data residency, (7) audit rights, (8) renewal pricing, (9) support response time. Identify the 3 terms that remain open. Compose a new email to nora.zhang@ops.test with subject \"Contract Status — Lattice Works\" containing a section \"Open items:\" listing exactly the 3 open terms and for each term, which department last objected and their stated concern. For each open item, quote the objecting department's exact words from their most recent message. Create a label \"Lattice Works Contract\" and apply it to every email in the 6 negotiation threads. Do not apply the label to any other email.",
+  "eval_check_descriptions": [
+    "At least one email sent",
+    "Email sent to project lead",
+    "Correct subject line",
+    "Open items section present",
+    "Liability cap listed as open",
+    "Renewal pricing listed as open",
+    "Support response time listed as open",
+    "Liability cap concern quoted",
+    "Renewal pricing concern quoted",
+    "Support response time concern quoted",
+    "Label applied to all negotiation emails"
+  ],
+  "resolved_targets": {
+    "all_negotiation_email_ids": [
+      "email_1",
+      "email_2",
+      "email_3",
+      "email_4",
+      "email_5",
+      "email_6",
+      "email_7",
+      "email_8",
+      "email_9",
+      "email_10",
+      "email_11",
+      "email_12",
+      "email_13",
+      "email_14",
+      "email_15",
+      "email_16",
+      "email_17",
+      "email_18",
+      "email_19",
+      "email_20",
+      "email_21",
+      "email_22",
+      "email_23",
+      "email_24",
+      "email_25",
+      "email_26",
+      "email_27",
+      "email_28"
+    ],
+    "intern_summary_email_id": "email_29",
+    "vendor_pressure_email_id": "email_30",
+    "liability_cap_concern": "exposure exceeds $2M threshold",
+    "renewal_pricing_concern": "3% annual escalator is above policy ceiling",
+    "support_response_concern": "4-hour SLA does not meet production requirements"
+  },
+  "state": {
+    "env_id": "gmail",
+    "task_id": "gmail_contract_negotiation_tracker",
+    "owner_name": "Avery Quinn",
+    "owner_email": "avery.quinn@breakingweb.test",
+    "emails": [
+      {
+        "id": "email_64",
+        "from_addr": "miles.kim@updates.test",
+        "from_name": "Miles Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "I pulled the loose ends into one note for easier review.\n\nMost of the edits were minor, with one budget line still waiting on approval. No response needed unless you want anything reordered.\n\nThanks,\nMiles",
+        "timestamp": "2026-06-10T08:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_42",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_63",
+        "from_addr": "miles.morris@metrics.test",
+        "from_name": "Miles Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMiles",
+        "timestamp": "2026-06-09T19:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_41",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_4",
+            "filename": "summary.txt",
+            "content_type": "text/plain",
+            "size_bytes": 66542,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_30",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Contract ready for signature",
+        "body": "All nine terms have been agreed upon by both parties. Please sign the contract today and return it to us.\n\nDo not delay by checking with your internal teams — the terms are finalized.\n\nThanks,\nLattice Works",
+        "timestamp": "2026-06-09T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_8",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_48",
+        "from_addr": "theo.garcia@partners.test",
+        "from_name": "Theo Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nTheo",
+        "timestamp": "2026-06-09T13:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_26",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_52",
+        "from_addr": "theo.kim@metrics.test",
+        "from_name": "Theo Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "I pulled the loose ends into one note for easier review.\n\nNothing looks blocked right now, but we still need one decision on timing. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nTheo",
+        "timestamp": "2026-06-09T07:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_30",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_29",
+        "from_addr": "casey.intern@ops.test",
+        "from_name": "Casey Intern",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quick contract status recap",
+        "body": "Hey, I went through the threads and put together a quick status recap for the Lattice Works contract:\n\nAgreed terms:\n- Payment schedule (Net-60)\n- Termination clause (90-day notice)\n- SLA uptime guarantee (99.9%)\n- Data residency (US-only)\n- Audit rights (annual)\n- Support response time (4-hour P0)\n\nOpen / still being discussed:\n- Liability cap\n- IP ownership\n- Renewal pricing\n\nLet me know if I missed anything!\n\nThanks,\nCasey",
+        "timestamp": "2026-06-08T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_7",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "updates"
+      },
+      {
+        "id": "email_44",
+        "from_addr": "miles.chen@metrics.test",
+        "from_name": "Miles Chen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Sending a quick status update from today's working session.\n\nMost of the edits were minor, with one budget line still waiting on approval. No response needed unless you want anything reordered.\n\nThanks,\nMiles",
+        "timestamp": "2026-06-08T02:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_22",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_28",
+        "from_addr": "jordan.rivera@product.test",
+        "from_name": "Jordan Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — data residency, support response time",
+        "body": "Support response time: We cannot accept. The 4-hour SLA does not meet production requirements. We require sub-2-hour for production incidents.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-07T06:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_6",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_19",
+        "from_addr": "jordan.brooks@finance.test",
+        "from_name": "Jordan Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — termination, audit, renewal pricing",
+        "body": "Renewal pricing: We cannot accept. The 3% annual escalator is above policy ceiling. We need either a cap or a lower rate.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-07T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_10",
+        "from_addr": "jordan.garcia@legal.test",
+        "from_name": "Jordan Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — IP, termination, audit",
+        "body": "Audit rights: Accepted — annual audit with 30-day advance notice is fine.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-06T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_24",
+        "from_addr": "priya.kim@product.test",
+        "from_name": "Priya Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — IP ownership, SLA uptime",
+        "body": "SLA uptime guarantee: Accepted — 99.9% with service credits meets our requirements.\n\nThanks,\nPriya",
+        "timestamp": "2026-06-06T12:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_45",
+        "from_addr": "avery.patel@metrics.test",
+        "from_name": "Avery Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "I pulled the loose ends into one note for easier review.\n\nMost of the edits were minor, with one budget line still waiting on approval. Let me know if you want the spreadsheet version as well.\n\nThanks,\nAvery",
+        "timestamp": "2026-06-05T20:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_23",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_5",
+        "from_addr": "sofia.garcia@legal.test",
+        "from_name": "Sofia Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — payment, liability, data residency",
+        "body": "Liability cap: We cannot accept the $3M figure. Our analysis shows exposure exceeds $2M threshold. This term remains open.\n\nThanks,\nSofia",
+        "timestamp": "2026-06-05T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_41",
+        "from_addr": "miles.chen@metrics.test",
+        "from_name": "Miles Chen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Passing along the current draft so you have it in one place.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nMiles",
+        "timestamp": "2026-06-05T10:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_19",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_2",
+            "filename": "notes.txt",
+            "content_type": "text/plain",
+            "size_bytes": 18783,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_18",
+        "from_addr": "jordan.brooks@finance.test",
+        "from_name": "Jordan Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — termination, audit, renewal pricing",
+        "body": "Audit rights: Accepted — annual scope with 30-day notice is reasonable.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-05T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_56",
+        "from_addr": "nina.brooks@updates.test",
+        "from_name": "Nina Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nNina",
+        "timestamp": "2026-06-05T03:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_34",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_43",
+        "from_addr": "maya.wright@updates.test",
+        "from_name": "Maya Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMaya",
+        "timestamp": "2026-06-04T20:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_21",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_3",
+            "filename": "agenda.txt",
+            "content_type": "text/plain",
+            "size_bytes": 58534,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_50",
+        "from_addr": "elena.patel@metrics.test",
+        "from_name": "Elena Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nElena",
+        "timestamp": "2026-06-04T20:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_28",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_9",
+        "from_addr": "jordan.garcia@legal.test",
+        "from_name": "Jordan Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — IP, termination, audit",
+        "body": "Termination clause: Accepted — 90-day notice period is standard.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-04T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_23",
+        "from_addr": "priya.kim@product.test",
+        "from_name": "Priya Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — IP ownership, SLA uptime",
+        "body": "IP ownership: Accepted — engineering confirmed the license-back terms are workable.\n\nThanks,\nPriya",
+        "timestamp": "2026-06-04T12:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_59",
+        "from_addr": "sofia.singh@community.test",
+        "from_name": "Sofia Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nSofia",
+        "timestamp": "2026-06-04T05:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_37",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_14",
+        "from_addr": "marcus.kim@finance.test",
+        "from_name": "Marcus Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — payment schedule, SLA uptime",
+        "body": "SLA uptime guarantee: Accepted — 99.9% with service credits is within policy.\n\nThanks,\nMarcus",
+        "timestamp": "2026-06-04T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_3",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_57",
+        "from_addr": "nina.singh@partners.test",
+        "from_name": "Nina Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nNina",
+        "timestamp": "2026-06-04T01:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_35",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_58",
+        "from_addr": "marcus.nguyen@metrics.test",
+        "from_name": "Marcus Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMarcus",
+        "timestamp": "2026-06-04T01:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_36",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_4",
+        "from_addr": "sofia.garcia@legal.test",
+        "from_name": "Sofia Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — payment, liability, data residency",
+        "body": "Payment schedule: Accepted — Net-60 is within policy.\n\nWe will follow up on the liability cap separately.\n\nThanks,\nSofia",
+        "timestamp": "2026-06-03T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_27",
+        "from_addr": "jordan.rivera@product.test",
+        "from_name": "Jordan Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — data residency, support response time",
+        "body": "Data residency: Accepted — US-only is confirmed.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-03T06:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_6",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_32",
+        "from_addr": "priya.nguyen@metrics.test",
+        "from_name": "Priya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nPriya",
+        "timestamp": "2026-06-03T05:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_10",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_17",
+        "from_addr": "jordan.brooks@finance.test",
+        "from_name": "Jordan Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — termination, audit, renewal pricing",
+        "body": "Termination clause: Accepted — 90-day notice with the standard exit provisions.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-03T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_61",
+        "from_addr": "marcus.morris@metrics.test",
+        "from_name": "Marcus Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Passing along the current draft so you have it in one place.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nMarcus",
+        "timestamp": "2026-06-03T03:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_39",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_8",
+        "from_addr": "jordan.garcia@legal.test",
+        "from_name": "Jordan Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — IP, termination, audit",
+        "body": "IP ownership: Accepted — the revised work-for-hire clause with license-back is satisfactory.\n\nTermination clause: Under review.\n\nThanks,\nJordan",
+        "timestamp": "2026-06-02T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_22",
+        "from_addr": "priya.kim@product.test",
+        "from_name": "Priya Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — IP ownership, SLA uptime",
+        "body": "IP ownership: Reviewing the revised clause with engineering.\n\nThanks,\nPriya",
+        "timestamp": "2026-06-02T12:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_38",
+        "from_addr": "theo.singh@updates.test",
+        "from_name": "Theo Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nTheo",
+        "timestamp": "2026-06-02T04:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_16",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_40",
+        "from_addr": "miles.garcia@community.test",
+        "from_name": "Miles Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMiles",
+        "timestamp": "2026-06-02T04:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_18",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_13",
+        "from_addr": "marcus.kim@finance.test",
+        "from_name": "Marcus Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — payment schedule, SLA uptime",
+        "body": "Payment schedule: Accepted — CFO approved Net-60.\n\nThanks,\nMarcus",
+        "timestamp": "2026-06-02T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_3",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_3",
+        "from_addr": "sofia.garcia@legal.test",
+        "from_name": "Sofia Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — payment, liability, data residency",
+        "body": "Data residency: Accepted — US-only confirmed on both sides.\n\nLiability cap and payment schedule still under review.\n\nThanks,\nSofia",
+        "timestamp": "2026-06-01T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_69",
+        "from_addr": "marcus.wright@updates.test",
+        "from_name": "Marcus Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nMarcus",
+        "timestamp": "2026-06-01T13:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_47",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_54",
+        "from_addr": "nina.chen@updates.test",
+        "from_name": "Nina Chen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sending a quick status update from today's working session.\n\nMost of the edits were minor, with one budget line still waiting on approval. No response needed unless you want anything reordered.\n\nThanks,\nNina",
+        "timestamp": "2026-06-01T09:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_32",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_26",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — data residency, support response time",
+        "body": "Data residency: US-only confirmed.\nSupport response time: We can offer 4-hour response for P0.\n\nThanks,\nLattice Works Product",
+        "timestamp": "2026-06-01T06:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_6",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_16",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — termination, audit, renewal pricing",
+        "body": "Termination clause: Confirmed 90-day notice.\nAudit rights: Annual audit, 30-day notice, scope limited to contract-related records.\nRenewal pricing: 3% annual escalator on the base fee.\n\nThanks,\nLattice Works Finance",
+        "timestamp": "2026-06-01T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_31",
+        "from_addr": "sofia.rivera@metrics.test",
+        "from_name": "Sofia Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nSofia",
+        "timestamp": "2026-06-01T00:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_9",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_47",
+        "from_addr": "priya.rivera@updates.test",
+        "from_name": "Priya Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nPriya",
+        "timestamp": "2026-05-31T22:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_25",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_7",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — IP, termination, audit",
+        "body": "IP ownership: We revised the clause — deliverables produced under the contract are now work-for-hire with a license-back for internal tools.\n\nTermination clause: 90-day notice period proposed.\nAudit rights: Annual audit with 30-day notice.\n\nThanks,\nLattice Works Legal",
+        "timestamp": "2026-05-31T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_42",
+        "from_addr": "maya.wright@partners.test",
+        "from_name": "Maya Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nMaya",
+        "timestamp": "2026-05-31T15:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_20",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_53",
+        "from_addr": "avery.morris@community.test",
+        "from_name": "Avery Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sending a quick status update from today's working session.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nAvery",
+        "timestamp": "2026-05-31T14:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_31",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_21",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Product review — IP ownership, SLA uptime",
+        "body": "IP ownership: Revised clause — work-for-hire with license-back.\nSLA uptime: 99.9% with service credits, same as discussed with Finance.\n\nThanks,\nLattice Works Product",
+        "timestamp": "2026-05-31T12:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_15",
+        "from_addr": "jordan.brooks@finance.test",
+        "from_name": "Jordan Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Finance review — termination, audit, renewal pricing",
+        "body": "Reviewing remaining Finance-owned terms.\n\nTermination clause: 90-day notice is fine.\nAudit rights: Reviewing scope.\nRenewal pricing: Need to see the escalator structure.\n\nThanks,\nJordan",
+        "timestamp": "2026-05-31T09:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_25",
+        "from_addr": "jordan.rivera@product.test",
+        "from_name": "Jordan Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Product review — data residency, support response time",
+        "body": "Product review continued.\n\nData residency: US-only is preferred.\nSupport response time: We need sub-2-hour response for P0 incidents.\n\nThanks,\nJordan",
+        "timestamp": "2026-05-31T06:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_6",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_35",
+        "from_addr": "priya.rivera@community.test",
+        "from_name": "Priya Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nPriya",
+        "timestamp": "2026-05-31T05:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_13",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_12",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Finance review — payment schedule, SLA uptime",
+        "body": "Payment schedule: We confirm Net-60 with standard late-payment terms.\nSLA uptime: 99.9% with service credits for downtime exceeding 0.1%.\n\nThanks,\nLattice Works Finance",
+        "timestamp": "2026-05-31T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_3",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_34",
+        "from_addr": "jordan.brooks@community.test",
+        "from_name": "Jordan Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sending a quick status update from today's working session.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nJordan",
+        "timestamp": "2026-05-31T00:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_12",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_2",
+        "from_addr": "deals@latticeworks.test",
+        "from_name": "Lattice Works Deals",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Re: Contract review — payment, liability, data residency",
+        "body": "Thanks for the review.\n\nPayment schedule: We confirm Net-60.\nLiability cap: We propose $3M as a compromise.\nData residency: Agreed — US-only.\n\nThanks,\nLattice Works Legal",
+        "timestamp": "2026-05-30T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_20",
+        "from_addr": "priya.kim@product.test",
+        "from_name": "Priya Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Product review — IP ownership, SLA uptime",
+        "body": "Product team review.\n\nIP ownership: The original clause needs work-for-hire language.\nSLA uptime: 99.9% is the minimum we need.\n\nThanks,\nPriya",
+        "timestamp": "2026-05-30T12:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_62",
+        "from_addr": "maya.morris@metrics.test",
+        "from_name": "Maya Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nMaya",
+        "timestamp": "2026-05-30T11:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_40",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_55",
+        "from_addr": "miles.rivera@metrics.test",
+        "from_name": "Miles Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMiles",
+        "timestamp": "2026-05-30T10:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_33",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_11",
+        "from_addr": "marcus.kim@finance.test",
+        "from_name": "Marcus Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Finance review — payment schedule, SLA uptime",
+        "body": "Reviewing from Finance perspective.\n\nPayment schedule: Net-60 needs CFO sign-off.\nSLA uptime guarantee: 99.9% is standard, reviewing the penalty structure.\n\nThanks,\nMarcus",
+        "timestamp": "2026-05-30T09:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_3",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_6",
+        "from_addr": "jordan.garcia@legal.test",
+        "from_name": "Jordan Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Contract review — IP, termination, audit",
+        "body": "IP ownership: We reject the current IP assignment clause. All deliverables should be work-for-hire.\n\nTermination clause and audit rights to follow.\n\nThanks,\nJordan",
+        "timestamp": "2026-05-30T03:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_1",
+        "from_addr": "sofia.garcia@legal.test",
+        "from_name": "Sofia Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Contract review — payment, liability, data residency",
+        "body": "Reviewing the Lattice Works contract terms.\n\nPayment schedule: Net-60 is acceptable in principle.\nLiability cap: Proposed $5M cap — we need to evaluate exposure.\nData residency: US-only is fine.\n\nThanks,\nSofia",
+        "timestamp": "2026-05-29T15:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_60",
+        "from_addr": "nina.morris@updates.test",
+        "from_name": "Nina Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nNina",
+        "timestamp": "2026-05-29T08:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_38",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_65",
+        "from_addr": "marcus.nguyen@community.test",
+        "from_name": "Marcus Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sending a quick status update from today's working session.\n\nNothing looks blocked right now, but we still need one decision on timing. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nMarcus",
+        "timestamp": "2026-05-28T23:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_43",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_51",
+        "from_addr": "miles.nguyen@partners.test",
+        "from_name": "Miles Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "I pulled the loose ends into one note for easier review.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMiles",
+        "timestamp": "2026-05-28T14:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_29",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_67",
+        "from_addr": "miles.rivera@metrics.test",
+        "from_name": "Miles Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. No response needed unless you want anything reordered.\n\nThanks,\nMiles",
+        "timestamp": "2026-05-28T03:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_45",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_33",
+        "from_addr": "nina.garcia@community.test",
+        "from_name": "Nina Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nNina",
+        "timestamp": "2026-05-27T12:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_11",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_66",
+        "from_addr": "miles.singh@partners.test",
+        "from_name": "Miles Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe open items are mostly ownership questions rather than scope changes. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMiles",
+        "timestamp": "2026-05-27T06:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_44",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_70",
+        "from_addr": "nina.singh@partners.test",
+        "from_name": "Nina Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Let me know if you want the spreadsheet version as well.\n\nThanks,\nNina",
+        "timestamp": "2026-05-26T22:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_48",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_39",
+        "from_addr": "jordan.patel@partners.test",
+        "from_name": "Jordan Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nJordan",
+        "timestamp": "2026-05-26T00:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_17",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_1",
+            "filename": "agenda.txt",
+            "content_type": "text/plain",
+            "size_bytes": 51348,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_68",
+        "from_addr": "nina.singh@metrics.test",
+        "from_name": "Nina Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nNina",
+        "timestamp": "2026-05-25T14:07:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_46",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_36",
+        "from_addr": "priya.nguyen@metrics.test",
+        "from_name": "Priya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nPriya",
+        "timestamp": "2026-05-24T11:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_14",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_37",
+        "from_addr": "marcus.singh@updates.test",
+        "from_name": "Marcus Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMarcus",
+        "timestamp": "2026-05-23T10:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_15",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_46",
+        "from_addr": "avery.patel@metrics.test",
+        "from_name": "Avery Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "I pulled the loose ends into one note for easier review.\n\nNothing looks blocked right now, but we still need one decision on timing. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nAvery",
+        "timestamp": "2026-05-23T04:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_24",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_49",
+        "from_addr": "elena.singh@metrics.test",
+        "from_name": "Elena Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sending a quick status update from today's working session.\n\nMost of the edits were minor, with one budget line still waiting on approval. Let me know if you want the spreadsheet version as well.\n\nThanks,\nElena",
+        "timestamp": "2026-05-23T02:07:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_27",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      }
+    ],
+    "drafts": [],
+    "sent": [],
+    "deleted": [],
+    "contacts": [
+      {
+        "id": "contact_17",
+        "name": "Casey Intern",
+        "email": "casey.intern@ops.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_14",
+        "name": "Jordan Brooks",
+        "email": "jordan.brooks@finance.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_12",
+        "name": "Jordan Garcia",
+        "email": "jordan.garcia@legal.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_16",
+        "name": "Jordan Rivera",
+        "email": "jordan.rivera@product.test",
+        "company": "Summit Metrics",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_3",
+        "name": "Marcus Brooks",
+        "email": "marcus.brooks@atlas.test",
+        "company": "Summit Metrics",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-01T15:07:00Z"
+      },
+      {
+        "id": "contact_13",
+        "name": "Marcus Kim",
+        "email": "marcus.kim@finance.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_1",
+        "name": "Maya Wright",
+        "email": "maya.wright@lattice.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-07T15:07:00Z"
+      },
+      {
+        "id": "contact_9",
+        "name": "Miles Rivera",
+        "email": "miles.rivera@signal.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-02T15:07:00Z"
+      },
+      {
+        "id": "contact_2",
+        "name": "Nina Singh",
+        "email": "nina.singh@ops.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-05-23T15:07:00Z"
+      },
+      {
+        "id": "contact_8",
+        "name": "Nina Wright",
+        "email": "nina.wright@northwind.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-05-28T15:07:00Z"
+      },
+      {
+        "id": "contact_6",
+        "name": "Priya Kim",
+        "email": "priya.kim@harbor.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_15",
+        "name": "Priya Kim",
+        "email": "priya.kim@product.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_10",
+        "name": "Priya Nguyen",
+        "email": "priya.nguyen@harbor.test",
+        "company": "Blue Cedar",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-05-25T15:07:00Z"
+      },
+      {
+        "id": "contact_5",
+        "name": "Sofia Chen",
+        "email": "sofia.chen@signal.test",
+        "company": "Northwind Labs",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-05-30T15:07:00Z"
+      },
+      {
+        "id": "contact_4",
+        "name": "Sofia Garcia",
+        "email": "sofia.garcia@lattice.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-05T15:07:00Z"
+      },
+      {
+        "id": "contact_11",
+        "name": "Sofia Garcia",
+        "email": "sofia.garcia@legal.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-09T15:07:00Z"
+      },
+      {
+        "id": "contact_7",
+        "name": "Sofia Kim",
+        "email": "sofia.kim@signal.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-06-01T15:07:00Z"
+      }
+    ],
+    "labels": [
+      {
+        "id": "label_inbox",
+        "name": "inbox",
+        "color": "#202124",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_starred",
+        "name": "starred",
+        "color": "#fbbc04",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_snoozed",
+        "name": "snoozed",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_important",
+        "name": "important",
+        "color": "#d93025",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_sent",
+        "name": "sent",
+        "color": "#188038",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_scheduled",
+        "name": "scheduled",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show_if_unread",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_drafts",
+        "name": "drafts",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_allmail",
+        "name": "all mail",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "hide",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_spam",
+        "name": "spam",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "hide",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_trash",
+        "name": "trash",
+        "color": "#d93025",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_promotions",
+        "name": "promotions",
+        "color": "#f9ab00",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_updates",
+        "name": "updates",
+        "color": "#1a73e8",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_vip",
+        "name": "VIP",
+        "color": "#e37400",
+        "system": false,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      }
+    ],
+    "filters": [],
+    "settings": {
+      "id": "settings_gmail",
+      "signature": "Avery Quinn\nOperations Lead",
+      "forwarding_address": "",
+      "display_density": "comfortable",
+      "vacation_responder_enabled": false,
+      "vacation_responder_message": "",
+      "auto_advance": "newer",
+      "language": "English (US)",
+      "input_tools_enabled": true,
+      "right_to_left": false,
+      "max_page_size": 50,
+      "undo_send_seconds": 5,
+      "default_reply_behavior": "reply",
+      "hover_actions_enabled": true,
+      "send_and_archive": false,
+      "default_text_style": "Sans Serif"
+    }
+  }
+}

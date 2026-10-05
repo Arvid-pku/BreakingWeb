@@ -1,0 +1,190 @@
+task_id: gmail_vacation_preparation
+env_id: gmail
+title: Vacation Preparation
+instruction_template: "Prepare for your vacation. First, go to Settings and: enable\
+  \ the vacation responder with the message '{target.vacation_message}', update your\
+  \ signature to include '{target.ooo_note}', and change undo send to 30 seconds.\
+  \ Then create a filter that forwards emails from {target.boss_email} to {target.backup_email}\
+  \ and stars them. Go back to your inbox and reply to three pending emails: reply\
+  \ to {target.pending_a_sender} about the vendor proposal, reply to {target.pending_b_sender}\
+  \ about the timeline (Reply only \u2014 the thread includes others), and reply to\
+  \ {target.pending_c_sender} confirming attendance. Star the two emails you need\
+  \ to follow up on when you return, and create a 'Return Attention' label for them."
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 60
+primary_primitives:
+- state_tracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: vacation_preparation
+    params: {}
+    outputs:
+    - vacation_message
+    - ooo_note
+    - boss_email
+    - backup_email
+    - pending_a_sender
+    - pending_a_id
+    - pending_b_sender
+    - pending_b_id
+    - pending_c_sender
+    - pending_c_id
+    - return_ids
+  targets:
+    vacation_message: '{output.vacation_message}'
+    ooo_note: '{output.ooo_note}'
+    boss_email: '{output.boss_email}'
+    backup_email: '{output.backup_email}'
+    pending_a_sender: '{output.pending_a_sender}'
+    pending_a_id: '{output.pending_a_id}'
+    pending_b_sender: '{output.pending_b_sender}'
+    pending_b_id: '{output.pending_b_id}'
+    pending_c_sender: '{output.pending_c_sender}'
+    pending_c_id: '{output.pending_c_id}'
+    return_ids: '{output.return_ids}'
+canonical_diff:
+  create:
+  - entity: sent
+    desc: Reply to pending vendor proposal email
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['pending_a_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['pending_a_id'])]"
+      cc:
+        eq: []
+      bcc:
+        eq: []
+      forwarded_from_id:
+        eq: null
+  - entity: sent
+    desc: Reply to pending timeline email
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['pending_b_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['pending_b_id'])]"
+      cc:
+        eq: []
+      bcc:
+        eq: []
+      forwarded_from_id:
+        eq: null
+  - entity: sent
+    desc: Reply to pending attendance confirmation email
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['pending_c_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['pending_c_id'])]"
+      cc:
+        eq: []
+      bcc:
+        eq: []
+      forwarded_from_id:
+        eq: null
+  - entity: labels
+    desc: Create Return Attention label
+    count: 1
+    properties:
+      name:
+        eq: Return Attention
+  - entity: filters
+    desc: Create filter forwarding boss emails to backup and starring them
+    count: 1
+    properties:
+      from_addresses:
+        expr: target['boss_email'] in x
+      forward_to:
+        expr: x == target['backup_email']
+      star:
+        eq: true
+  update:
+  - entity: emails
+    desc: Star and label return-attention emails
+    bijection:
+      over: target['return_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_starred:
+        eq: true
+      labels:
+        superset:
+        - Return Attention
+  - entity: settings
+    desc: Vacation responder, signature, and undo send delay configured
+    where:
+      id: { any: true }
+    changes:
+      vacation_responder_enabled: { eq: true }
+      vacation_responder_message:
+        expr: target['vacation_message'] in x
+      signature:
+        expr: target['ooo_note'] in x
+      undo_send_seconds: { eq: 30 }
+  invariant:
+  - collection: state.emails
+    filter: a.id not in target['return_ids']
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    filter: 'True'
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name != 'Return Attention'
+    preserve: ALL
+  - collection: state.filters
+    filter: 'True'
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.display_density == initial.settings.display_density
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.max_page_size == initial.settings.max_page_size
+      and state.settings.default_reply_behavior == initial.settings.default_reply_behavior
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.send_and_archive == initial.settings.send_and_archive
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent replied to pending vendor proposal email
+    ref: create[0]
+    severity: high
+  - name: Agent replied to pending timeline email
+    ref: create[1]
+    severity: high
+  - name: Agent replied to attendance confirmation email
+    ref: create[2]
+    severity: high
+  - name: Agent created Return Attention label
+    ref: create[3]
+    severity: medium
+  - name: Agent starred and labeled return emails
+    ref: update[0]
+    severity: high
+  - name: Agent enabled vacation responder, updated signature and undo send
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other inbox emails
+    ref: invariant[0]
+    severity: high

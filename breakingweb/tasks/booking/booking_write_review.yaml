@@ -1,0 +1,160 @@
+task_id: booking_write_review
+env_id: booking
+title: Write a Hotel Review for a Completed Stay
+instruction_template: Write a review for your completed stay at "{target.hotel_name}".
+  Give it an overall score of {target.score}/10, title it "{target.review_title}",
+  and mention {target.key_feedback} in the body of your review. Set the travel purpose
+  to "leisure" and traveled with to "couple".
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 18
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Grand Hotel Vesuvio
+      city: Naples
+      country: Italy
+      star_rating: 5
+      review_score: 9.2
+      review_count: 4120
+      price: 350.0
+      neighborhood: Lungomare
+      address: Via Partenope 45, 80121 Naples
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Sea view
+      - Fitness center
+    outputs:
+    - prop_id
+    - prop_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id}'
+      check_in: '2026-01-10'
+      check_out: '2026-01-14'
+      price_per_night: 350.0
+      status: completed
+      guests: 2
+      booked_days_ago: 90
+    outputs:
+    - res_id
+    - conf_num
+    - res_prop_id
+  - use: featured_property
+    params:
+      name: Palazzo Avino
+      city: Ravello
+      country: Italy
+      star_rating: 5
+      review_score: 9.5
+      price: 520.0
+    outputs:
+    - distractor_prop_id
+    - distractor_prop_name
+    - distractor_room_id
+    - distractor_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.distractor_prop_id}'
+      check_in: '2026-03-05'
+      check_out: '2026-03-08'
+      status: completed
+      booked_days_ago: 40
+    outputs:
+    - distractor_res_id
+    - distractor_conf_num
+    - distractor_res_prop_id
+  targets:
+    prop_id: '{output.prop_id}'
+    hotel_name: '{output.prop_name}'
+    reservation_id: '{output.res_id}'
+    score: '8.5'
+    review_title: Stunning views and warm hospitality
+    key_feedback: the breathtaking sea view from the room and the exceptional breakfast
+      buffet
+    distractor_prop_id: '{output.distractor_prop_id}'
+canonical_diff:
+  create:
+    - entity: Review
+      desc: Write a review with score 8.5, correct title, and key feedback about sea view and breakfast
+      properties:
+        property_id: {expr: "x == target['prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.5}
+        scores: {any: true}
+        title: {expr: "'Stunning views and warm hospitality' in x"}
+        positive: {expr: "'sea view' in x.lower() and 'breakfast' in x.lower()"}
+        negative: {any: true}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  update:
+    - entity: Reservation
+      desc: Reservation rating_submitted flag flips when the review is written (side-effect)
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reviews
+      filter: "a.property_id != target['prop_id']"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id']"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent wrote the review for the correct property with correct score, title, and feedback
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify or delete reviews for other properties
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

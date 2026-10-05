@@ -1,0 +1,178 @@
+task_id: amazon_complete_gift_setup
+env_id: amazon
+title: Set Up Gift Purchase with New Address and Payment
+instruction_template: 'Set up a gift purchase for {target.recipient_name}. First,
+  add a new shipping address: name "{target.recipient_name}", street "{target.street}",
+  city "{target.city}", state "{target.state_code}", ZIP "{target.zip}". Then add
+  a new payment method (credit card). Finally, purchase the product "{target.gift_product}"
+  and ship it to {target.recipient_name}''s address using the new payment method.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 17
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Kindle Paperwhite Signature Edition
+      brand: Amazon
+      category: Electronics
+      price: 189.99
+      rating: 4.8
+      features:
+      - 6.8-inch display
+      - Wireless charging
+      - 32GB storage
+      - Adjustable warm light
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 50.0
+      - 300.0
+    outputs:
+    - catalog_ids
+  - use: product_catalog
+    params:
+      category: Books
+      count: 6
+      price_range:
+      - 10.0
+      - 40.0
+    outputs:
+    - catalog_books
+  targets:
+    gift_product: Kindle Paperwhite Signature Edition
+    gift_product_id: '{output.product_id}'
+    recipient_name: Maria Chen
+    street: 500 Oak Ave
+    city: Portland
+    state_code: OR
+    zip: '97201'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New recipient address created with target details
+    properties:
+      full_name: {expr: "x == target['recipient_name']"}
+      street_address: {expr: "target['street'] in x"}
+      city: {expr: "x == target['city']"}
+      state: {expr: "x == target['state_code']"}
+      zip_code: {expr: "x == target['zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: PaymentMethod
+    desc: New payment method added for the gift purchase
+    properties:
+      card_type: {any: true}
+      last_four: {any: true}
+      expiry: {any: true}
+      holder_name: {any: true}
+      is_default: {any: true}
+  - entity: Order
+    desc: Gift order placed for the target product, shipping to recipient, using
+      the new payment method
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['gift_product_id'] and
+          x[0]['quantity'] == 1"
+      shipping_address_id:
+        expr: "any(a.full_name == target['recipient_name'] for a in state.addresses
+          if a.id == x)"
+      payment_method_id:
+        expr: "x not in [p.id for p in initial.payment_methods]"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name != target['recipient_name']"
+    preserve: ALL
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['gift_product_id'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.payment_methods
+    filter: "a.id in [p.id for p in initial.payment_methods]"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify pre-existing payment methods
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[3]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

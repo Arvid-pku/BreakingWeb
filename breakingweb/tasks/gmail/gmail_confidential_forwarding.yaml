@@ -1,0 +1,151 @@
+task_id: gmail_confidential_forwarding
+env_id: gmail
+title: Confidential Forwarding
+instruction_template: 'In your inbox there is a thread with subject "Q3 Revenue Projections
+  - Confidential" from {target.sender_name}. The thread has 3 messages and CCs the
+  full leadership team. You must send the exact quote "{target.q3_quote}" from the
+  second message to {target.q3_recipient} in a new email (not a forward of the thread)
+  with the subject "Q3 Numbers for Your Review". Do not include any of the CC''d recipients.
+  After sending, star the first message in that thread.
+
+
+  Then search your inbox for another thread that also CCs the same board members ({target.board_member_1_name},
+  {target.board_member_2_name}, and {target.board_member_3_name}). You will find a
+  thread with subject "M&A Pipeline Status - Board Eyes Only" from {target.sender_name}
+  that CCs the same leadership team. Compose a second new email (not a forward) to
+  {target.ma_recipient} with subject "M&A Pipeline Extract" containing the exact quote
+  "{target.ma_quote}" from that thread''s first message. Do not include any of the
+  CC''d recipients. After sending, star the first message in the M&A thread as well.
+
+
+'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 40
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: confidential_forwarding
+    params: {}
+    outputs:
+    - q3_thread_id
+    - q3_star_email_id
+    - q3_quote
+    - q3_recipient
+    - ma_thread_id
+    - ma_star_email_id
+    - ma_quote
+    - ma_recipient
+    - sender_name
+    - board_member_1_name
+    - board_member_2_name
+    - board_member_3_name
+    - board_emails
+    - decoy_draft_thread_id
+    - decoy_ops_thread_id
+    - leadership_all_email
+  targets:
+    q3_thread_id: '{output.q3_thread_id}'
+    q3_star_email_id: '{output.q3_star_email_id}'
+    q3_quote: '{output.q3_quote}'
+    q3_recipient: '{output.q3_recipient}'
+    ma_thread_id: '{output.ma_thread_id}'
+    ma_star_email_id: '{output.ma_star_email_id}'
+    ma_quote: '{output.ma_quote}'
+    ma_recipient: '{output.ma_recipient}'
+    sender_name: '{output.sender_name}'
+    board_member_1_name: '{output.board_member_1_name}'
+    board_member_2_name: '{output.board_member_2_name}'
+    board_member_3_name: '{output.board_member_3_name}'
+    board_emails: '{output.board_emails}'
+    decoy_draft_thread_id: '{output.decoy_draft_thread_id}'
+    decoy_ops_thread_id: '{output.decoy_ops_thread_id}'
+    leadership_all_email: '{output.leadership_all_email}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose new email to q3_recipient with Q3 quote
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['q3_recipient']]"
+        subject:
+          eq: Q3 Numbers for Your Review
+        body:
+          expr: "target['q3_quote'] in x"
+        forwarded_from_id:
+          eq: null
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Compose new email to ma_recipient with M&A quote
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['ma_recipient']]"
+        subject:
+          eq: "M&A Pipeline Extract"
+        body:
+          expr: "target['ma_quote'] in x"
+        forwarded_from_id:
+          eq: null
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  update:
+    - entity: emails
+      desc: Star the first message in the Q3 Revenue Projections thread
+      where:
+        id:
+          expr: "x == target['q3_star_email_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Star the first message in the M&A Pipeline Status thread
+      where:
+        id:
+          expr: "x == target['ma_star_email_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in [target['q3_star_email_id'], target['ma_star_email_id']]"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed Q3 quote email to correct recipient
+      ref: create[0]
+      severity: high
+    - name: Agent composed M&A quote email to correct recipient
+      ref: create[1]
+      severity: high
+    - name: Agent starred the Q3 thread first message
+      ref: update[0]
+      severity: high
+    - name: Agent starred the M&A thread first message
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high

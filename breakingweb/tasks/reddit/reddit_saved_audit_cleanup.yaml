@@ -1,0 +1,150 @@
+task_id: reddit_saved_audit_cleanup
+title: Audit and Clean Saved Posts
+instruction_template: '1. Go to your Saved page. Unsave any posts from r/memes.
+
+
+  2. Navigate to r/technology and find "{target.save_title}". Save it.
+
+
+  3. Navigate to r/science and find "{target.save2_title}". Save it and upvote it.
+
+
+  4. Go to Settings and set default feed sort to "top" and comment sort to "new".
+
+
+  5. Send a message to u/{target.msg_to} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+
+  Do not unsave posts from other subreddits.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_post_ids
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Intel unveils 18A process node with backside power delivery
+      body: The company says it has regained process leadership.
+      score: 22000
+    outputs:
+    - save1_id
+    - save1_title
+    - save1_sub
+  - use: target_post
+    params:
+      subreddit: science
+      title: New study shows daily 20-minute walks reduce all-cause mortality by 33%
+      body: Published in The Lancet.
+      score: 45000
+    outputs:
+    - save2_id
+    - save2_title
+    - save2_sub
+  targets:
+    save_title: '{output.save1_title}'
+    save1_id: '{output.save1_id}'
+    save2_title: '{output.save2_title}'
+    save2_id: '{output.save2_id}'
+    msg_to: NeuralNexus
+    msg_subject: Health and tech roundup
+    msg_body: Found two great posts today - one on Intel 18A and one on walking and longevity. Check them out!
+canonical_diff:
+  update:
+  - entity: Post
+    desc: All saved posts in r/memes were unsaved
+    bijection:
+      over: '[p.id for p in initial.posts if p.is_saved and p.subreddit_name == ''memes'']'
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_saved:
+        eq: false
+  - entity: Post
+    desc: Intel 18A post saved (technology target)
+    where:
+      id:
+        expr: x == target['save1_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    desc: Walking post saved and upvoted (science target)
+    where:
+      id:
+        expr: x == target['save2_id']
+    changes:
+      is_saved:
+        eq: true
+      vote_direction:
+        eq: 1
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_feed_sort: {eq: top}
+      default_comment_sort: {eq: new}
+  create:
+  - entity: Message
+    collection: state.sent_messages
+    desc: Exact health/tech roundup message sent to NeuralNexus
+    properties:
+      to_user:
+        expr: x == target['msg_to']
+      subject:
+        expr: x == target['msg_subject']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language ==
+      initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

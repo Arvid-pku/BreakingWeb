@@ -1,0 +1,136 @@
+task_id: gmail_team_transition_setup
+env_id: gmail
+title: Team Transition Setup
+instruction_template: 'Read the onboarding email from Jordan Reeves (subject: "Welcome
+  to Platform Team") and complete every checklist item it lists exactly as specified.'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: team_transition_setup
+    params: {}
+    outputs:
+    - onboarding_email_id
+    - priya_email
+    - sam_email
+    - kenji_email
+    - dana_email
+  targets:
+    onboarding_email_id: '{output.onboarding_email_id}'
+    priya_email: '{output.priya_email}'
+    sam_email: '{output.sam_email}'
+    kenji_email: '{output.kenji_email}'
+    dana_email: '{output.dana_email}'
+canonical_diff:
+  create:
+  - entity: labels
+    desc: Create Platform/Incidents label
+    count: 1
+    properties:
+      name:
+        eq: Platform/Incidents
+  - entity: labels
+    desc: Create Platform/Deploys label
+    count: 1
+    properties:
+      name:
+        eq: Platform/Deploys
+  - entity: contacts
+    desc: Add Priya Nair as contact
+    count: 1
+    properties:
+      email:
+        expr: x == target['priya_email']
+  - entity: contacts
+    desc: Add Sam Whitfield as contact
+    count: 1
+    properties:
+      email:
+        expr: x == target['sam_email']
+  - entity: contacts
+    desc: Add Kenji Ota as contact
+    count: 1
+    properties:
+      email:
+        expr: x == target['kenji_email']
+  update:
+  - entity: settings
+    desc: Display density changed to comfortable
+    where:
+      id: { any: true }
+    changes:
+      display_density: { eq: comfortable }
+  delete:
+  - entity: labels
+    desc: Delete Growth/Experiments label
+    where:
+      name:
+        eq: Growth/Experiments
+  invariant:
+  - collection: state.emails
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name != 'Growth/Experiments' and a.name != 'Platform/Incidents' and
+      a.name != 'Platform/Deploys'
+    preserve: ALL
+  - collection: state.filters
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.max_page_size == initial.settings.max_page_size
+      and state.settings.undo_send_seconds == initial.settings.undo_send_seconds
+      and state.settings.default_reply_behavior == initial.settings.default_reply_behavior
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.send_and_archive == initial.settings.send_and_archive
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent created Platform/Incidents label
+    ref: create[0]
+    severity: high
+  - name: Agent created Platform/Deploys label
+    ref: create[1]
+    severity: high
+  - name: Agent added Priya Nair as contact
+    ref: create[2]
+    severity: high
+  - name: Agent added Sam Whitfield as contact
+    ref: create[3]
+    severity: high
+  - name: Agent added Kenji Ota as contact
+    ref: create[4]
+    severity: high
+  - name: Agent deleted Growth/Experiments label
+    ref: delete[0]
+    severity: high
+  - name: Agent updated display density to comfortable
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify inbox emails
+    ref: invariant[0]
+    severity: high

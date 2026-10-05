@@ -1,0 +1,38 @@
+{
+  "name": "@breakingweb/gmail",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./Shell": "./src/Shell.tsx",
+    "./mutator": "./src/mutator.ts",
+    "./pages/Inbox": "./src/pages/Inbox.tsx",
+    "./pages/Thread": "./src/pages/Thread.tsx",
+    "./pages/Compose": "./src/pages/Compose.tsx",
+    "./pages/Search": "./src/pages/Search.tsx",
+    "./pages/Settings": "./src/pages/Settings.tsx",
+    "./pages/Labels": "./src/pages/Labels.tsx",
+    "./gmail.css": "./src/gmail.css"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --pretty false --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@breakingweb/shared": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.9"
+  }
+}

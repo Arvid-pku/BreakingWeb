@@ -1,0 +1,210 @@
+task_id: gmail_annual_contact_review
+env_id: gmail
+title: End-of-year contact review with activity audit, protected list, enrichment,
+  and summary
+instruction_template: "Perform an end-of-year contact review. Note: contacts are\
+  \ accessible via the Labels & contacts page (click the Labels link in the sidebar).\
+  \ Complete all of the following steps:\n\n1. AUDIT: Page through all contacts. For\
+  \ each contact, search the inbox for emails from that person within the last 90 days\
+  \ (since December 20, 2025). Identify contacts with zero email activity in that\
+  \ period.\n\n2. PROTECTED LIST: Open the email from your manager Grace Lin with\
+  \ subject \"Protected Contacts — Do Not Delete\" and read which contacts are protected\
+  \ from deletion regardless of activity.\n\n3. DELETE INACTIVE: Delete every contact\
+  \ that has zero email activity in the last 90 days AND is NOT on Grace's protected\
+  \ list.\n\
+  \n4. UPDATE NOTES: Find the most recent thread from each of the following 4 contacts\
+  \ and update their note with the specified information:\n   - Patricia Engel: set\
+  \ note to her new role from her latest email signature\n   - Kenji Matsuda: set\
+  \ note to the project name mentioned in his latest thread subject\n   - Ines Herrera:\
+  \ set note to the conference name she mentions in her latest email body\n   - Tobias\
+  \ Falk: set note to his new phone number from his latest email signature\n\n5. ADD\
+  \ NEW: Three people have recently emailed you for the first time and have no contact\
+  \ entry yet. Find them in your inbox (look for senders from the past 90 days who\
+  \ are not in your contacts list) and add them as new contacts, using the email context\
+  \ to write a brief note for each.\n\n6. SUMMARY: Compose a new email (not\
+  \ reply) to Grace Lin (g.lin@company.com) with subject \"Annual Contact Review —\
+  \ Complete\" and body listing the contacts you deleted, updated, and added by name."
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 72
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: annual_contact_review
+    params: {}
+    outputs:
+    - rupert_haines_id
+    - simone_arcuri_id
+    - chen_weilin_id
+    - patricia_engel_id
+    - kenji_matsuda_id
+    - ines_herrera_id
+    - tobias_falk_id
+    - rupesh_haines_id
+    - chen_wei_id
+    - rupert_global_id
+    - protected_email_id
+  targets:
+    rupert_haines_id: '{output.rupert_haines_id}'
+    simone_arcuri_id: '{output.simone_arcuri_id}'
+    chen_weilin_id: '{output.chen_weilin_id}'
+    patricia_engel_id: '{output.patricia_engel_id}'
+    kenji_matsuda_id: '{output.kenji_matsuda_id}'
+    ines_herrera_id: '{output.ines_herrera_id}'
+    tobias_falk_id: '{output.tobias_falk_id}'
+    rupesh_haines_id: '{output.rupesh_haines_id}'
+    chen_wei_id: '{output.chen_wei_id}'
+    rupert_global_id: '{output.rupert_global_id}'
+    protected_email_id: '{output.protected_email_id}'
+canonical_diff:
+  create:
+    - entity: contacts
+      desc: Add Nadia Kowalski as new contact
+      count: 1
+      properties:
+        email:
+          eq: n.kowalski@freshstart.pl
+        note:
+          any: true
+    - entity: contacts
+      desc: Add Ravi Sundaram as new contact
+      count: 1
+      properties:
+        email:
+          eq: r.sundaram@deltaforge.in
+        note:
+          any: true
+    - entity: contacts
+      desc: Add Amara Diallo as new contact
+      count: 1
+      properties:
+        email:
+          eq: a.diallo@sahelconsulting.sn
+        note:
+          any: true
+    - entity: sent
+      desc: Send annual contact review summary to Grace Lin
+      count: 1
+      properties:
+        to:
+          expr: "x == ['g.lin@company.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          substring_all:
+            - Annual Contact Review
+        body:
+          substring_all:
+            - Rupert Haines
+            - Simone Arcuri
+            - Chen Wei-Lin
+            - Patricia Engel
+            - Kenji Matsuda
+            - Nadia Kowalski
+            - Ravi Sundaram
+            - Amara Diallo
+        in_reply_to:
+          eq: null
+  delete:
+    - entity: contacts
+      desc: Delete Rupert Haines (oldvendor) inactive contact
+      where:
+        id:
+          expr: "x == target['rupert_haines_id']"
+    - entity: contacts
+      desc: Delete Simone Arcuri inactive contact
+      where:
+        id:
+          expr: "x == target['simone_arcuri_id']"
+    - entity: contacts
+      desc: Delete Chen Wei-Lin inactive contact
+      where:
+        id:
+          expr: "x == target['chen_weilin_id']"
+  update:
+    - entity: contacts
+      desc: Update Patricia Engel note
+      where:
+        id:
+          expr: "x == target['patricia_engel_id']"
+      changes:
+        note:
+          eq: "Chief Revenue Officer at Engel & Partners"
+    - entity: contacts
+      desc: Update Kenji Matsuda note
+      where:
+        id:
+          expr: "x == target['kenji_matsuda_id']"
+      changes:
+        note:
+          eq: "Project Sakura — Phase 2"
+    - entity: contacts
+      desc: Update Ines Herrera note
+      where:
+        id:
+          expr: "x == target['ines_herrera_id']"
+      changes:
+        note:
+          eq: "WebSummit Lisbon 2026"
+    - entity: contacts
+      desc: Update Tobias Falk note
+      where:
+        id:
+          expr: "x == target['tobias_falk_id']"
+      changes:
+        note:
+          eq: "+49 170 555 8823"
+  invariant:
+    - collection: state.contacts
+      filter: >-
+        a.id not in [
+          target['rupert_haines_id'], target['simone_arcuri_id'], target['chen_weilin_id'],
+          target['patricia_engel_id'], target['kenji_matsuda_id'], target['ines_herrera_id'],
+          target['tobias_falk_id']
+        ]
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent added Nadia Kowalski
+      ref: create[0]
+      severity: high
+    - name: Agent added Ravi Sundaram
+      ref: create[1]
+      severity: high
+    - name: Agent added Amara Diallo
+      ref: create[2]
+      severity: high
+    - name: Agent sent the annual review summary
+      ref: create[3]
+      severity: high
+    - name: Agent deleted Rupert Haines
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted Simone Arcuri
+      ref: delete[1]
+      severity: high
+    - name: Agent deleted Chen Wei-Lin
+      ref: delete[2]
+      severity: high
+    - name: Agent did not modify unrelated contacts
+      ref: invariant[0]
+      severity: high

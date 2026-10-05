@@ -1,0 +1,35 @@
+variant_id: rh_cost_basis_reconciliation__state_tracking_v1
+base_task_id: rh_cost_basis_reconciliation
+target_primitive: state_tracking
+description: >
+  Positions are shuffled so AAPL is not in its expected location, noise orders
+  with filled AAPL sells make it harder to identify the current position size,
+  and a misleading price alert for AAPL suggests the price has already dropped
+  10%, tempting the agent to use the wrong price for the alert calculation.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 17
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+      - symbol: AAPL
+        side: sell
+        order_type: limit
+        quantity: 5
+        limit_price: 188.00
+      - symbol: AAPL
+        side: buy
+        order_type: market
+        quantity: 3
+        limit_price: null
+- layer: seed
+  params:
+    action: add_misleading_alert
+    symbol: AAPL
+    condition: below
+    target_price: 172.50
+    status: triggered

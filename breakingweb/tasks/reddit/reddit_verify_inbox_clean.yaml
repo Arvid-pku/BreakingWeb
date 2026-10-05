@@ -1,0 +1,107 @@
+task_id: reddit_verify_inbox_clean
+env_id: reddit
+title: Audit Inbox and Delete Spam Messages
+instruction_template: "Audit every message in your inbox. A message is legitimate if any of the following apply: (a) the sender is a moderator account such as u/ModTeam, (b) the message body references a previous interaction of yours (a post, comment, or meeting you were part of), or (c) the sender's username appears elsewhere in your activity. Delete messages that are clearly spam from unknown senders with no connection to your activity. The evaluator will verify that no legitimate message was removed and that all spam messages were deleted.\n"
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 10
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 2
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: ModTeam
+      subject: Welcome to the community
+      body: Thanks for joining! Please review our rules in the sidebar before posting.
+      is_read: false
+    outputs:
+    - msg1_id
+    - msg1_subject
+    - msg1_from
+  - use: target_message
+    params:
+      from_user: TechHelper
+      subject: 'Re: Build help request'
+      body: I'd recommend the Ryzen 7 5800X3D for your use case. Great price-to-performance ratio.
+      is_read: false
+    outputs:
+    - msg2_id
+    - msg2_subject
+    - msg2_from
+  - use: target_message
+    params:
+      from_user: StudyBuddy
+      subject: Study group meetup this Saturday
+      body: Hey! We're meeting at the library at 2pm. Bring your notes from chapter 7.
+      is_read: false
+    outputs:
+    - msg3_id
+    - msg3_subject
+    - msg3_from
+  - use: target_message
+    params:
+      from_user: crypto_gains_2025
+      subject: 'LIMITED OFFER: 10x your crypto in 7 days!'
+      body: Click here to claim your free tokens and triple your investment instantly. This offer expires soon. Join 50,000 winners today!
+      is_read: false
+    outputs:
+    - spam1_id
+    - spam1_subject
+    - spam1_from
+  - use: target_message
+    params:
+      from_user: prize_winner_alerts
+      subject: You have been selected! Claim your $500 gift card
+      body: Congratulations! You have been randomly selected to receive a $500 Amazon gift card. Click the link below to claim before it expires.
+      is_read: false
+    outputs:
+    - spam2_id
+    - spam2_subject
+    - spam2_from
+  targets:
+    msg1_id: '{output.msg1_id}'
+    msg2_id: '{output.msg2_id}'
+    msg3_id: '{output.msg3_id}'
+    spam1_id: '{output.spam1_id}'
+    spam2_id: '{output.spam2_id}'
+    spam_ids:
+    - '{output.spam1_id}'
+    - '{output.spam2_id}'
+canonical_diff:
+  delete:
+  - entity: Message
+    collection: messages
+    bijection:
+      over: "target['spam_ids']"
+      variable: v
+    desc: Delete each spam message from unknown senders
+    where:
+      id: {expr: "x == v"}
+  invariant:
+  - collection: state.messages
+    filter: "a.id in [target['msg1_id'], target['msg2_id'], target['msg3_id']]"
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  constraints:
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+  named_invariants:
+  - name: Legitimate messages were not deleted or modified
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not send any messages
+    ref: invariant[1]
+    severity: high

@@ -1,0 +1,159 @@
+task_id: pp_update_default_pharmacy
+env_id: patient_portal
+title: Update Default Pharmacy
+instruction_template: "Set your default pharmacy to the retail pharmacy in your pharmacy
+  list that charges the lowest dispensing fee, breaking ties by choosing the
+  lower-numbered pharmacy id. Do not select a mail-order pharmacy. Then move every
+  active prescription that is currently filled at your previous default pharmacy to
+  this new default pharmacy. Do not transfer any prescription that is filled at any
+  other pharmacy, do not transfer a prescription that is already at the new default
+  pharmacy, do not change any expired prescription, and do not flip the default
+  flag on any other pharmacy or change any other record."
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 11
+primary_primitives:
+  - grounding
+secondary_primitives:
+  - backtracking
+start_path: /profile
+
+seed:
+  distractors: 8
+  steps:
+    - use: patient_profile
+      params:
+        conditions: ["Hypertension", "Type 2 Diabetes"]
+        insurance_tier: standard
+      outputs: [pcp_id]
+    - use: provider_directory
+      params:
+        count: 5
+        specialties: ["pcp", "cardiology", "endocrinology", "billing", "admin"]
+        must_include: ["pcp"]
+      outputs: [provider_ids]
+    - use: pharmacy_list
+      params:
+        count: 4
+        include_mail_order: true
+        mail_order_count: 2
+        must_include_name: ["Walgreens"]
+        target_pharmacy_name: "Walgreens"
+        # Two non-default retail pharmacies tie at the minimum fee (5), with a
+        # near-miss retail at 6 between them. The lowest-fee answer therefore
+        # requires applying the lower-id tie-break (not eyeballing a single
+        # cheapest), and the mail-order pharmacies (dispensing_fee 0) are a
+        # naive "cheapest" bait the instruction forbids.
+        distinct_retail_fees: [8, 5, 6, 5]
+      outputs: [pharmacy_ids, default_pharmacy_id, target_pharmacy_id, mail_order_pharmacy_id, lowest_fee_retail_pharmacy_id, lowest_fee_retail_pharmacy_name]
+    - use: prescription_cabinet
+      params:
+        active_count: 7
+        expired_count: 2
+        active_at_default_count: 3
+        # Spread the 4 non-transfer active rxes across multiple frozen
+        # distractor pharmacies, INCLUDING the new default itself (pharm_2) so
+        # one active rx is already at the destination and must NOT be
+        # "transferred". pharm_3/pharm_4 are non-default retail traps (pharm_4
+        # is the tied-fee sibling of the answer).
+        active_decoy_pharmacy_ids: ["pharm_3", "pharm_4", "pharm_2"]
+        active_at_new_default_pharmacy_id: "pharm_2"
+        # One expired rx sits at the OLD default — same pharmacy as the transfer
+        # set, but expired, so it is a status decoy that must stay frozen.
+        expired_at_default_count: 1
+      outputs: [active_rx_ids, active_at_default_rx_ids, active_at_new_default_rx_ids, expired_at_default_rx_ids]
+  targets:
+    # --- Existing keys preserved for variant safety (do not rename/remove) ---
+    target_pharmacy_id: "{output.target_pharmacy_id}"
+    pharmacy_name: "Walgreens #09832"
+    original_default_id: "{output.default_pharmacy_id}"
+    # --- Discriminator + transfer-set targets ---
+    new_default_pharmacy_id: "{output.lowest_fee_retail_pharmacy_id}"
+    mail_order_pharmacy_id: "{output.mail_order_pharmacy_id}"
+    transfer_rx_ids: "{output.active_at_default_rx_ids}"
+    active_rx_ids: "{output.active_rx_ids}"
+    pharmacy_ids: "{output.pharmacy_ids}"
+    # --- New frozen-distractor targets (proof the harder filter is solvable) ---
+    active_at_new_default_rx_ids: "{output.active_at_new_default_rx_ids}"
+    expired_at_default_rx_ids: "{output.expired_at_default_rx_ids}"
+
+canonical_diff:
+  update:
+    - entity: Pharmacy
+      desc: "Set the lowest-fee retail pharmacy as the new default"
+      where:
+        id: {expr: "x == target['new_default_pharmacy_id']"}
+      changes:
+        is_default: {eq: true}
+    - entity: Pharmacy
+      desc: "Remove the default flag from the previous default pharmacy"
+      where:
+        id: {expr: "x == target['original_default_id']"}
+      changes:
+        is_default: {eq: false}
+    - entity: Prescription
+      desc: "Transfer every active rx at the previous default pharmacy to the new default"
+      bijection:
+        over: "target['transfer_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        pharmacy_id: {expr: "x == target['new_default_pharmacy_id']"}
+  invariant:
+    - collection: state.pharmacies
+      filter: "a.id != target['new_default_pharmacy_id'] and a.id != target['original_default_id']"
+      preserve: ALL
+    - collection: state.prescriptions
+      filter: "a.id not in target['transfer_rx_ids']"
+      preserve: ALL
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  constraints:
+    - expr: "next((p for p in state.pharmacies if p.is_default), None) is not None and not next(p for p in state.pharmacies if p.is_default).is_mail_order"
+      severity: critical
+      desc: "The resulting default pharmacy exists and is a retail (non-mail-order) pharmacy"
+    - expr: "Decimal(str(next(p for p in state.pharmacies if p.is_default).dispensing_fee)) == min(Decimal(str(p.dispensing_fee)) for p in state.pharmacies if not p.is_mail_order and p.id != target['original_default_id'])"
+      severity: critical
+      desc: "The resulting default pharmacy charges the lowest dispensing fee among the non-original retail pharmacies"
+    - expr: "next(p for p in state.pharmacies if p.is_default).id == target['new_default_pharmacy_id']"
+      severity: critical
+      desc: "Ties at the lowest dispensing fee are broken to the lower-numbered pharmacy id (the seeded answer)"
+    - expr: "all(int(p.id.rsplit('_', 1)[-1]) >= int(target['new_default_pharmacy_id'].rsplit('_', 1)[-1]) for p in state.pharmacies if p.is_default and not p.is_mail_order and Decimal(str(p.dispensing_fee)) == min(Decimal(str(q.dispensing_fee)) for q in state.pharmacies if not q.is_mail_order and q.id != target['original_default_id']))"
+      severity: high
+      desc: "Among tied-lowest-fee retail pharmacies, the chosen default is not a higher-id sibling"
+  named_invariants:
+    - name: "Agent did not flip the default flag on the mail-order or any other retail pharmacy"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not move prescriptions that were filled at another pharmacy, were already at the new default, or were expired"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[5]
+      severity: medium
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[7]
+      severity: high

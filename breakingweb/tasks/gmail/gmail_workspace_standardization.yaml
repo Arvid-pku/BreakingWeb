@@ -1,0 +1,172 @@
+task_id: gmail_workspace_standardization
+env_id: gmail
+title: Workspace Standardization
+instruction_template: 'Read the policy email from ops-standards@company.io (subject:
+  "Mandatory Inbox Standardization - Effective Immediately"). The policy specifies
+  the required labels (with visibility settings), required filters, and required
+  settings values. Create any missing labels with the correct visibility, fix visibility
+  on existing labels that have wrong visibility, create any missing filters with
+  the exact match and action criteria, and update any settings that do not match.
+  Do not compose or send any email.'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 42
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: workspace_standardization
+    params: {}
+    outputs:
+    - policy_email_id
+    - taylor_email_id
+    - existing_filter_id
+  targets:
+    policy_email_id: '{output.policy_email_id}'
+    taylor_email_id: '{output.taylor_email_id}'
+    existing_filter_id: '{output.existing_filter_id}'
+canonical_diff:
+  create:
+  - entity: filters
+    desc: Create alerts.monitoring.io filter with Ops/Critical label, star, never
+      spam
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@alerts.monitoring.io'
+      add_labels:
+        set_eq:
+        - Ops/Critical
+      star:
+        eq: true
+      never_spam:
+        eq: true
+  - entity: filters
+    desc: Create billing.vendorpay.com filter with Finance/Invoices label, never spam
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@billing.vendorpay.com'
+      add_labels:
+        set_eq:
+        - Finance/Invoices
+      never_spam:
+        eq: true
+  - entity: filters
+    desc: Create expensecloud.com filter with Finance/Receipts label
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@receipts.expensecloud.com'
+      add_labels:
+        set_eq:
+        - Finance/Receipts
+  - entity: labels
+    desc: Create Ops/Critical label with show_if_unread visibility
+    count: 1
+    properties:
+      name:
+        eq: Ops/Critical
+      show_in_label_list:
+        eq: show_if_unread
+  - entity: labels
+    desc: Create Finance/Invoices label with show visibility
+    count: 1
+    properties:
+      name:
+        eq: Finance/Invoices
+      show_in_label_list:
+        eq: show
+  - entity: labels
+    desc: Create Finance/Tax label with hide visibility
+    count: 1
+    properties:
+      name:
+        eq: Finance/Tax
+      show_in_label_list:
+        eq: hide
+  update:
+  - entity: labels
+    desc: Fix Ops/Routine label visibility to show
+    where:
+      name:
+        eq: Ops/Routine
+    changes:
+      show_in_label_list:
+        eq: show
+  - entity: labels
+    desc: Fix Finance/Receipts label visibility to show_if_unread
+    where:
+      name:
+        eq: Finance/Receipts
+    changes:
+      show_in_label_list:
+        eq: show_if_unread
+  - entity: settings
+    desc: Display density, undo send delay, and page size configured per policy
+    where:
+      id: { any: true }
+    changes:
+      display_density: { eq: compact }
+      undo_send_seconds: { eq: 20 }
+      max_page_size: { eq: 25 }
+  invariant:
+  - collection: state.emails
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name not in ['Ops/Critical', 'Ops/Routine', 'Ops/Archived', 'Finance/Invoices',
+      'Finance/Receipts', 'Finance/Tax']
+    preserve: ALL
+  - collection: state.filters
+    filter: a.id != target['existing_filter_id']
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.default_reply_behavior == initial.settings.default_reply_behavior
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.send_and_archive == initial.settings.send_and_archive
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent created alerts.monitoring.io filter
+    ref: create[0]
+    severity: high
+  - name: Agent created billing.vendorpay.com filter
+    ref: create[1]
+    severity: high
+  - name: Agent created expensecloud.com filter
+    ref: create[2]
+    severity: high
+  - name: Agent did not send emails
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify inbox emails
+    ref: invariant[0]
+    severity: high
+  - name: Agent updated display density, undo send, and page size per policy
+    ref: update[2]
+    severity: high

@@ -1,0 +1,55 @@
+variant_id: amazon_buy_highest_rated__rating_tie
+base_task_id: amazon_buy_highest_rated
+target_primitive: verification
+description: "Three near-duplicate Sports & Outdoors SKUs share the target Premium Yoga Mat's brand and thumbnail and tie at exactly the target's 4.95 top rating. Sort-by-rating produces a four-way tie at the top, so the agent must compare review_count or canonical product_id to break the tie. The first two cart-add calls silently no-op so the agent must verify the cart actually changed before checkout."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Premium Yoga Mat - Pro Edition"
+      brand: Manduka
+      seller: Manduka
+      category: Sports & Outdoors
+      price: 89.99
+      rating: 4.95
+      review_count: 820
+      match_image_of: Premium Yoga Mat
+      description: "Pro-edition sibling tied at the top rating; sort-by-rating cannot disambiguate."
+    - type: product
+      name: "Premium Yoga Mat 2-Pack"
+      brand: Manduka
+      seller: Manduka
+      category: Sports & Outdoors
+      price: 89.99
+      rating: 4.95
+      review_count: 580
+      match_image_of: Premium Yoga Mat
+      description: "Two-unit bundle tied at the top rating; not the single-unit target."
+    - type: product
+      name: "Premium Yoga Mat Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Sports & Outdoors
+      price: 89.99
+      rating: 4.95
+      review_count: 410
+      match_image_of: Premium Yoga Mat
+      description: "Marketplace refurbished listing tied at the top rating; identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

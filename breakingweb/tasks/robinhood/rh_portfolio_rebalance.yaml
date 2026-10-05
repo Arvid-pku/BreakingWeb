@@ -1,0 +1,123 @@
+task_id: rh_portfolio_rebalance
+env_id: robinhood
+title: Rebalance Portfolio to Target Allocation
+instruction_template: 'Rebalance your portfolio to the following target allocation:
+  AAPL 40%, MSFT 30%, GOOGL 20%, AMZN 10%. Calculate the trades needed and execute
+  them.'
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 15
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      quantities:
+      - '20'
+      - '30'
+      - '8'
+      - '25'
+      cost_bases:
+      - '170.00'
+      - '380.00'
+      - '155.00'
+      - '165.00'
+    outputs: []
+  targets:
+    target_allocation:
+      AAPL: 40
+      MSFT: 30
+      GOOGL: 20
+      AMZN: 10
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order placed to reduce overweight positions
+    properties:
+      side: {eq: sell}
+      symbol: {in: [AAPL, MSFT, GOOGL, AMZN]}
+      order_type: {any: true}
+      quantity: {any: true}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Buy order placed to increase underweight positions
+    properties:
+      side: {eq: buy}
+      symbol: {in: [AAPL, MSFT, GOOGL, AMZN]}
+      order_type: {any: true}
+      quantity: {any: true}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.symbol not in ['AAPL', 'MSFT', 'GOOGL', 'AMZN']"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: Final portfolio allocation is close to the requested 40/30/20/10 target
+    expr: "state.allocation_error_vs_targets(target['target_allocation']) <= Decimal('3')"
+    severity: critical
+  - desc: All portfolio rebalance stock orders filled
+    expr: all(o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders if o.id not in [io.id for io in initial.orders]) and any(o.id
+      not in [io.id for io in initial.orders] for o in state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, planning, grounding by requiring
+  exact completion of the requested Robinhood workflow while ignoring distractor
+  account state.

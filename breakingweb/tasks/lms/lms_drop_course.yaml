@@ -1,0 +1,200 @@
+task_id: lms_drop_course
+env_id: lms
+title: Drop the Unrecoverable Course
+instruction_template: >-
+  Review your enrolled courses. Identify the one course in which it is now
+  mathematically impossible to still finish with a B (a final weighted score of
+  at least 80%), given the grades already recorded and the assignments that
+  remain. Be careful: at least one other course is no longer reachable for an A
+  yet can still finish with a B, and a course's current displayed average is not
+  the same as whether a B is still attainable — you must work out, per grading
+  category, the score still required on the remaining work. Drop only the one
+  course where a B is impossible, before its drop deadline. Leave every other
+  enrollment exactly as it is, and do not send any messages or change your
+  profile while you do this.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+  - grounding
+  - reasoning
+start_path: /courses
+
+seed:
+  distractors: 0
+  steps:
+    - use: student_profile
+      params: {}
+      outputs:
+        - student_id
+    - use: course_catalog
+      params:
+        count: 4
+        vary_late_policies: true
+        must_include: ["CS101", "MATH201"]
+      outputs:
+        - course_ids
+        - course_codes
+        - course_code
+        - target_course_id
+        - course_id_1
+        - course_id_2
+    - use: enrollment_set
+      params: {}
+      outputs:
+        - enrollment_ids
+        - target_enrollment_id
+    - use: assignment_battery
+      params:
+        # More graded items per category (graded_fraction up to 0.7) tightens the
+        # fixed_part of each weighted-score solve, and more items per course
+        # (per_course_count 8) means every category has several graded + remaining
+        # rows — so the "can this still reach a B?" decision is a non-trivial
+        # per-category weighted computation, not a single-number eyeball.
+        per_course_count: 8
+        graded_fraction: 0.7
+        # One missing assignment is pushed past the late window (unrecoverable
+        # zero credit), so the agent must combine the grade math with the
+        # late-policy rule rather than just averaging visible scores.
+        unrecoverable_missing_count: 1
+      outputs:
+        - assignment_ids
+    - use: grade_book
+      params:
+        # Engineer a genuine CLOSE CALL: rescale grades so the impossible course's
+        # CURRENT weighted score sits in the same visual band as the achievable
+        # ones (need only just over 100), and one achievable confuser is tuned to
+        # be A-impossible but B-achievable (need ~94). The agent must run the
+        # per-category B-solve to tell them apart — eyeballing the lowest current
+        # grade no longer works.
+        near_threshold_b: true
+      outputs:
+        - impossible_b_course_ids
+        - impossible_b_enrollment_ids
+        - achievable_course_ids
+        - current_weighted_scores
+        - confuser_course_id
+        - confuser_course_code
+        - confuser_enrollment_id
+  targets:
+    # Preserved keys (referenced by the paired intervention variant) — DO NOT remove/rename.
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    target_enrollment_id: '{output.target_enrollment_id}'
+    # New seed-computed discriminator: the single enrollment whose course can no
+    # longer reach a B (80%). Precomputed in the seed builder (grade math), the
+    # agent must re-derive which course this is.
+    impossible_enrollment_id: '{output.impossible_b_enrollment_ids[0]}'
+    impossible_course_id: '{output.impossible_b_course_ids[0]}'
+    impossible_b_enrollment_ids: '{output.impossible_b_enrollment_ids}'
+    impossible_b_course_ids: '{output.impossible_b_course_ids}'
+    achievable_course_ids: '{output.achievable_course_ids}'
+    # The engineered near-threshold confuser: a course that is A-impossible but
+    # still B-ACHIEVABLE (need ~94). The paired intervention variant plants a
+    # misleading "you're at risk" decoy on THIS real course so an agent that
+    # trusts surface signals instead of computing the weighted B-solve drops it
+    # by mistake (it must stay enrolled).
+    confuser_course_id: '{output.confuser_course_id}'
+    confuser_course_code: '{output.confuser_course_code}'
+    confuser_enrollment_id: '{output.confuser_enrollment_id}'
+
+canonical_diff:
+  update:
+    - entity: Enrollment
+      desc: Drop exactly the enrollment whose course cannot still reach a B
+      where:
+        id:
+          expr: "x == target['impossible_enrollment_id']"
+        status:
+          expr: "x == 'enrolled'"
+      changes:
+        status: {eq: dropped}
+  invariant:
+    # The ONLY enrollment allowed to change is the unrecoverable one. Every
+    # other enrollment (including the tempting first course CS101) is frozen.
+    - collection: state.enrollments
+      filter: "a.id != target['impossible_enrollment_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+    - desc: Agent did not send any messages
+      expr: "len(state.sent_messages) == 0"
+      severity: critical
+    - desc: Exactly one enrollment was dropped (no over-dropping)
+      expr: "len([e for e in state.enrollments if e.status == 'dropped']) == 1"
+      severity: critical
+    - desc: The dropped enrollment is the unrecoverable course's enrollment
+      expr: >-
+        all(e.status == 'dropped' for e in state.enrollments
+        if e.id == target['impossible_enrollment_id'])
+      severity: critical
+    - desc: Every course that can still reach a B remains enrolled
+      expr: >-
+        all(e.status == 'enrolled' for e in state.enrollments
+        if e.course_id in target['achievable_course_ids'].split(','))
+      severity: high
+    - desc: >-
+        The near-threshold confuser (A-impossible but still B-achievable) was
+        NOT dropped — it can still reach a B, so it must stay enrolled
+      expr: >-
+        all(e.status == 'enrolled' for e in state.enrollments
+        if target['confuser_course_id'] and e.course_id == target['confuser_course_id'])
+      severity: critical
+    - desc: Agent did not change the student profile name or email
+      expr: >-
+        state.student.name == initial.student.name and
+        state.student.email == initial.student.email
+      severity: medium
+  named_invariants:
+    - name: Agent did not drop or alter any other enrollment
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify assignments
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: low
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: low
+    - name: Agent did not modify announcements
+      ref: invariant[8]
+      severity: low
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium

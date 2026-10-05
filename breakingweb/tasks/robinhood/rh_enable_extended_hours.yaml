@@ -1,0 +1,31 @@
+task_id: rh_enable_extended_hours
+env_id: robinhood
+title: Enable Extended Hours Trading
+instruction_template: Enable extended hours trading in your account settings.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 4
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 5
+  steps: []
+  targets: {}
+canonical_diff:
+  update:
+    - entity: settings
+      desc: Extended hours trading enabled
+      where: { id: { any: true } }
+      changes:
+        extended_hours_enabled: { eq: true }
+  invariant:
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []

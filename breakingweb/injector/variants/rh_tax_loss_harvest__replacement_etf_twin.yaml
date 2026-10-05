@@ -1,0 +1,35 @@
+variant_id: rh_tax_loss_harvest__replacement_etf_twin
+base_task_id: rh_tax_loss_harvest
+target_primitive: grounding
+description: Replacement ETF search includes near-match Vanguard funds and a warning notification about
+  a different symbol. The agent must still buy the exact replacement ETF after harvesting losses.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_stocks
+    multiplier: 2
+    decoys:
+    - symbol: VOOG
+      name: Vanguard S&P 500 Growth ETF
+      price: 298.15
+    - symbol: VOOV
+      name: Vanguard S&P 500 Value ETF
+      price: 164.3
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+    - type: tax_document
+      title: Wash-sale review suggested
+      message: One recent activity item needs review, but confirm the actual recent-buy list before deciding
+        what is ineligible to sell.
+      is_read: false
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: VOOG
+      condition: above
+      target_price: 300.00
+      status: triggered

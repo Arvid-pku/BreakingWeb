@@ -1,0 +1,23 @@
+variant_id: pp_find_telehealth_cardiologist__provider_search_stale_v1
+base_task_id: pp_find_telehealth_cardiologist
+target_primitive: exploration
+description: Provider discovery returns empty results on the first pass. The agent must retry search or explore the full provider directory instead of assuming no match exists.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/providers/search**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/providers**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

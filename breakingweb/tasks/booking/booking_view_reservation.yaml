@@ -1,0 +1,135 @@
+task_id: booking_view_reservation
+env_id: booking
+title: View Earliest Upcoming Reservation
+instruction_template: 'Go to your trips and find the reservation with the earliest
+  upcoming check-in date. Click "View details" to navigate to its detail page. The
+  reservation should be at "{target.property_name}" checking in on {target.check_in}.
+
+  '
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 4
+primary_primitives:
+- verification
+start_path: /trips
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Coastal Breeze Resort
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.3
+      price: 210.0
+    outputs:
+    - early_prop_id
+    - early_prop_name
+    - early_room_id
+    - early_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.early_prop_id}'
+      check_in: '2026-04-16'
+      check_out: '2026-04-19'
+      status: confirmed
+      booked_days_ago: 7
+    outputs:
+    - early_res_id
+    - early_conf
+    - early_res_prop
+  - use: featured_property
+    params:
+      name: Mountain Peak Lodge
+      city: Denver
+      country: United States
+      star_rating: 3
+      review_score: 7.6
+      price: 155.0
+    outputs:
+    - later_prop_id
+    - later_prop_name
+    - later_room_id
+    - later_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.later_prop_id}'
+      check_in: '2026-07-10'
+      check_out: '2026-07-14'
+      status: confirmed
+      booked_days_ago: 4
+    outputs:
+    - later_res_id
+    - later_conf
+    - later_res_prop
+  targets:
+    reservation_id: '{output.early_res_id}'
+    property_name: '{output.early_prop_name}'
+    check_in: '2026-04-16'
+canonical_diff:
+  # Read-only task: only a view audit-log entry is expected (verified via
+  # constraint). No list-collection mutations should occur. The no-op
+  # bijection-over-empty update entry below puts `notifications` into
+  # positive_cols so the matcher's collateral sweep runs and any unaccounted
+  # write (booking, cancellation, message send, etc.) is caught.
+  update:
+    - entity: notifications
+      desc: "Internal: enable collateral sweep (no expected notification mutation)"
+      weight: 0
+      bijection:
+        over: "[]"
+        variable: v
+      where:
+        id: {expr: "x == v.id"}
+      changes:
+        read: {eq: true}
+  constraints:
+    - desc: Target reservation detail page was viewed
+      expr: >-
+        any(
+          e.action == 'reservation.view' and
+          e.payload.get('reservation_id') == target['reservation_id']
+          for e in state.audit_log
+        )
+      severity: critical
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      filter: "True"  # no-op update[0] above produces no slots; preserve all notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

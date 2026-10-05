@@ -1,0 +1,198 @@
+task_id: amazon_category_exploration
+env_id: amazon
+title: Browse Categories and Build a Multi-Category Cart
+instruction_template: 'Browse three different categories - "{target.cat_1}", "{target.cat_2}",
+  and "{target.cat_3}". Add one item from each category to your cart, then complete
+  the checkout using the shipping address for Jordan Parker at 742 Evergreen Terrace
+  and the Visa card ending in 4242.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 24
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Resistance Bands Set
+      brand: Fit Simplify
+      category: Sports & Outdoors
+      price: 19.99
+      rating: 4.5
+      features:
+      - 5 resistance levels
+      - Latex free
+      - Carrying bag included
+      - Exercise guide
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_1
+    - product_name_1
+    - product_price_1
+  - use: featured_product
+    params:
+      name: Bestselling Novel Collection
+      brand: Penguin Books
+      category: Books
+      price: 32.99
+      rating: 4.6
+      features:
+      - Hardcover edition
+      - 3-book box set
+      - Award-winning authors
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_2
+    - product_name_2
+    - product_price_2
+  - use: featured_product
+    params:
+      name: Aromatherapy Candle Set
+      brand: Yankee Candle
+      category: Home & Kitchen
+      price: 28.99
+      rating: 4.4
+      features:
+      - Set of 4 scents
+      - Soy wax blend
+      - 30-hour burn time each
+      - Gift box packaging
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_3
+    - product_name_3
+    - product_price_3
+  - use: product_catalog
+    params:
+      category: Sports & Outdoors
+      count: 5
+      price_range:
+      - 10.0
+      - 100.0
+    outputs:
+    - catalog_ids_1
+  - use: product_catalog
+    params:
+      category: Books
+      count: 5
+      price_range:
+      - 8.0
+      - 60.0
+    outputs:
+    - catalog_ids_2
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 5
+      price_range:
+      - 10.0
+      - 80.0
+    outputs:
+    - catalog_ids_3
+  targets:
+    cat_1: Sports & Outdoors
+    cat_2: Books
+    cat_3: Home & Kitchen
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed with at least one item from each of the three target
+      categories
+    properties:
+      items:
+        expr: "len(x) == 3 and any(any(it['product_id'] == p.id and (target['cat_1']
+          in p.category or p.category == target['cat_1']) for p in state.products)
+          for it in x) and any(any(it['product_id'] == p.id and p.category == target['cat_2']
+          for p in state.products) for it in x) and any(any(it['product_id'] == p.id
+          and (target['cat_3'] in p.category or p.category == target['cat_3']) for
+          p in state.products) for it in x) and all(it['quantity'] == 1 for it in
+          x)"
+      status: {eq: confirmed}
+      shipping_address_id: {expr: "any(a.id == x and a.full_name == 'Jordan Parker'
+          and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"}
+      payment_method_id: {expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four
+          == '4242' for p in state.payment_methods)"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not (len(a.items or []) >= 3)"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

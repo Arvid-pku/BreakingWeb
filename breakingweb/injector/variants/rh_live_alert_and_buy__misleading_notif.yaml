@@ -1,0 +1,31 @@
+variant_id: rh_live_alert_and_buy__misleading_notif
+base_task_id: rh_live_alert_and_buy
+target_primitive: verification
+description: A lookalike alert notification fires for a different instrument or threshold first. The agent
+  must verify the exact symbol and condition before trading.
+injections:
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+    - type: price_alert
+      title: AAPLX threshold hit
+      message: AAPLX just crossed a similar alert threshold. Verify the exact symbol before trading.
+      is_read: false
+    - type: price_alert
+      title: AAPL volatility spike
+      message: AAPL moved sharply, but this notice is not the same as the requested trigger condition.
+      is_read: false
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

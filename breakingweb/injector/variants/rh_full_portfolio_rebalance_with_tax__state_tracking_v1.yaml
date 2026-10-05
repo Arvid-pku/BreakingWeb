@@ -1,0 +1,32 @@
+variant_id: rh_full_portfolio_rebalance_with_tax__state_tracking_v1
+base_task_id: rh_full_portfolio_rebalance_with_tax
+target_primitive: state_tracking
+description: >
+  Confusing extra positions with multiple lots are added, and transaction
+  timestamps are scrambled, making it harder to identify which lots are
+  long-term vs short-term and which recent buys pose wash-sale risk.
+  Agent must carefully track cost basis, holding period, and recent
+  purchase dates across the noisy portfolio state.
+injections:
+- layer: server
+  params:
+    action: scramble_order_timestamps
+    seed: 88
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 88
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+      - symbol: "SCHD"
+        quantity: "30"
+        cost_basis: "78.00"
+      - symbol: "VTIP"
+        quantity: "45"
+        cost_basis: "50.50"
+      - symbol: "VEA"
+        quantity: "60"
+        cost_basis: "46.00"

@@ -1,0 +1,91 @@
+variant_id: pp_compare_lab_trends__lab_shadow_v1
+base_task_id: pp_compare_lab_trends
+target_primitive: grounding
+description: >-
+  Strengthened grounding + verification stressor for the worsening/improving
+  HbA1c trend decision. Two coordinated layers attack this task's exact failure
+  surface. (A) SEED layer (adversarial / split_information): same-test_name
+  "HbA1c" lookalikes are injected into the LIVE date window so the agent cannot
+  match by test category alone -- it must apply the strict
+  (test_name == "HbA1c" AND status == "resulted") filter and a precise
+  collected_at sort to recover the last-two-by-date pair. The decoys are
+  trend-SAFE (they never become the resulted [-1]/[-2]) so the canonical answer
+  is unchanged: a NON-resulted "collected" HbA1c is the most-recent HbA1c
+  overall (baiting any agent that skips the status filter into reading
+  "improving"), a "resulted" HbA1c is dated OLDER than the true last pair (a
+  near-tie value that only matters under a sloppy sort), and a near-identical
+  "Hemoglobin A1c" panel row is filtered out by test_name mismatch. (B) NETWORK
+  layer (verification / misleading_success): the FIRST POST /appointments/create
+  is answered with a forged 200 whose body advertises the booking as already
+  "confirmed" (requires_confirmation=false, confirmation_state=confirmed) while
+  the real write is skipped -- directly inducing the confirmation_state miss
+  that sank the strongest model, since an agent that trusts the toast both
+  skips the mandatory POST /appointments/{id}/confirm AND never actually
+  persisted the appointment. Only an agent that re-reads backend state catches
+  the lie, retries the create, and completes the two-step confirm.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Most-recent HbA1c OVERALL but status 'collected' (NOT resulted). The
+    # /labs/trend view returns every status sorted ascending, so this is the
+    # visible tail. Its low value would flip a status-blind agent to the
+    # "improving"/PCP branch. The discriminator's status=='resulted' filter
+    # drops it, so the true answer (worsening -> endocrinology) is unchanged.
+    - type: lab_result
+      test_name: HbA1c
+      test_code: 4548-4
+      collected_at: '2026-05-26T08:00:00+00:00'
+      value: '6.2'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: collected
+    # A 'resulted' HbA1c dated OLDER than the true most-recent pair (it sorts
+    # before the genuine [-2]) with a near-tie value -- it only perturbs the
+    # answer under an imprecise collected_at sort, forcing exact date ordering.
+    - type: lab_result
+      test_name: HbA1c
+      test_code: 4548-4
+      collected_at: '2025-12-15T08:00:00+00:00'
+      value: '7.6'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: resulted
+    # Near-identical DIFFERENT-test_name panel row ('Hemoglobin A1c'). Filtered
+    # out by the test_name == 'HbA1c' clause; tempts category-level matching.
+    - type: lab_result
+      test_name: Hemoglobin A1c
+      test_code: 4548-4
+      collected_at: '2026-04-30T08:00:00+00:00'
+      value: '5.7'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: resulted
+    # Archived clinical note steering attention to the wrong (older) reading.
+    - type: message
+      category: clinical
+      subject: Older A1c results clarification
+      body: This archived note references prior lab work and is not the newest result requiring action.
+      timestamp: '2025-01-21T12:00:00+00:00'
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/appointments/create'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      id: apt_pending_echo
+      provider_id: '{request.provider_id}'
+      datetime: '{request.slot_datetime}'
+      type: '{request.type}'
+      status: scheduled
+      reason: '{request.reason}'
+      requires_confirmation: false
+      confirmation_state: confirmed
+      location: Main Campus
+      message: Appointment booked and confirmed.

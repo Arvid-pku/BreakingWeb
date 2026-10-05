@@ -1,0 +1,17 @@
+variant_id: booking_diagnose_wrong_dates__same_hotel_twin
+base_task_id: booking_diagnose_wrong_dates
+target_primitive: state_tracking
+description: Trips already contain another reservation at the same hotel with nearby dates. The agent
+  must cancel and rebook the actual wrong reservation, not the similar same-hotel twin.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: reservation
+      property_name: The Savoy London
+      check_in: '{target.correct_check_in}'
+      check_out: '2026-07-17'
+      status: confirmed
+      booked_days_ago: 2
+      confirmation_number: SAVOY-ALT-715

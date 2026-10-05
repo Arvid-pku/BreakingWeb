@@ -1,0 +1,22 @@
+variant_id: rh_transfer_history_audit__state_tracking_v1
+base_task_id: rh_transfer_history_audit
+target_primitive: state_tracking
+description: >
+  Scrambled transfer timestamps and noise orders create a confusing
+  transfer timeline. Agent must correctly tally deposits vs withdrawals
+  from the reordered history without double-counting or missing entries.
+injections:
+- layer: server
+  params:
+    action: scramble_notification_timestamps
+    seed: 55
+- layer: seed
+  params:
+    action: add_noise_orders
+    count: 5
+    side: "buy"
+    symbols: ["AAPL", "MSFT", "VTI"]
+- layer: server
+  params:
+    action: scramble_order_timestamps
+    seed: 91

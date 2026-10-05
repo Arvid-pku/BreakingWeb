@@ -1,0 +1,22 @@
+variant_id: gmail_inbox_triage_protocol__grounding_v1
+base_task_id: gmail_inbox_triage_protocol
+target_primitive: grounding
+description: Ambiguous priority signals and confusing email subjects make identifying
+  correct triage actions difficult
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - URGENT but actually just newsletter
+    - ACTION REQUIRED in subject but FYI content
+    - Priority email that should be archived
+    - FYI that actually needs urgent reply
+    - Escalation that is already resolved
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 12
+    seed: 143
+    subject_prefix: 'Re: Priority'

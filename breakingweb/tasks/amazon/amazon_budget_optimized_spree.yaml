@@ -1,0 +1,250 @@
+task_id: amazon_budget_optimized_spree
+env_id: amazon
+title: Buy Highest-Rated Product Under $60 from 5 Categories
+instruction_template: 'Shop across five categories: Electronics, Books, Home & Kitchen,
+  Clothing, and Sports & Outdoors. In each category, find the highest-rated product
+  that costs less than $60.00. Add all five winners to your cart and complete checkout
+  in a single order. Your total must stay under $250.00.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 50
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Pro Wireless Charger Stand
+      brand: ChargeMax
+      category: Electronics
+      price: 39.99
+      rating: 4.95
+      features:
+      - 15W fast charge
+      - Qi certified
+      - LED indicator
+      - Anti-slip base
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cat1
+    - product_name_cat1
+    - product_price_cat1
+  - use: featured_product
+    params:
+      name: Mindful Leadership Handbook
+      brand: Clearview Books
+      category: Books
+      price: 24.99
+      rating: 4.95
+      features:
+      - Hardcover edition
+      - 320 pages
+      - Foreword by industry leader
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cat2
+    - product_name_cat2
+    - product_price_cat2
+  - use: featured_product
+    params:
+      name: Ceramic Knife Set 5-Piece
+      brand: Stonemill Kitchen
+      category: Home & Kitchen
+      price: 49.99
+      rating: 4.95
+      features:
+      - Ultra-sharp ceramic blades
+      - Ergonomic handles
+      - Knife block included
+      - Dishwasher safe
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cat3
+    - product_name_cat3
+    - product_price_cat3
+  - use: featured_product
+    params:
+      name: Performance Running Shorts
+      brand: FitEdge
+      category: Clothing
+      price: 32.99
+      rating: 4.95
+      features:
+      - Moisture-wicking fabric
+      - Built-in liner
+      - Zippered pocket
+      - Reflective trim
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cat4
+    - product_name_cat4
+    - product_price_cat4
+  - use: featured_product
+    params:
+      name: Foam Roller Recovery Pro
+      brand: Endurafit
+      category: Sports & Outdoors
+      price: 28.99
+      rating: 4.95
+      features:
+      - High-density EVA foam
+      - Textured surface
+      - 18-inch length
+      - Carry bag included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cat5
+    - product_name_cat5
+    - product_price_cat5
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 20.0
+      - 90.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Books
+      count: 8
+      price_range:
+      - 10.0
+      - 40.0
+    outputs:
+    - catalog_books
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 8
+      price_range:
+      - 15.0
+      - 70.0
+    outputs:
+    - catalog_home
+  - use: product_catalog
+    params:
+      category: Clothing
+      count: 8
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_clothing
+  - use: product_catalog
+    params:
+      category: Sports & Outdoors
+      count: 8
+      price_range:
+      - 10.0
+      - 50.0
+    outputs:
+    - catalog_sports
+  targets:
+    product_id_cat1: '{output.product_id_cat1}'
+    product_id_cat2: '{output.product_id_cat2}'
+    product_id_cat3: '{output.product_id_cat3}'
+    product_id_cat4: '{output.product_id_cat4}'
+    product_id_cat5: '{output.product_id_cat5}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order contains the 5 category winners and stays under $250
+    properties:
+      items:
+        expr: "len(x) == 5 and {it['product_id'] for it in x} == {target['product_id_cat1'],
+          target['product_id_cat2'], target['product_id_cat3'], target['product_id_cat4'],
+          target['product_id_cat5']} and all(it['quantity'] == 1 and it['unit_price']
+          < 60 for it in x)"
+      total:
+        expr: "x < 250"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

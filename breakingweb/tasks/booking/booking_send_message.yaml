@@ -1,0 +1,111 @@
+task_id: booking_send_message
+env_id: booking
+title: Send a Message About Check-in Time
+instruction_template: 'Go to your messages and send a new message to "{target.property_name}"
+  with the subject "Check-in time inquiry" and body "Hello, could you please let me
+  know the earliest check-in time available? Thank you."
+
+  '
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 6
+primary_primitives:
+- backtracking
+start_path: /messages
+seed:
+  distractors: 4
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Downtown City Suites
+      city: Tokyo
+      country: Japan
+      star_rating: 4
+      review_score: 8.4
+      price: 175.0
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.property_id}'
+      check_in: '2026-05-20'
+      check_out: '2026-05-24'
+      status: confirmed
+      booked_days_ago: 2
+    outputs:
+    - reservation_id
+    - confirmation_number
+    - property_id
+  - use: send_message
+    params:
+      property_id: '{output.property_id}'
+      subject: Booking confirmed
+      body: Thank you for your reservation. We look forward to welcoming you.
+      sender: Downtown City Suites
+      read: true
+    outputs:
+    - message_id
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    reservation_id: '{output.reservation_id}'
+canonical_diff:
+  create:
+    - entity: Message
+      desc: Send a check-in inquiry message to the target property
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {eq: "Check-in time inquiry"}
+        body:
+          expr: "'earliest check-in time' in x.lower() and 'thank you' in x.lower()"
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.messages
+      filter: "a.sender == 'property' or 'Check-in time inquiry' not in (a.subject or '')"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent the check-in inquiry with the required subject and body
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify or delete existing messages
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not add or modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

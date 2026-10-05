@@ -1,0 +1,52 @@
+variant_id: amazon_recover_cancelled_order__cancelled_order_twin
+base_task_id: amazon_recover_cancelled_order
+target_primitive: state_tracking
+description: "Three near-duplicate cancelled decoy orders for the target Mechanical Keyboard with Cherry MX Switches product name sit in order history with near-identical timestamps; sort or scan-by-name cannot uniquely identify the canonical cancelled order to recover. The first two cancel POST calls silently no-op so any reflex cancel against a decoy would not actually mutate state — the agent must verify before reordering."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: order
+      product_name: Mechanical Keyboard with Cherry MX Switches
+      quantity: 1
+      unit_price: 189.99
+      status: cancelled
+      placed_hours_ago: 48
+      estimated_delivery: Cancelled before shipping
+    - type: order
+      product_name: Mechanical Keyboard with Cherry MX Switches
+      quantity: 1
+      unit_price: 189.99
+      status: cancelled
+      placed_hours_ago: 49
+      estimated_delivery: Cancelled before shipping
+    - type: order
+      product_name: Mechanical Keyboard with Cherry MX Switches
+      quantity: 1
+      unit_price: 189.99
+      status: cancelled
+      placed_hours_ago: 50
+      estimated_delivery: Cancelled before shipping
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/orders/*/cancel'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      order:
+        id: order_fake_retry
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        total: 0.0
+        status: cancelled
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: ''
+        promo_code: null
+        discount: 0.0
+    behavior: { mode: once }

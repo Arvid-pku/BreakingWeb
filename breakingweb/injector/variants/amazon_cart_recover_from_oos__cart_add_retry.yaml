@@ -1,0 +1,51 @@
+variant_id: amazon_cart_recover_from_oos__cart_add_retry
+base_task_id: amazon_cart_recover_from_oos
+target_primitive: state_tracking
+description: >
+  Two-layer cart-mutation verification trap (Recipe A adapted): both
+  /cart/add POSTs and /cart/{id} DELETEs silent-fail on their first
+  attempt, returning a fake 200 with a templated cart_item body that
+  echoes the agent's request. The agent's "remove OOS, add in-stock
+  replacement" workflow appears to succeed at every step but the real
+  cart state never changes — OOS items remain, no replacements land.
+  canonical_diff requires both `create[CartItem]` (in-stock, same
+  category, not in oos_product_ids) AND `delete[CartItem]`
+  (id in oos_cart_item_ids); both predicates fail unless the agent
+  verifies cart state via re-read after each write and retries.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/*'
+    methods:
+    - DELETE
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: 'cart_pending_remove'
+        product_id: 'prod_pending_remove'
+        product_name: 'Removed (cached)'
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: 'cart_pending_{request.product_id}'
+        product_id: '{request.product_id}'
+        product_name: 'Pending: {request.product_id}'
+        quantity: '{request.quantity}'
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once

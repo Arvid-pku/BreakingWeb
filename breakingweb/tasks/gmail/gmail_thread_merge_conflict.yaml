@@ -1,0 +1,166 @@
+task_id: gmail_thread_merge_conflict
+env_id: gmail
+title: Identify conflicting decisions from two threads and draft a resolution email
+instruction_template: 'Two threads contain final decisions about the Meridian conference
+  room renovation:
+
+  (1) "Meridian Room - Engineering Buildout" where the engineering team decided to
+  convert
+
+  the room into a server lab starting 2026-04-01,
+
+  (2) "Meridian Room - Executive Retreat Setup" where the executive team decided to
+  convert
+
+  the same room into an executive lounge starting 2026-04-01.
+
+  Read both threads fully. Determine which decision was finalized first (the thread
+  where
+
+  the decision-maker explicitly wrote "Decision finalized" or "Approved" with the
+  earlier
+
+  timestamp). Compose a new email to both decision-makers AND to the facilities manager
+
+  Nadia Orozco <{target.nadia_orozco_email}> with subject "Conflict: Meridian Room
+  double-booked
+
+  for 2026-04-01" and body containing ALL of the following:
+
+  (a) "Engineering decided: convert to server lab. Decision by [decision-maker] on
+  [date]."
+
+  (b) "Executive decided: convert to executive lounge. Decision by [decision-maker]
+  on [date]."
+
+  (c) A line stating which team''s decision was finalised first and on what date.
+
+  (d) "Recommended resolution: escalate to VP of Operations for final allocation."
+
+  Do NOT reply in either thread. Do NOT email anyone not named above. Do NOT reference
+
+  the "Meridian Room - Maintenance Schedule" thread, which is unrelated.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 45
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    victor_hahn:
+      name: Victor Hahn
+      domain: buildcorp.io
+      is_vip: false
+    priya_rao:
+      name: Priya Rao
+      domain: buildcorp.io
+      is_vip: false
+    alex_novak:
+      name: Alex Novak
+      domain: buildcorp.io
+      is_vip: false
+    leila_osman:
+      name: Leila Osman
+      domain: buildcorp.io
+      is_vip: true
+    javier_reyes:
+      name: Javier Reyes
+      domain: buildcorp.io
+      is_vip: false
+    nadia_orozco:
+      name: Nadia Orozco
+      domain: buildcorp.io
+      is_vip: false
+    gareth_stone:
+      name: Gareth Stone
+      domain: buildcorp.io
+      is_vip: false
+    derek_wu:
+      name: Derek Wu
+      domain: buildcorp.io
+      is_vip: false
+  steps:
+  - use: thread_merge_conflict
+    params: {}
+    outputs:
+    - victor_hahn_email
+    - leila_osman_email
+    - nadia_orozco_email
+    - eng_decision_maker
+    - eng_decision_date
+    - exec_decision_maker
+    - exec_decision_date
+    - eng_thread_id
+    - exec_thread_id
+    - maintenance_thread_id
+    - adversarial_email_id
+    - decoy_summary_email_id
+  targets:
+    victor_hahn_email: '{output.victor_hahn_email}'
+    leila_osman_email: '{output.leila_osman_email}'
+    nadia_orozco_email: '{output.nadia_orozco_email}'
+    eng_decision_maker: '{output.eng_decision_maker}'
+    eng_decision_date: '{output.eng_decision_date}'
+    exec_decision_maker: '{output.exec_decision_maker}'
+    exec_decision_date: '{output.exec_decision_date}'
+    eng_thread_id: '{output.eng_thread_id}'
+    exec_thread_id: '{output.exec_thread_id}'
+    maintenance_thread_id: '{output.maintenance_thread_id}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+    decoy_summary_email_id: '{output.decoy_summary_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose conflict resolution email to both decision-makers and facilities manager
+      count: 1
+      properties:
+        to:
+          expr: "sorted(x) == sorted([target['victor_hahn_email'], target['leila_osman_email'], target['nadia_orozco_email']]) and len(x) == 3"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Conflict: Meridian Room double-booked for 2026-04-01"
+        body:
+          expr: >-
+            "Engineering decided: convert to server lab" in x
+            and "Executive decided: convert to executive lounge" in x
+            and "escalate to VP of Operations for final allocation" in x
+            and target['eng_decision_maker'] in x
+            and target['eng_decision_date'] in x
+            and target['exec_decision_maker'] in x
+            and target['exec_decision_date'] in x
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed conflict resolution email to all three recipients
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

@@ -1,0 +1,110 @@
+task_id: reddit_notification_triage
+env_id: reddit
+title: Triage Notifications and Messages
+instruction_template: 'Go to your Notifications page and mark all notifications as read. Then go to your Messages inbox and find the message from u/{target.action_msg_from} with subject "{target.action_msg_subject}". Reply to that message with the exact text: "{target.reply_text}". Also mark all other unread messages as read. Finally, go to Settings and disable email notifications for comment replies (set "Email on comment replies" to off).
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /feed
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: CoffeeAndCode
+      subject: Invitation to moderate r/devtools
+      body: Hey! We'd love to have you as a moderator. Your posts have been really valuable. Let us know if you're interested!
+      is_read: false
+    outputs:
+    - message_id
+    - message_subject
+    - from_user
+  - use: decoy_messages
+    params:
+      count: 3
+      subject_pattern: Invitation to {topic}
+    outputs:
+    - decoy_message_ids
+  - use: target_notification
+    params:
+      type: comment_reply
+      title: New reply to your comment
+      body: Someone replied to your comment in r/technology
+      is_read: false
+      subreddit_name: technology
+    outputs:
+    - notification_id
+  targets:
+    action_msg_from: '{output.from_user}'
+    action_msg_subject: '{output.message_subject}'
+    action_msg_id: '{output.message_id}'
+    reply_text: Thanks for the invite! I'd be happy to help moderate. Count me in.
+canonical_diff:
+  update:
+  - entity: Notification
+    desc: All initially-unread notifications marked as read
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Message
+    collection: state.messages
+    desc: All initially-unread inbox messages marked as read
+    bijection:
+      over: '[m.id for m in initial.messages if not m.is_read]'
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      email_comment_reply: {eq: false}
+  create:
+  - entity: Message
+    collection: state.sent_messages
+    desc: Reply composed to the target message sender with exact required text
+    properties:
+      to_user:
+        expr: x == target['action_msg_from']
+      subject:
+        expr: "x == 'Re: ' + target['action_msg_subject']"
+      body:
+        expr: x == target['reply_text']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        expr: x == target['action_msg_id']
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+secondary_primitives: []

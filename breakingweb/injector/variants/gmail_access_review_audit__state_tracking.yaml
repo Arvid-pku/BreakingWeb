@@ -1,0 +1,24 @@
+variant_id: gmail_access_review_audit__state_tracking_v1
+base_task_id: gmail_access_review_audit
+target_primitive: state_tracking
+description: >
+  Shuffles contact order and injects 8 topical distractor emails about "access" and "personnel" to force agent to track state across many sources.
+injections:
+- layer: server
+  params:
+    action: shuffle_contacts
+    seed: 42
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 8
+    topical_subjects:
+      - "Access badge system update"
+      - "Personnel parking assignments"
+      - "IT access request form updated"
+      - "HR personnel directory published"
+      - "Access control policy revision"
+      - "Personnel training schedule"
+      - "System access best practices"
+      - "Personnel onboarding checklist"

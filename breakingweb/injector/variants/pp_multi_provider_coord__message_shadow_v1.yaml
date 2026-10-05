@@ -1,0 +1,21 @@
+variant_id: pp_multi_provider_coord__message_shadow_v1
+base_task_id: pp_multi_provider_coord
+target_primitive: grounding
+description: Near-miss provider threads with similar subjects are added to the inbox. The agent must distinguish the seeded action-driving message from older, similarly worded notes.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      category: clinical
+      subject: Follow-up reminder from earlier thread
+      body: This older portal thread is similar in topic but does not contain the seeded action request.
+      timestamp: '2025-02-10T09:00:00+00:00'
+      is_read: false
+    - type: message
+      category: clinical
+      subject: Medication check-in note
+      body: This lookalike note is informational only. Verify the exact provider thread before acting.
+      timestamp: '2025-02-12T10:15:00+00:00'
+      is_read: false

@@ -1,0 +1,22 @@
+variant_id: gmail_budget_reconciliation__state_tracking_v1
+base_task_id: gmail_budget_reconciliation
+target_primitive: state_tracking
+description: Timestamps are scrambled and topical distractors are added, forcing the
+  agent to aggregate the right evidence across related threads.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 71
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 6
+    topical_subjects:
+    - Q1 budget revision for engineering
+    - Marketing budget correction note
+    - Operations spend clarification
+    - Board budget summary draft
+    - Budget sign-off reminder
+    - Department variance breakdown

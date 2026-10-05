@@ -1,0 +1,19 @@
+variant_id: lms_course_selection_next_semester__course_clutter_v1
+base_task_id: lms_course_selection_next_semester
+target_primitive: exploration
+description: Extra course noise expands the LMS search surface. The agent must keep
+  exploring until it finds the real target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: course
+      course_code: COURSE-ALT
+      title: COURSE Alternate Section
+      status: enrolled
+    - type: announcement
+      course_code: COURSE-ALT
+      title: COURSE registration note
+      body: Archived enrollment reminder for a similar course code.
+      priority: normal

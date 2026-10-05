@@ -1,0 +1,55 @@
+variant_id: amazon_search_and_buy__product_twin
+base_task_id: amazon_search_and_buy
+target_primitive: grounding
+description: "Three near-duplicate Sony XM5 SKUs share the target's brand, price, rating, and thumbnail; sort-by-price/rating fails to disambiguate. The first two cart-add calls silently no-op so the agent must verify the cart actually changed before checking out."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Sony WH-1000XM5 Wireless Headphones - Pro Edition"
+      brand: Sony
+      seller: Sony
+      category: Electronics
+      price: 348.0
+      rating: 4.7
+      review_count: 820
+      match_image_of: Sony WH-1000XM5 Wireless Headphones
+      description: "Pro-edition sibling with identical brand, price, and thumbnail; distinct SKU."
+    - type: product
+      name: "Sony WH-1000XM5 Wireless Headphones 2-Pack"
+      brand: Sony
+      seller: Sony
+      category: Electronics
+      price: 348.0
+      rating: 4.7
+      review_count: 580
+      match_image_of: Sony WH-1000XM5 Wireless Headphones
+      description: "Two-unit bundle with same listing branding; not the single-unit target."
+    - type: product
+      name: "Sony WH-1000XM5 Wireless Headphones Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 348.0
+      rating: 4.7
+      review_count: 410
+      match_image_of: Sony WH-1000XM5 Wireless Headphones
+      description: "Marketplace refurbished listing; sells alongside the target with identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

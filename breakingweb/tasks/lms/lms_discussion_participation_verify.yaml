@@ -1,0 +1,157 @@
+task_id: lms_discussion_participation_verify
+env_id: lms
+title: Cross-Reference Participation Grade with Post Count
+instruction_template: In {target.course_code}, check whether your discussion participation
+  meets the requirements for each discussion forum. For each discussion, verify your
+  post count and reply count against the minimums. If any discussion is below requirements,
+  complete the missing posts/replies.
+difficulty: hard
+time_limit_seconds: 240
+expected_steps: 10
+primary_primitives:
+- verification
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 2
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: discussion_forums
+    params:
+      count: 3
+      posts_per: 4
+    outputs:
+    - discussion_ids
+    - target_discussion_id
+    - target_discussion_title
+    - target_course_code
+  targets:
+    course_code: '{output.target_course_code}'
+    target_course_id: '{output.target_course_id}'
+    discussion_ids: '{output.discussion_ids}'
+canonical_diff:
+  create:
+  - entity: DiscussionPost
+    desc: Create one top-level post in each target-course discussion
+    bijection:
+      over: "[did.strip() for did in target['discussion_ids'].split(',') if did.strip()]"
+      variable: v
+    properties:
+      discussion_id:
+        expr: "x == v"
+      author_id:
+        expr: "x == state.student.id"
+      author_name:
+        expr: "x == state.student.name"
+      body:
+        any: true
+      parent_post_id:
+        eq: null
+      timestamp:
+        expr: "x >= datetime.fromisoformat(target['session_start'])"
+      updated_at:
+        eq: null
+      is_anonymous:
+        eq: false
+  - entity: DiscussionPost
+    desc: Create one reply in each target-course discussion
+    bijection:
+      over: "[did.strip() for did in target['discussion_ids'].split(',') if did.strip()]"
+      variable: v
+    properties:
+      discussion_id:
+        expr: "x == v"
+      author_id:
+        expr: "x == state.student.id"
+      author_name:
+        expr: "x == state.student.name"
+      body:
+        any: true
+      parent_post_id:
+        expr: "x is not None"
+      timestamp:
+        expr: "x >= datetime.fromisoformat(target['session_start'])"
+      updated_at:
+        eq: null
+      is_anonymous:
+        eq: false
+  invariant:
+  - collection: state.discussion_posts
+    filter: "a.discussion_id not in [did.strip() for did in target['discussion_ids'].split(',') if did.strip()]"
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.assignments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent did not post in non-target discussions
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify discussions
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify course records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not modify assignments
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify modules
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

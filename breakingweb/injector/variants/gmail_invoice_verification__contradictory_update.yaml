@@ -1,0 +1,16 @@
+variant_id: gmail_invoice_verification__contradictory_update
+base_task_id: gmail_invoice_verification
+target_primitive: verification
+description: A newer procurement email claims the PO numbers were reassigned. The agent must verify which
+  procurement message is authoritative rather than blindly trusting the latest note.
+injections:
+- layer: seed
+  params:
+    action: add_contradictory_update
+    from_name: Procurement Team
+    subject: 'CORRECTION: PO Confirmation - Q1 Vendor Orders (REVISED)'
+    body: "IMPORTANT CORRECTION \u2014 We may have reassigned the PO numbers during migration. Re-check\
+      \ the authoritative confirmation before deciding which invoice is mismatched."
+    labels:
+    - inbox
+    from: procurement@company.com

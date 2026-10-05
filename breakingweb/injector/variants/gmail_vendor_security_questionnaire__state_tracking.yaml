@@ -1,0 +1,38 @@
+variant_id: gmail_vendor_security_questionnaire__state_tracking
+base_task_id: gmail_vendor_security_questionnaire
+target_primitive: state_tracking
+description: Many topical distractors and shuffled contacts stress aggregation of
+  security info from multiple sources
+injections:
+- layer: server
+  params:
+    action: shuffle_contacts
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 27
+    topical_count: 12
+    topical_subjects:
+    - 'Re: Security compliance update'
+    - 'Fwd: Vendor assessment questionnaire'
+    - 'Thread: Security audit findings'
+    - 'Re: Certification status'
+    - 'Fwd: Compliance documentation'
+    - 'Re: Security policy review'
+    - 'Thread: Vendor risk assessment'
+    - 'Re: Data protection measures'
+    - 'Fwd: Security controls inventory'
+    - 'Re: Audit trail requirements'
+    - 'Thread: Access control policies'
+    - 'Re: Encryption standards'
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - See attached security questionnaire responses
+    - Refer to the compliance spreadsheet
+    - Check the vendor portal for details
+    - All answers are in the shared drive
+    - Review the audit report for specifics
+    - Contact IT security for clarification

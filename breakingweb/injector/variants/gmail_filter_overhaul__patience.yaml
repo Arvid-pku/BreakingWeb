@@ -1,0 +1,26 @@
+variant_id: gmail_filter_overhaul__patience_v1
+base_task_id: gmail_filter_overhaul
+target_primitive: patience
+description: >
+  Error on first filter delete and first filter create. Agent must replan
+  overhaul sequence: audit filters, delete broken ones (with retry), create
+  new labels, then create new filters in dependency order.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/filters/*"
+    methods: ["DELETE"]
+    error_status: 503
+    error_count: 1
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/filters"
+    methods: ["POST"]
+    error_status: 503
+    error_count: 1
+    behavior:
+      mode: once

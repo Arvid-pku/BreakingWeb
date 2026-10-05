@@ -1,0 +1,35 @@
+variant_id: amazon_wishlist_portfolio_rebalance__state_tracking_v1
+base_task_id: amazon_wishlist_portfolio_rebalance
+target_primitive: state_tracking
+description: 'The wishlist returns stale data showing all items still present on the first 3 reads after removals, and one
+  cart add silently fails with a fake success response. The agent must verify actual wishlist and cart state and retry failed
+  operations.
+
+  '
+injections:
+- layer: network
+  params:
+    url_pattern: '**/api/env/amazon/wishlist'
+    action: stale_data
+    methods:
+    - GET
+    stale_count: 3
+    stale_body:
+      wishlist: []
+      products: []
+- layer: network
+  params:
+    url_pattern: '**/api/env/amazon/cart/add'
+    action: silent_fail
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      cart_item:
+        id: item_3c8f1a4d
+        product_id: prod_a8c4d219
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'

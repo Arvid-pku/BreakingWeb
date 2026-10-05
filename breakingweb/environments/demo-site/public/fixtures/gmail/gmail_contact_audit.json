@@ -1,0 +1,1488 @@
+{
+  "task_id": "gmail_contact_audit",
+  "env_id": "gmail",
+  "title": "Contact Audit",
+  "difficulty": "medium",
+  "primary_primitives": [
+    "exploration",
+    "verification",
+    "memory",
+    "attention"
+  ],
+  "secondary_primitives": [],
+  "expected_steps": 42,
+  "time_limit_seconds": 360,
+  "seed": 207616914852987,
+  "start_path": "/inbox",
+  "instruction": "Do a quarterly contact cleanup. Go to your Contacts and review each entry — delete any contacts that have not been in touch for more than 30 days (check the 'Last Contact' column). You may need to page through the list. Do not delete Marcus Kim. Then search your inbox for emails from Nina Brooks and Avery Singh, and add them both as contacts using the information from their emails. Mark Nina Brooks as a VIP.",
+  "eval_check_descriptions": [
+    "First stale contact deleted",
+    "Second stale contact deleted",
+    "Third stale contact deleted",
+    "Fourth stale contact deleted",
+    "Contact A added as VIP",
+    "Contact B added"
+  ],
+  "resolved_targets": {
+    "stale_1_id": "contact_11",
+    "stale_2_id": "contact_12",
+    "stale_3_id": "contact_13",
+    "stale_4_id": "contact_14",
+    "near_id": "contact_15",
+    "near_b_id": "contact_16",
+    "keep_contact_name": "Marcus Kim",
+    "keep_contact_id": "contact_17",
+    "new_contact_a_name": "Nina Brooks",
+    "new_contact_b_name": "Avery Singh",
+    "new_a_email": "nina.brooks@newpartner.test",
+    "new_b_email": "avery.singh@consultant.test"
+  },
+  "state": {
+    "env_id": "gmail",
+    "task_id": "gmail_contact_audit",
+    "owner_name": "Avery Quinn",
+    "owner_email": "avery.quinn@breakingweb.test",
+    "emails": [
+      {
+        "id": "email_23",
+        "from_addr": "jordan.patel@community.test",
+        "from_name": "Jordan Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nJordan",
+        "timestamp": "2026-01-12T08:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_23",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_1",
+        "from_addr": "nina.brooks@newpartner.test",
+        "from_name": "Nina Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Partnership opportunity — Q2 logistics",
+        "body": "Hi Avery, my name is Nina Brooks and I work at NewPartner Logistics. I would love to discuss a potential partnership for Q2.\n\nYou can reach me at nina.brooks@newpartner.test or on my direct line.\n\nThanks,\nNina",
+        "timestamp": "2026-01-12T05:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_1",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_12",
+        "from_addr": "maya.patel@partners.test",
+        "from_name": "Maya Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sending a quick status update from today's working session.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nMaya",
+        "timestamp": "2026-01-12T03:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_12",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_2",
+        "from_addr": "avery.singh@consultant.test",
+        "from_name": "Avery Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Consulting engagement follow-up",
+        "body": "Hi Avery, this is Avery Singh from the consulting engagement last month. I wanted to follow up on the deliverables we discussed.\n\nMy email is avery.singh@consultant.test — feel free to add me to your contacts for future correspondence.\n\nThanks,\nAvery",
+        "timestamp": "2026-01-11T03:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_2",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_22",
+        "from_addr": "miles.brooks@metrics.test",
+        "from_name": "Miles Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nMiles",
+        "timestamp": "2026-01-10T06:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_22",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_10",
+        "from_addr": "sofia.kim@community.test",
+        "from_name": "Sofia Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nSofia",
+        "timestamp": "2026-01-10T05:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_10",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_4",
+        "from_addr": "nina.kim@community.test",
+        "from_name": "Nina Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nNina",
+        "timestamp": "2026-01-09T11:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_4",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_17",
+        "from_addr": "marcus.wright@partners.test",
+        "from_name": "Marcus Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-09T07:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_17",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_2",
+            "filename": "summary.txt",
+            "content_type": "text/plain",
+            "size_bytes": 23641,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_6",
+        "from_addr": "sofia.patel@community.test",
+        "from_name": "Sofia Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nSofia",
+        "timestamp": "2026-01-08T12:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_6",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_41",
+        "from_addr": "jordan.morris@metrics.test",
+        "from_name": "Jordan Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nJordan",
+        "timestamp": "2026-01-08T06:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_41",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_19",
+        "from_addr": "priya.nguyen@updates.test",
+        "from_name": "Priya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nPriya",
+        "timestamp": "2026-01-08T00:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_19",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_11",
+        "from_addr": "priya.morris@updates.test",
+        "from_name": "Priya Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. Let me know if you want the spreadsheet version as well.\n\nThanks,\nPriya",
+        "timestamp": "2026-01-07T13:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_11",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_15",
+        "from_addr": "marcus.rivera@partners.test",
+        "from_name": "Marcus Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "Sending a quick status update from today's working session.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-07T08:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_15",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_31",
+        "from_addr": "marcus.wright@partners.test",
+        "from_name": "Marcus Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Reminder on document review timing",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-07T07:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_31",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_5",
+            "filename": "agenda.txt",
+            "content_type": "text/plain",
+            "size_bytes": 62922,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_39",
+        "from_addr": "marcus.nguyen@updates.test",
+        "from_name": "Marcus Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-06T19:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_39",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_26",
+        "from_addr": "nina.chen@metrics.test",
+        "from_name": "Nina Chen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nNina",
+        "timestamp": "2026-01-06T17:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_26",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_13",
+        "from_addr": "theo.garcia@partners.test",
+        "from_name": "Theo Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nTheo",
+        "timestamp": "2026-01-05T12:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_13",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_5",
+        "from_addr": "marcus.rivera@partners.test",
+        "from_name": "Marcus Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-05T01:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_5",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_1",
+            "filename": "notes.txt",
+            "content_type": "text/plain",
+            "size_bytes": 29891,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_32",
+        "from_addr": "theo.morris@partners.test",
+        "from_name": "Theo Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nTheo",
+        "timestamp": "2026-01-04T21:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_32",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_28",
+        "from_addr": "theo.wright@metrics.test",
+        "from_name": "Theo Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nTheo",
+        "timestamp": "2026-01-04T13:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_28",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_25",
+        "from_addr": "jordan.patel@metrics.test",
+        "from_name": "Jordan Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "I pulled the loose ends into one note for easier review.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nJordan",
+        "timestamp": "2026-01-03T22:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_25",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_4",
+            "filename": "notes.txt",
+            "content_type": "text/plain",
+            "size_bytes": 27378,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_9",
+        "from_addr": "theo.nguyen@metrics.test",
+        "from_name": "Theo Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nTheo",
+        "timestamp": "2026-01-03T16:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_9",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_40",
+        "from_addr": "theo.nguyen@community.test",
+        "from_name": "Theo Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sending a quick status update from today's working session.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nTheo",
+        "timestamp": "2026-01-03T13:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_40",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_20",
+        "from_addr": "avery.brooks@updates.test",
+        "from_name": "Avery Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nAvery",
+        "timestamp": "2026-01-03T08:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_20",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_38",
+        "from_addr": "marcus.nguyen@partners.test",
+        "from_name": "Marcus Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "Sending a quick status update from today's working session.\n\nThe open items are mostly ownership questions rather than scope changes. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMarcus",
+        "timestamp": "2026-01-03T07:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_38",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_8",
+        "from_addr": "miles.singh@partners.test",
+        "from_name": "Miles Singh",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe open items are mostly ownership questions rather than scope changes. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMiles",
+        "timestamp": "2026-01-02T20:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_8",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_16",
+        "from_addr": "miles.morris@updates.test",
+        "from_name": "Miles Morris",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe open items are mostly ownership questions rather than scope changes. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nMiles",
+        "timestamp": "2026-01-01T22:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "updates"
+        ],
+        "thread_id": "thread_16",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_42",
+        "from_addr": "priya.nguyen@updates.test",
+        "from_name": "Priya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nPriya",
+        "timestamp": "2025-12-30T23:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_42",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_34",
+        "from_addr": "miles.chen@community.test",
+        "from_name": "Miles Chen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Passing along the current draft so you have it in one place.\n\nMost of the edits were minor, with one budget line still waiting on approval. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nMiles",
+        "timestamp": "2025-12-30T16:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_34",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_7",
+        "from_addr": "avery.kim@community.test",
+        "from_name": "Avery Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Passing along the current draft so you have it in one place.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nAvery",
+        "timestamp": "2025-12-30T08:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_7",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_14",
+        "from_addr": "sofia.wright@community.test",
+        "from_name": "Sofia Wright",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nSofia",
+        "timestamp": "2025-12-29T02:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_14",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_27",
+        "from_addr": "elena.garcia@community.test",
+        "from_name": "Elena Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nElena",
+        "timestamp": "2025-12-29T01:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_27",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_18",
+        "from_addr": "nina.rivera@updates.test",
+        "from_name": "Nina Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "Sending a quick status update from today's working session.\n\nNothing looks blocked right now, but we still need one decision on timing. No response needed unless you want anything reordered.\n\nThanks,\nNina",
+        "timestamp": "2025-12-28T23:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox",
+          "promotions"
+        ],
+        "thread_id": "thread_18",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_3",
+            "filename": "agenda.txt",
+            "content_type": "text/plain",
+            "size_bytes": 42242,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_35",
+        "from_addr": "avery.garcia@updates.test",
+        "from_name": "Avery Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Agenda draft for Monday check-in",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Happy to consolidate comments if more feedback comes in.\n\nThanks,\nAvery",
+        "timestamp": "2025-12-28T16:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_35",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_24",
+        "from_addr": "nina.kim@metrics.test",
+        "from_name": "Nina Kim",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nMost of the edits were minor, with one budget line still waiting on approval. Let me know if you want the spreadsheet version as well.\n\nThanks,\nNina",
+        "timestamp": "2025-12-28T10:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_24",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_36",
+        "from_addr": "marcus.brooks@metrics.test",
+        "from_name": "Marcus Brooks",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe open items are mostly ownership questions rather than scope changes. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nMarcus",
+        "timestamp": "2025-12-28T04:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_36",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_21",
+        "from_addr": "maya.patel@partners.test",
+        "from_name": "Maya Patel",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Follow-up on venue estimate",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMaya",
+        "timestamp": "2025-12-26T18:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_21",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_3",
+        "from_addr": "avery.garcia@updates.test",
+        "from_name": "Avery Garcia",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Revised budget worksheet",
+        "body": "I pulled the loose ends into one note for easier review.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. No response needed unless you want anything reordered.\n\nThanks,\nAvery",
+        "timestamp": "2025-12-26T11:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_3",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_33",
+        "from_addr": "sofia.rivera@partners.test",
+        "from_name": "Sofia Rivera",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Notes from the partner sync",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe open items are mostly ownership questions rather than scope changes. No response needed unless you want anything reordered.\n\nThanks,\nSofia",
+        "timestamp": "2025-12-25T22:34:00Z",
+        "is_read": true,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_33",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_30",
+        "from_addr": "maya.nguyen@updates.test",
+        "from_name": "Maya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Quarterly metrics recap",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nNothing looks blocked right now, but we still need one decision on timing. Let me know if you want the spreadsheet version as well.\n\nThanks,\nMaya",
+        "timestamp": "2025-12-25T07:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_30",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_29",
+        "from_addr": "maya.nguyen@community.test",
+        "from_name": "Maya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Updated rollout checklist",
+        "body": "I pulled the loose ends into one note for easier review.\n\nMost of the edits were minor, with one budget line still waiting on approval. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nMaya",
+        "timestamp": "2025-12-25T03:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_29",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      },
+      {
+        "id": "email_37",
+        "from_addr": "priya.nguyen@community.test",
+        "from_name": "Priya Nguyen",
+        "to": [
+          "avery.quinn@breakingweb.test"
+        ],
+        "cc": [],
+        "bcc": [],
+        "subject": "Customer feedback from pilot cohort",
+        "body": "Sharing the latest notes before tomorrow's check-in.\n\nThe team is aligned on the main path and only needs confirmation on the follow-up items. If you want, I can turn this into a cleaner summary before the meeting.\n\nThanks,\nPriya",
+        "timestamp": "2025-12-24T17:34:00Z",
+        "is_read": false,
+        "is_starred": false,
+        "labels": [
+          "inbox"
+        ],
+        "thread_id": "thread_37",
+        "in_reply_to": null,
+        "forwarded_from_id": null,
+        "attachments": [
+          {
+            "id": "attachment_6",
+            "filename": "agenda.txt",
+            "content_type": "text/plain",
+            "size_bytes": 102731,
+            "kind": "text"
+          }
+        ],
+        "archived": false,
+        "deleted": false,
+        "category": "primary"
+      }
+    ],
+    "drafts": [],
+    "sent": [],
+    "deleted": [],
+    "contacts": [
+      {
+        "id": "contact_2",
+        "name": "Jordan Brooks",
+        "email": "jordan.brooks@northwind.test",
+        "company": "Northwind Labs",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-30T08:34:00Z"
+      },
+      {
+        "id": "contact_10",
+        "name": "Jordan Morris",
+        "email": "jordan.morris@lattice.test",
+        "company": "Blue Cedar",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-26T08:34:00Z"
+      },
+      {
+        "id": "contact_17",
+        "name": "Marcus Kim",
+        "email": "nina.wright@activeteam.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-01-08T08:34:00Z"
+      },
+      {
+        "id": "contact_11",
+        "name": "Marcus Patel",
+        "email": "priya.chen@oldvendor.test",
+        "company": "Blue Cedar",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-09T08:34:00Z"
+      },
+      {
+        "id": "contact_4",
+        "name": "Marcus Singh",
+        "email": "marcus.singh@signal.test",
+        "company": "Summit Metrics",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-26T08:34:00Z"
+      },
+      {
+        "id": "contact_7",
+        "name": "Maya Brooks",
+        "email": "maya.brooks@signal.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-29T08:34:00Z"
+      },
+      {
+        "id": "contact_6",
+        "name": "Maya Garcia",
+        "email": "maya.garcia@harbor.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-01-03T08:34:00Z"
+      },
+      {
+        "id": "contact_13",
+        "name": "Maya Kim",
+        "email": "nina.garcia@oldvendor.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-11-24T08:34:00Z"
+      },
+      {
+        "id": "contact_14",
+        "name": "Miles Wright",
+        "email": "maya.kim@oldvendor.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-11-14T08:34:00Z"
+      },
+      {
+        "id": "contact_8",
+        "name": "Nina Wright",
+        "email": "nina.wright@atlas.test",
+        "company": "Atlas Harbor",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-01-12T08:34:00Z"
+      },
+      {
+        "id": "contact_15",
+        "name": "Priya Patel",
+        "email": "maya.chen@recentpartner.test",
+        "company": "Northwind Labs",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-22T08:34:00Z"
+      },
+      {
+        "id": "contact_3",
+        "name": "Sofia Morris",
+        "email": "sofia.morris@ops.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-01-09T08:34:00Z"
+      },
+      {
+        "id": "contact_9",
+        "name": "Sofia Nguyen",
+        "email": "sofia.nguyen@lattice.test",
+        "company": "Lattice Works",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-27T08:34:00Z"
+      },
+      {
+        "id": "contact_1",
+        "name": "Sofia Singh",
+        "email": "sofia.singh@ops.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-27T08:34:00Z"
+      },
+      {
+        "id": "contact_16",
+        "name": "Theo Brooks",
+        "email": "miles.wright@borderline.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-16T08:34:00Z"
+      },
+      {
+        "id": "contact_12",
+        "name": "Theo Kim",
+        "email": "nina.nguyen@oldvendor.test",
+        "company": "Northwind Labs",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2025-12-02T08:34:00Z"
+      },
+      {
+        "id": "contact_5",
+        "name": "Theo Rivera",
+        "email": "theo.rivera@ops.test",
+        "company": "Pioneer Supply",
+        "note": null,
+        "is_vip": false,
+        "is_starred": false,
+        "source": "seeded",
+        "last_contacted_at": "2026-01-10T08:34:00Z"
+      }
+    ],
+    "labels": [
+      {
+        "id": "label_inbox",
+        "name": "inbox",
+        "color": "#202124",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_starred",
+        "name": "starred",
+        "color": "#fbbc04",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_snoozed",
+        "name": "snoozed",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_important",
+        "name": "important",
+        "color": "#d93025",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_sent",
+        "name": "sent",
+        "color": "#188038",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_scheduled",
+        "name": "scheduled",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show_if_unread",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_drafts",
+        "name": "drafts",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_allmail",
+        "name": "all mail",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "hide",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_spam",
+        "name": "spam",
+        "color": "#5f6368",
+        "system": true,
+        "show_in_label_list": "hide",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_trash",
+        "name": "trash",
+        "color": "#d93025",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_promotions",
+        "name": "promotions",
+        "color": "#f9ab00",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_updates",
+        "name": "updates",
+        "color": "#1a73e8",
+        "system": true,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      },
+      {
+        "id": "label_vip",
+        "name": "VIP",
+        "color": "#e37400",
+        "system": false,
+        "show_in_label_list": "show",
+        "show_in_message_list": "show",
+        "show_in_imap": true
+      }
+    ],
+    "filters": [],
+    "settings": {
+      "id": "settings_gmail",
+      "signature": "Avery Quinn\nOperations Lead",
+      "forwarding_address": "",
+      "display_density": "comfortable",
+      "vacation_responder_enabled": false,
+      "vacation_responder_message": "",
+      "auto_advance": "newer",
+      "language": "English (US)",
+      "input_tools_enabled": true,
+      "right_to_left": false,
+      "max_page_size": 50,
+      "undo_send_seconds": 5,
+      "default_reply_behavior": "reply",
+      "hover_actions_enabled": true,
+      "send_and_archive": false,
+      "default_text_style": "Sans Serif"
+    }
+  }
+}

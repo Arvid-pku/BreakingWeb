@@ -1,0 +1,18 @@
+variant_id: booking_set_default_payment__payment_twin
+base_task_id: booking_set_default_payment
+target_primitive: grounding
+description: The payment list includes one card with the right brand but wrong last four and another with
+  the right last four but wrong brand. The agent must choose the exact requested card.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: payment_method
+      card_type: Amex
+      last_four: '1243'
+      expiry: 08/28
+    - type: payment_method
+      card_type: Visa
+      last_four: '1234'
+      expiry: 09/29

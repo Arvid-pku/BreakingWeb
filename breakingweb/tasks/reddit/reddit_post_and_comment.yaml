@@ -1,0 +1,103 @@
+task_id: reddit_post_and_comment
+env_id: reddit
+title: Create Post and Comment on Another
+instruction_template: 'Complete two tasks:
+
+  1. Go to r/{target.post_subreddit} and create a new text post with the title exactly: "{target.new_post_title}" and body exactly: "{target.new_post_body}".
+
+  2. Then navigate to r/{target.comment_subreddit} and find the post titled "{target.comment_target_title}" by u/{target.comment_target_author}. Add a top-level comment on that post with the exact text: "{target.comment_body}".
+
+  Do not comment on any other posts and do not create posts in other subreddits.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: gaming
+      title: FromSoftware just announced Armored Core VII with cross-platform multiplayer
+      body: The trailer dropped at The Game Awards. Full mech customization returns with a new online arena mode.
+      author: spaceraingame
+      score: 9225
+      flair_text: News
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: decoy_posts
+    params:
+      subreddit: gaming
+      count: 3
+      title_pattern: FromSoftware reveals {topic} at Game Awards
+      score_range:
+      - 3000
+      - 8000
+    outputs:
+    - decoy_post_ids
+  targets:
+    post_subreddit: Python
+    new_post_title: Built a Reddit API wrapper in pure Python - feedback welcome
+    new_post_body: I just published v1.0 of my Reddit API wrapper. It handles rate limiting, pagination, and OAuth2 out of the box. Looking for feedback from the community.
+    comment_subreddit: gaming
+    comment_target_title: '{output.post_title}'
+    comment_target_author: spaceraingame
+    comment_target_post_id: '{output.post_id}'
+    comment_body: Completely agree. I miss the days when you paid once and got the full game.
+    decoy_post_ids: '{output.decoy_post_ids}'
+canonical_diff:
+  create:
+  - entity: Post
+    desc: Create the Python API wrapper post
+    properties:
+      subreddit_name:
+        expr: x == target['post_subreddit']
+      title:
+        expr: "x == target['new_post_title']"
+      body:
+        expr: "x == target['new_post_body']"
+      author_name:
+        expr: "x == state.owner_username"
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    desc: Comment on the target gaming post
+    properties:
+      post_id:
+        expr: "x == target['comment_target_post_id']"
+      body:
+        expr: "x == target['comment_body']"
+      parent_id:
+        eq:
+      author_name:
+        expr: "x == state.owner_username"
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent created the Python post
+    ref: create[0]
+    severity: high
+  - name: Agent posted the comment on the gaming post
+    ref: create[1]
+    severity: high

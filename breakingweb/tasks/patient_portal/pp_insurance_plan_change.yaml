@@ -1,0 +1,252 @@
+task_id: pp_insurance_plan_change
+env_id: patient_portal
+title: Insurance Plan Change with Formulary-Driven Rx Split
+instruction_template: 'Your insurance has changed to a new plan named "Aetna PPO Silver".
+  Complete the transition using only your existing pharmacies and prescriptions: 1)
+  Update your insurance plan details. Keep the plan name "Aetna PPO Silver". Derive
+  the new member ID by taking the seven digits of your CURRENT member ID and prefixing
+  them with "AET-" (for example a current member ID of MBR-1234567 becomes AET-1234567).
+  Derive the new group number by taking the five digits of your CURRENT group number
+  and prefixing them with "GRP-AET-" (for example GRP-12345 becomes GRP-AET-12345).
+  Leave copay and deductible unchanged. 2) Set the mail-order pharmacy already in your
+  pharmacy list as the default pharmacy. 3) Read the formulary coverage message from
+  the pharmacy benefits team. It describes the coverage for EACH of your active
+  medications individually. Transfer to the mail-order pharmacy ONLY the active
+  prescriptions whose coverage line says the medication must be filled through the
+  plan mail service / home-delivery pharmacy. 4) Leave every other active prescription
+  at your current default retail pharmacy, including any medication whose line merely
+  mentions that a 90-day supply is available or that it will move to mail service in a
+  future quarter — those stay at retail for now. Do not send any messages, do not
+  cancel appointments, do not discontinue any medications, and do not refill or renew
+  any prescription.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 64
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - High Cholesterol
+      - Hypothyroidism
+      insurance_tier: basic
+    outputs:
+    - pcp_id
+    - pcp_name
+    - insurance_plan_name
+    - member_id
+    - group_number
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 3
+      include_mail_order: true
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+    - mail_order_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      # 7 active rxes (3 maintenance pinned to the front, 4 non-maintenance
+      # retail distractors) so the agent must reconcile a longer medication
+      # list against the (deliberately non-verbatim) coverage message rather
+      # than string-matching the word "maintenance".
+      active_count: 7
+      expired_count: 1
+      # Force every active rx to the default (retail) pharmacy so the
+      # maintenance subset is a real state change (default -> mail order)
+      # while the retail subset must demonstrably STAY at the default.
+      active_at_default_only: true
+      # Formulary partition: these three maintenance medications are pinned
+      # into the active set and route to mail order under the new plan; the
+      # remaining active rxes are NOT maintenance meds and stay at retail.
+      maintenance_medications:
+      - Lisinopril
+      - Atorvastatin
+      - Levothyroxine
+    outputs:
+    - active_rx_ids
+    - maintenance_rx_ids
+    - non_maintenance_rx_ids
+    - maintenance_rx_medications
+  - use: message_threads
+    params:
+      thread_count: 3
+      unread_count: 1
+      categories:
+      - clinical
+      # The carrier message lists every active medication's coverage. The
+      # three maintenance meds are described with DISTINCT, non-verbatim
+      # phrasings that each mean "must be filled through mail service" (no
+      # literal "maintenance" / "mail-order only" tag to string-match). Every
+      # other active med inherits `coverage_status` below — a DISTRACTOR line
+      # that dangles "90-day supply available" (tempting toward mail order)
+      # yet explicitly keeps the med at the current retail pharmacy. The agent
+      # must reconcile each med's phrasing against the structured cabinet
+      # rather than pattern-matching a single keyword.
+      body_context:
+        type: formulary_info
+        category: clinical
+        subject: Formulary Coverage Update for New Plan
+        include_all_active: true
+        coverage_status_by_medication:
+          Lisinopril 10mg: Tier 1 preferred; 90-day fill required through the plan mail service
+          Atorvastatin 20mg: maintenance class M - dispense via mail service only
+          Levothyroxine 75mcg: retail fill not covered; route to the plan home-delivery pharmacy
+        coverage_status: 90-day supply available and scheduled to move to mail service next quarter (effective 2026-01-01); for now no pharmacy change is required - continue filling at your current retail pharmacy
+        preferred_pharmacy: Express Scripts Mail Order
+    outputs:
+    - thread_ids
+    - context_msg_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    active_rx_ids: '{output.active_rx_ids}'
+    maintenance_rx_ids: '{output.maintenance_rx_ids}'
+    non_maintenance_rx_ids: '{output.non_maintenance_rx_ids}'
+    pharmacy_ids: '{output.pharmacy_ids}'
+    default_pharmacy_id: '{output.default_pharmacy_id}'
+    mail_order_pharmacy_id: '{output.mail_order_pharmacy_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  update:
+  - entity: Pharmacy
+    desc: Set the mail-order pharmacy as the new default
+    where:
+      id:
+        expr: x == target['mail_order_pharmacy_id']
+    changes:
+      is_default:
+        eq: true
+  - entity: Pharmacy
+    desc: Remove default flag from the previous default pharmacy
+    where:
+      id:
+        expr: x == target['default_pharmacy_id']
+    changes:
+      is_default:
+        eq: false
+  - entity: patient
+    desc: Insurance plan details updated to the new derived values, copay/deductible unchanged
+    where:
+      id: { any: true }
+    changes:
+      insurance_plan:
+        fields:
+          plan_name: { eq: "Aetna PPO Silver" }
+          member_id:
+            expr: "x == 'AET-' + initial.patient.insurance_plan.member_id.split('-')[1] and len(initial.patient.insurance_plan.member_id.split('-')[1]) == 7"
+          group_number:
+            expr: "x == 'GRP-AET-' + initial.patient.insurance_plan.group_number.split('-')[1] and len(initial.patient.insurance_plan.group_number.split('-')[1]) == 5"
+          copay:
+            expr: "float(x) == float(initial.patient.insurance_plan.copay)"
+          deductible:
+            expr: "float(x) == float(initial.patient.insurance_plan.deductible)"
+          deductible_met:
+            expr: "float(x) == float(initial.patient.insurance_plan.deductible_met)"
+      phone:
+        expr: "x == initial.patient.phone"
+      email:
+        expr: "x == initial.patient.email"
+      name:
+        expr: "x == initial.patient.name"
+  - entity: Prescription
+    desc: Every maintenance prescription transferred to the mail-order pharmacy (refills/status preserved)
+    bijection:
+      over: "target['maintenance_rx_ids']"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      pharmacy_id:
+        expr: "x == target['mail_order_pharmacy_id']"
+      refills_remaining:
+        expr: >-
+          x == next(r.refills_remaining for r in initial.prescriptions if r.id == v)
+      status:
+        eq: "active"
+  invariant:
+  - collection: state.pharmacies
+    filter: a.id != target['default_pharmacy_id'] and a.id != target['mail_order_pharmacy_id']
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.id in target['upcoming_ids']
+    preserve: ALL
+  # Non-maintenance (retail) prescriptions must stay exactly as seeded —
+  # the most tempting wrong action is transferring ALL active rxes to mail
+  # order. Escalated to critical.
+  - collection: state.prescriptions
+    filter: a.id in target['non_maintenance_rx_ids']
+    preserve: ALL
+  # Expired / any non-active prescriptions must be untouched.
+  - collection: state.prescriptions
+    filter: a.id not in target['active_rx_ids']
+    preserve: ALL
+  - collection: state.messages
+    filter: a.id in {x.id for x in initial.messages}
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not change default flag on unrelated pharmacies
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not cancel or modify existing upcoming appointments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not transfer non-maintenance (retail) prescriptions to mail order
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not modify expired or non-active prescriptions
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not send unsolicited messages or alter existing ones
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify immunization records
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[7]
+    severity: critical
+  - name: Agent did not create or modify referrals
+    ref: invariant[8]
+    severity: high
+  - name: Agent updated insurance plan to the new derived values
+    ref: update[2]
+    severity: critical
+secondary_primitives: []

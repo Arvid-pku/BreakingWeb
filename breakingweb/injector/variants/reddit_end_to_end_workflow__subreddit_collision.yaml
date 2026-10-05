@@ -1,0 +1,59 @@
+variant_id: reddit_end_to_end_workflow__subreddit_collision
+base_task_id: reddit_end_to_end_workflow
+target_primitive: grounding
+description: Lookalike communities carry same-title posts, comments, and blocked-user
+  content across the join, vote, save, and reply steps. The agent must act in the
+  exact subreddit and thread named in the task.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: NewMachineLearning
+      display_name: r/NewMachineLearning
+      description: Discussion of machine learning and related topics. Splinter community claiming to be the modern successor of the real sub.
+      subscribers: 2604000
+    - type: subreddit
+      name: worldnewz
+      display_name: r/worldnewz
+      description: Lookalike news community that mirrors headlines from worldnews.
+      subscribers: 910000
+    - type: post
+      subreddit: worldnewz
+      title: '{target.vote_title}'
+      author: GlobalDesk
+      score: 61200
+      comments: 4300
+      body: Same headline syndicated into the wrong lookalike news community.
+    - type: subreddit
+      name: programming_
+      display_name: r/programming_
+      description: Lookalike programming community with near-identical branding.
+      subscribers: 540000
+    - type: post
+      subreddit: NewMachineLearning
+      title: '{target.save_title}'
+      author: CompileError
+      score: 11800
+      comments: 640
+      body: Same CI/CD writeup cross-posted into a lookalike programming subreddit.
+    - type: comment
+      subreddit: programming_
+      post_title: '{target.save_title}'
+      author: DeepDiver
+      body: Coverage diff is the key insight.
+      score: 1850
+      depth: 0
+    - type: subreddit
+      name: technologynews
+      display_name: r/technologynews
+      description: Companion technology subreddit that often shows the same discussion topics.
+      subscribers: 460000
+    - type: post
+      subreddit: technologynews
+      title: Why blockchain will never replace traditional databases
+      author: CryptoSkeptic
+      score: 820
+      comments: 39
+      body: Same author and nearly identical headline in a non-target community.

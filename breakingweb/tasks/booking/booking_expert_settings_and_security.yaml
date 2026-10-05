@@ -1,0 +1,228 @@
+task_id: booking_expert_settings_and_security
+env_id: booking
+title: Comprehensive Security and Settings Overhaul
+instruction_template: 'Perform a complete security and settings overhaul:
+
+  1. Enable two-factor authentication.
+
+  2. Set your preferred currency to GBP.
+
+  3. Disable SMS notifications.
+
+  4. Enable the newsletter.
+
+  5. Disable deal alerts.
+
+  6. Update your dietary restrictions to ["gluten-free", "vegetarian"].
+
+  7. Set your preferred bed type to "king".
+
+  8. Set floor preference to "high".
+
+  9. Update your phone number to "+44-20-7946-0958".
+
+  10. After completing all settings changes, book "{target.property_name}" in London
+  to confirm your updated settings work: book the "Standard Room" for 2 guests checking
+  in 2026-11-01 and checking out 2026-11-04. Use the default Visa (ending in 4242).
+
+  '
+difficulty: expert
+time_limit_seconds: 460
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /settings
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: set_settings
+    params:
+      two_factor_enabled: false
+      sms_notifications: true
+      newsletter: false
+      deal_alerts: true
+      currency: USD
+      language: English
+    outputs:
+    - updated
+  - use: set_preferences
+    params:
+      preferred_bed_type: queen
+      floor_preference: low
+      dietary_restrictions:
+      - dairy-free
+    outputs:
+    - updated
+  - use: set_profile
+    params:
+      owner_phone: +1-217-555-0142
+    outputs:
+    - owner_name
+  - use: featured_property
+    params:
+      name: The Hoxton Holborn London
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.5
+      review_count: 5670
+      price: 195.0
+      neighborhood: Holborn
+      address: 199-206 High Holborn, London WC1V 7BD
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - 24-hour front desk
+      popular_facilities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      rooms:
+      - name: Standard Room
+        price: 195.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Roomy Room
+        price: 265.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+    outputs:
+    - prop_id
+    - prop_name
+    - room_id
+    - room_name
+  targets:
+    prop_id: '{output.prop_id}'
+    property_name: '{output.prop_name}'
+canonical_diff:
+  update:
+  - entity: settings
+    desc: Settings — 2FA on, GBP, SMS off, newsletter on, deal alerts off
+    where: {id: {any: true}}
+    changes:
+      two_factor_enabled: {eq: true}
+      currency: {eq: GBP}
+      sms_notifications: {eq: false}
+      newsletter: {eq: true}
+      deal_alerts: {eq: false}
+  - entity: travel_preferences
+    desc: Travel preferences — gluten-free and vegetarian dietary, king bed, high floor
+    where: {id: {eq: "__singleton_travel_preferences__"}}
+    changes:
+      dietary_restrictions: {expr: "'gluten-free' in x and 'vegetarian' in x"}
+      preferred_bed_type: {eq: king}
+      floor_preference: {eq: high}
+  - entity: owner_phone
+    desc: Phone number updated
+    where: {id: {eq: "__singleton_owner_phone__"}}
+    changes:
+      value: {eq: "+44-20-7946-0958"}
+  create:
+  - entity: Reservation
+    desc: Book the London hotel Standard Room for 2 guests, 2026-11-01 to 2026-11-04
+    properties:
+      property_id:
+        expr: x == target['prop_id']
+      property_name:
+        any: true
+      room_type_id:
+        any: true
+      room_type_name:
+        eq: Standard Room
+      check_in:
+        eq: '2026-11-01'
+      check_out:
+        eq: '2026-11-04'
+      nights:
+        eq: 3
+      guests:
+        eq: 2
+      rooms:
+        any: true
+      price_per_night:
+        any: true
+      total_price:
+        any: true
+      taxes_and_fees:
+        any: true
+      currency:
+        any: true
+      status:
+        eq: confirmed
+      booked_at:
+        any: true
+      guest_info:
+        any: true
+      payment_method_id:
+        expr: >-
+          x == initial.settings.default_payment_id and
+          any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+      cancellation_policy:
+        any: true
+      confirmation_number:
+        any: true
+      is_genius_deal:
+        any: true
+      genius_discount:
+        any: true
+      meals_included:
+        any: true
+      rating_submitted:
+        any: true
+  invariant:
+  - collection: state.reservations
+    filter: a.property_id != target['prop_id']
+    preserve: ALL
+  - collection: state.properties
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.saved_lists
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  named_invariants:
+  - name: Settings updated (2FA, GBP, SMS off, newsletter, no deal alerts)
+    ref: update[0]
+    severity: critical
+  - name: Travel preferences updated (gluten-free + vegetarian, king bed, high floor)
+    ref: update[1]
+    severity: high
+  - name: Phone number updated
+    ref: update[2]
+    severity: medium
+  - name: Agent booked the London hotel Standard Room with correct dates
+    ref: create[0]
+    severity: high
+  - name: Agent did not modify other reservations
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify properties
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not create or modify reviews
+    ref: invariant[2]
+    severity: low
+  - name: Agent did not modify saved lists
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not send unsolicited messages
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create spurious notifications
+    ref: invariant[6]
+    severity: low

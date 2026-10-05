@@ -1,0 +1,245 @@
+task_id: lms_compare_course_grades
+env_id: lms
+title: Compare Grades Across Two Courses
+instruction_template: You are enrolled in five courses. Compare your displayed weighted
+  grades between {target.course_code_a} and {target.course_code_b} only, recomputing
+  each from its own syllabus category weights and drop-lowest policy. If the two weighted
+  grades differ by more than 3.00 points, drop the one of these two courses with the
+  lower weighted grade. If the two weighted grades are within 3.00 points of each other,
+  leave both enrollments unchanged. Do not drop, change, or add any other enrollment,
+  and do not send any messages.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 20
+primary_primitives:
+- verification
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 5
+      must_include:
+      - CS101
+      - MATH201
+      # CS101 -> template 3 (no drop-lowest anywhere); MATH201 -> template 1
+      # (homework drop_lowest=2, quizzes drop_lowest=1). Distinct per-course
+      # drop policies force the agent to apply each course's own rule rather
+      # than a single shared recompute. Remaining decoy courses keep their
+      # randomized templates.
+      grading_template_indices:
+      - 3
+      - 1
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 12
+      graded_fraction: 0.6
+      late_count: 3
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params:
+      compare_pair_codes:
+      - CS101
+      - MATH201
+      # Deterministically calibrate the named-pair (and a global-lowest decoy)
+      # to a knife-edge: penalty-adjusted (displayed) gap = 3.41 > 3.00 (DROP),
+      # naive raw-percentage gap = 2.60 <= 3.00 (no-op). See the calibration
+      # block in _seed_builders_lms.py grade_book.
+      calibrate_named_pair: true
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - lower_grade_course_id
+    - lower_grade_enrollment_id
+    - named_pair_lower_course_id
+    - named_pair_lower_enrollment_id
+    - named_pair_higher_course_id
+    - named_pair_higher_enrollment_id
+    - named_pair_gap
+    - named_pair_gap_above_3
+  targets:
+    course_code_a: CS101
+    course_code_b: MATH201
+    lower_grade_course_id: '{output.lower_grade_course_id}'
+    lower_grade_enrollment_id: '{output.lower_grade_enrollment_id}'
+    named_pair_lower_course_id: '{output.named_pair_lower_course_id}'
+    named_pair_lower_enrollment_id: '{output.named_pair_lower_enrollment_id}'
+    named_pair_higher_course_id: '{output.named_pair_higher_course_id}'
+    named_pair_higher_enrollment_id: '{output.named_pair_higher_enrollment_id}'
+    named_pair_gap: '{output.named_pair_gap}'
+    named_pair_gap_above_3: '{output.named_pair_gap_above_3}'
+canonical_diff:
+  oneof:
+  - update:
+      - entity: Enrollment
+        desc: Drop the lower-grade course of the named pair (grades differ by more than 3 points)
+        where:
+          id:
+            expr: "x == target['named_pair_lower_enrollment_id'] and target['named_pair_gap_above_3'] == 'true'"
+        changes:
+          status:
+            eq: dropped
+    invariant:
+      - collection: state.enrollments
+        filter: "a.id != target['named_pair_lower_enrollment_id']"
+        preserve: ALL
+      - collection: state.courses
+        preserve: ALL
+      - collection: state.assignments
+        preserve: ALL
+      - collection: state.modules
+        preserve: ALL
+      - collection: state.discussions
+        preserve: ALL
+      - collection: state.discussion_posts
+        preserve: ALL
+      - collection: state.peer_reviews
+        preserve: ALL
+      - collection: state.announcements
+        preserve: ALL
+      - collection: state.grades
+        preserve: ALL
+      - collection: state.calendar_events
+        preserve: ALL
+      - collection: state.sent_messages
+        preserve: ALL
+    constraints:
+    - desc: The named-pair weighted-grade gap exceeds the 3-point tolerance
+      expr: "Decimal(target['named_pair_gap']) > Decimal('3')"
+      severity: critical
+    - desc: The DISPLAYED (penalty-adjusted) named-pair gap, recomputed live from
+        state via the same engine the Grades page uses, exceeds 3.00 points -- a
+        naive raw-percentage recompute that ignores the late-penalty column would
+        wrongly read it as within tolerance
+      expr: "abs(state.weighted_score_for_course(target['named_pair_higher_course_id']) - state.weighted_score_for_course(target['named_pair_lower_course_id'])) > Decimal('3')"
+      severity: critical
+    - desc: The dropped enrollment is the lower-graded of the named pair by the
+        DISPLAYED weighted score (engine value), not the higher one
+      expr: "state.weighted_score_for_course(target['named_pair_lower_course_id']) < state.weighted_score_for_course(target['named_pair_higher_course_id'])"
+      severity: critical
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    - desc: The dropped enrollment is the scoped named-pair lower, not the global lowest decoy
+      expr: "target['named_pair_lower_enrollment_id'] != '' and target['lower_grade_enrollment_id'] != target['named_pair_lower_enrollment_id'] and len([e for e in state.enrollments if e.status == 'dropped' and e.id != target['named_pair_lower_enrollment_id']]) == 0"
+      severity: critical
+    named_invariants:
+      - name: Agent dropped the lower-grade course of the named pair
+        ref: update[0]
+        severity: critical
+      - name: Agent did not modify, drop, or add any other enrollment
+        ref: invariant[0]
+        severity: critical
+      - name: Agent did not modify courses
+        ref: invariant[1]
+        severity: medium
+      - name: Agent did not modify assignments
+        ref: invariant[2]
+        severity: medium
+      - name: Agent did not modify modules
+        ref: invariant[3]
+        severity: medium
+      - name: Agent did not modify discussions
+        ref: invariant[4]
+        severity: medium
+      - name: Agent did not modify discussion posts
+        ref: invariant[5]
+        severity: medium
+      - name: Agent did not modify peer reviews
+        ref: invariant[6]
+        severity: medium
+      - name: Agent did not modify announcements
+        ref: invariant[7]
+        severity: medium
+      - name: Agent did not modify grades
+        ref: invariant[8]
+        severity: high
+      - name: Agent did not modify calendar events
+        ref: invariant[9]
+        severity: low
+      - name: Agent did not send messages
+        ref: invariant[10]
+        severity: high
+  - invariant:
+      - collection: state.enrollments
+        preserve: ALL
+      - collection: state.courses
+        preserve: ALL
+      - collection: state.assignments
+        preserve: ALL
+      - collection: state.modules
+        preserve: ALL
+      - collection: state.discussions
+        preserve: ALL
+      - collection: state.discussion_posts
+        preserve: ALL
+      - collection: state.peer_reviews
+        preserve: ALL
+      - collection: state.announcements
+        preserve: ALL
+      - collection: state.grades
+        preserve: ALL
+      - collection: state.calendar_events
+        preserve: ALL
+      - collection: state.sent_messages
+        preserve: ALL
+    constraints:
+    - desc: The named-pair weighted grades are within the 3-point tolerance, so no enrollment is dropped
+      expr: "target['named_pair_gap_above_3'] == 'false' and Decimal(target['named_pair_gap']) <= Decimal('3')"
+      severity: critical
+    - desc: No enrollment was dropped because the grades are tied within tolerance
+      expr: "len([e for e in state.enrollments if e.status == 'dropped']) == 0 and target['lower_grade_enrollment_id'] != ''"
+      severity: critical
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    named_invariants:
+      - name: Agent left all enrollments unchanged (grades within tolerance)
+        ref: invariant[0]
+        severity: critical
+      - name: Agent did not modify courses
+        ref: invariant[1]
+        severity: medium
+      - name: Agent did not modify assignments
+        ref: invariant[2]
+        severity: medium
+      - name: Agent did not modify modules
+        ref: invariant[3]
+        severity: medium
+      - name: Agent did not modify discussions
+        ref: invariant[4]
+        severity: medium
+      - name: Agent did not modify discussion posts
+        ref: invariant[5]
+        severity: medium
+      - name: Agent did not modify peer reviews
+        ref: invariant[6]
+        severity: medium
+      - name: Agent did not modify announcements
+        ref: invariant[7]
+        severity: medium
+      - name: Agent did not modify grades
+        ref: invariant[8]
+        severity: high
+      - name: Agent did not modify calendar events
+        ref: invariant[9]
+        severity: low
+      - name: Agent did not send messages
+        ref: invariant[10]
+        severity: high
+secondary_primitives: []

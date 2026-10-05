@@ -1,0 +1,27 @@
+variant_id: rh_dividend_reinvestment_analysis__state_tracking_v1
+base_task_id: rh_dividend_reinvestment_analysis
+target_primitive: state_tracking
+description: >
+  Confusing extra positions with near-threshold yield-on-cost values are
+  added, and positions are shuffled. Agent must carefully compute
+  yield-on-cost for each position, including the new ones, without losing
+  track of which stocks fall below the 1% threshold.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 63
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+      - symbol: "INTC"
+        quantity: "40"
+        cost_basis: "42.00"
+      - symbol: "IBM"
+        quantity: "12"
+        cost_basis: "165.00"
+      - symbol: "XOM"
+        quantity: "25"
+        cost_basis: "98.00"

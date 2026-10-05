@@ -1,0 +1,199 @@
+task_id: amazon_cross_category_value_hunt
+env_id: amazon
+title: Find and Buy Highest-Rated Under-$40 Items Across Categories
+instruction_template: 'Search for products in three categories: {target.cat_1}, {target.cat_2},
+  and {target.cat_3}. In each category, find the highest-rated product that costs
+  less than $40.00. Then compare the three winners by rating and purchase the top
+  two (the two with the highest ratings) in a single order.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Ultra-Slim Wireless Mouse
+      brand: TechNova
+      category: Electronics
+      price: 29.99
+      rating: 4.8
+      features:
+      - 2.4GHz wireless
+      - Silent click
+      - USB-C rechargeable
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_e
+    - product_name_e
+    - product_price_e
+  - use: featured_product
+    params:
+      name: Organic Green Tea Sampler
+      brand: PureGlow
+      category: Health & Beauty
+      price: 18.99
+      rating: 4.7
+      features:
+      - 20 tea bags
+      - USDA Organic certified
+      - 5 flavor varieties
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_h
+    - product_name_h
+    - product_price_h
+  - use: featured_product
+    params:
+      name: Kids STEM Building Kit
+      brand: MindSpark
+      category: Toys & Games
+      price: 34.99
+      rating: 4.6
+      features:
+      - 250 pieces
+      - Ages 8-14
+      - STEM certified
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_t
+    - product_name_t
+    - product_price_t
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 80.0
+      rating_range:
+      - 3.0
+      - 4.5
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Health & Beauty
+      count: 8
+      price_range:
+      - 10.0
+      - 60.0
+      rating_range:
+      - 3.0
+      - 4.5
+    outputs:
+    - catalog_health
+  - use: product_catalog
+    params:
+      category: Toys & Games
+      count: 8
+      price_range:
+      - 15.0
+      - 70.0
+      rating_range:
+      - 3.0
+      - 4.5
+    outputs:
+    - catalog_toys
+  targets:
+    cat_1: Electronics
+    cat_2: Health & Beauty
+    cat_3: Toys & Games
+    best_id_1: '{output.product_id_e}'
+    best_id_2: '{output.product_id_h}'
+    third_id: '{output.product_id_t}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order contains the two top-rated products and excludes the third
+    properties:
+      items:
+        expr: "len(x) == 2 and any(it['product_id'] == target['best_id_1'] for it in x) and any(it['product_id'] == target['best_id_2'] for it in x) and all(it['product_id'] != target['third_id'] for it in x) and all(it['unit_price'] < 40 for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

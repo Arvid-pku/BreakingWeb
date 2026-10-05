@@ -1,0 +1,88 @@
+task_id: gmail_diagnose_missing_reply
+env_id: gmail
+title: Diagnose Missing Client Reply
+instruction_template: A client ({target.client_name}) has complained they never got
+  a response to an important email sent last week. You have multiple email threads
+  with this client. Search your inbox and sent folder, find which specific thread
+  has no reply, and send a reply apologizing for the delay and directly addressing
+  their question about {target.unanswered_subject}.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: diagnose_missing_reply
+    params: {}
+    outputs:
+    - client_name
+    - client_email
+    - unanswered_thread_id
+    - unanswered_subject
+    - unanswered_msg_id
+    - question_keywords
+    - thread_1_id
+    - thread_2_id
+    - thread_4_id
+    - initial_sent_count
+  targets:
+    client_name: '{output.client_name}'
+    client_email: '{output.client_email}'
+    unanswered_thread_id: '{output.unanswered_thread_id}'
+    unanswered_subject: '{output.unanswered_subject}'
+    unanswered_msg_id: '{output.unanswered_msg_id}'
+    question_keywords: '{output.question_keywords}'
+    thread_1_id: '{output.thread_1_id}'
+    thread_2_id: '{output.thread_2_id}'
+    thread_4_id: '{output.thread_4_id}'
+    initial_sent_count: '{output.initial_sent_count}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply sent to client in the unanswered thread with apology and address of their question
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['unanswered_msg_id']"
+        to:
+          expr: "x == [target['client_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring_all:
+            - apolog
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the required reply
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not send extra emails
+      ref: create[0]
+      severity: medium

@@ -1,0 +1,55 @@
+variant_id: amazon_variant_specific_purchase__variant_shadow
+base_task_id: amazon_variant_specific_purchase
+target_primitive: grounding
+description: "Three near-duplicate Performance Running Jacket SKUs share brand, price, rating, and thumbnail but each advertises a slightly different default variant selection (Color/Size combinations close to the target's Red/Medium). Sort-by-price-and-rating cannot disambiguate; the agent must read the canonical product_id and verify the chosen variant tuple matches Color=Red AND Size=Medium. The first two cart-add calls silently no-op so the agent must verify the cart actually changed before checkout."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Performance Running Jacket - Pro Edition"
+      brand: SummitWear
+      seller: SummitWear
+      category: Clothing
+      price: 89.99
+      rating: 4.6
+      review_count: 820
+      match_image_of: Performance Running Jacket
+      description: "Pro-edition sibling at the same price/rating; default variant Color=Red Size=Small (one size off the target)."
+    - type: product
+      name: "Performance Running Jacket 2-Pack"
+      brand: SummitWear
+      seller: SummitWear
+      category: Clothing
+      price: 89.99
+      rating: 4.6
+      review_count: 580
+      match_image_of: Performance Running Jacket
+      description: "Two-unit bundle at the same price/rating; default variant Color=Black Size=Medium (one color off the target)."
+    - type: product
+      name: "Performance Running Jacket Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Clothing
+      price: 89.99
+      rating: 4.6
+      review_count: 410
+      match_image_of: Performance Running Jacket
+      description: "Marketplace refurbished listing at the same price/rating; default variant Color=Blue Size=Medium (one color off)."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

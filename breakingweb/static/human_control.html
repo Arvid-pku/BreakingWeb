@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Control · BreakingWeb</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface-hi: #1f2430;
+    --border: #2a3040;
+    --fg: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #7c9cff;
+    --accent-hi: #9db1ff;
+    --good: #5bd9a6;
+    --warn: #ffb86b;
+    --bad: #ff7a7a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: radial-gradient(1000px 500px at 90% -100px, rgba(124,156,255,0.15), transparent 60%), var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+    overflow-x: hidden;
+  }
+  button {
+    font: inherit;
+    background: var(--accent); color: #0b0d12; border: none;
+    padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer;
+    transition: transform .06s ease, background .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hi); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: var(--surface-hi); color: var(--fg); border: 1px solid var(--border); }
+  button.secondary:hover:not(:disabled) { background: var(--border); }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  button.danger { background: var(--bad); color: #0b0d12; }
+  button.danger:hover:not(:disabled) { background: #ff9595; }
+  button.big { padding: 14px 22px; font-size: 15px; }
+  textarea {
+    width: 100%; min-height: 60px; font: inherit; padding: 8px 12px;
+    background: var(--surface-hi); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; resize: vertical;
+  }
+
+  .shell { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 22px; border-bottom: 1px solid var(--border);
+    background: rgba(23,26,33,0.72); backdrop-filter: blur(12px);
+  }
+  .topbar .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 600; font-size: 14px;
+  }
+  .topbar .brand .logo {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--good));
+    display: grid; place-items: center; color: #0b0d12; font-weight: 800; font-size: 12px;
+  }
+  .topbar .right { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+  .conn-dot.stale { background: var(--bad); }
+  .conn-dot.warn { background: var(--warn); }
+
+  main { flex: 1; padding: 22px; max-width: 720px; margin: 0 auto; width: 100%; }
+
+  .task-header {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 18px;
+  }
+  .task-header h1 { margin: 0; font-size: 24px; letter-spacing: -0.3px; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  }
+  .badge.clean { background: rgba(91,217,166,0.15); color: var(--good); border: 1px solid rgba(91,217,166,0.3); }
+  .badge.intervention { background: rgba(255,184,107,0.15); color: var(--warn); border: 1px solid rgba(255,184,107,0.3); }
+  .badge.diff { background: var(--surface-hi); color: var(--muted); border: 1px solid var(--border); }
+  .badge.attempt-cold { background: rgba(255,122,122,0.15); color: var(--bad); border: 1px solid rgba(255,122,122,0.3); }
+  .badge.attempt-warm { background: rgba(91,217,166,0.15); color: var(--good); border: 1px solid rgba(91,217,166,0.3); }
+  .badge.role { background: rgba(124,156,255,0.1); color: var(--accent); border: 1px solid rgba(124,156,255,0.3); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 10px 0; font-size: 14px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.3px; font-weight: 600;
+  }
+  .instruction-body {
+    font-size: 15px; line-height: 1.6; color: var(--fg);
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+
+  .live-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin: 6px 0 14px 0;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat .label { font-size: 11px; color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; }
+  .stat .value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+  .stat.recording .value { color: var(--bad); display: flex; align-items: center; gap: 8px; }
+  .stat.recording .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--bad);
+    animation: pulse 1.2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .actions-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .countdown-card {
+    background: linear-gradient(135deg, rgba(124,156,255,0.14), rgba(91,217,166,0.08));
+    border: 1px solid rgba(124,156,255,0.4);
+    border-radius: 14px; padding: 20px;
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  }
+  .countdown-card .tick { font-size: 32px; font-weight: 800; letter-spacing: -1px; min-width: 56px; }
+  .countdown-card .desc { flex: 1; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .warn-card {
+    background: rgba(255,184,107,0.12); border: 1px solid rgba(255,184,107,0.4);
+    color: var(--warn); padding: 12px 16px; border-radius: 10px; margin-bottom: 14px;
+    font-size: 13px; line-height: 1.5;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .error-card {
+    background: rgba(255,122,122,0.12); border: 1px solid rgba(255,122,122,0.4);
+    color: var(--bad); padding: 12px 16px; border-radius: 10px; margin-bottom: 14px;
+    font-size: 13px; line-height: 1.5;
+  }
+
+  /* Eval result */
+  .eval-result { display: flex; flex-direction: column; gap: 10px; }
+  .eval-verdict {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px; border-radius: 10px;
+    font-size: 18px; font-weight: 700;
+  }
+  .eval-verdict.pass { background: rgba(91,217,166,0.15); color: var(--good); border: 1px solid rgba(91,217,166,0.4); }
+  .eval-verdict.fail { background: rgba(255,122,122,0.15); color: var(--bad); border: 1px solid rgba(255,122,122,0.4); }
+  .eval-reasoning {
+    font-size: 13px; color: var(--muted); line-height: 1.55;
+    white-space: pre-wrap; background: var(--surface-hi);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+    max-height: 220px; overflow: auto;
+  }
+
+  /* Post-task form */
+  .form-grid { display: grid; gap: 14px; }
+  .form-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .form-row label { font-size: 13px; flex: 1; }
+  .form-row .hint { color: var(--muted); font-size: 11px; margin-top: 2px; display: block; }
+  .rating { display: inline-flex; gap: 2px; }
+  .rating button {
+    background: var(--surface-hi); border: 1px solid var(--border);
+    color: var(--muted); padding: 5px 10px; font-weight: 500; font-size: 13px; border-radius: 6px;
+  }
+  .rating button.active { background: var(--accent); color: #0b0d12; border-color: var(--accent); }
+  .checkbox-row { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  .checkbox-row input[type=checkbox] { transform: scale(1.15); }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 12px 18px; border-radius: 10px;
+    box-shadow: var(--shadow); z-index: 300; font-size: 13px;
+    opacity: 0; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.good { border-color: var(--good); color: var(--good); }
+  .toast.error { border-color: var(--bad); color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="shell" id="shell"></div>
+
+<script>
+// ==========================================================================
+// URL + State
+// ==========================================================================
+const params = new URLSearchParams(location.search);
+const CTX = {
+  annotator: params.get("annotator") || "",
+  aid: params.get("aid") || "",
+  role: params.get("role") || "primary",
+  env: params.get("env") || "",
+  base: params.get("base") || "",
+  title: params.get("title") || "(task)",
+  difficulty: params.get("difficulty") || "",
+  condition: params.get("condition") || "",
+  variant_filename: params.get("variant_filename") || "",
+  sessionId: params.get("session_id") || "",
+  attempt: params.get("attempt") || "cold",
+};
+
+const ENV_PORTS = { gmail: 1, robinhood: 2, amazon: 3, booking: 4, reddit: 5, lms: 6, patient_portal: 7 };
+
+const state = {
+  phase: "loading", // loading | countdown | recording | evaluated | saving | saved | form | done | error
+  instruction: "",
+  countdownSec: 10,
+  recordingStartedAt: 0,
+  eventCount: 0,
+  lastHeartbeatMs: 0,
+  evaluation: null,
+  saveResult: null,
+  formSubmitted: false,
+  envTabClosed: false,
+  error: "",
+};
+
+const COUNTDOWN_SECONDS = 10;
+
+// Handle to the env window opened by the dashboard. We try to locate it by
+// name; dashboard opens env tab with name `wab-env-${env}`.
+const envWindow = window.open("", `wab-env-${CTX.env}`, "noopener=no");
+// ⚠ this call may return a reference to an already-open window (if dashboard
+// opened it with the same name) or null (popup blocked). We do NOT open a
+// new env tab from here — we just get a reference to the existing one.
+
+// ==========================================================================
+// API helpers
+// ==========================================================================
+async function api(path, options = {}) {
+  const r = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`${r.status}: ${txt.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+function envBaseUrl(env) {
+  const backendPort = Number(location.port || 8080);
+  const envPort = backendPort + (ENV_PORTS[env] || 0);
+  return `${location.protocol}//${location.hostname}:${envPort}/env/${env}`;
+}
+
+async function loadInstruction() {
+  try {
+    const data = await api(`/api/env/${CTX.env}/session/${encodeURIComponent(CTX.sessionId)}`);
+    state.instruction = data.instruction || "(no instruction available)";
+  } catch (err) {
+    state.instruction = `(could not load instruction: ${err.message})`;
+  }
+}
+
+async function startRecording() {
+  try {
+    await api(`/api/control/${encodeURIComponent(CTX.sessionId)}/record/start`, {
+      method: "POST",
+      body: JSON.stringify({
+        human: {
+          annotator: CTX.annotator,
+          aid: CTX.aid,
+          attempt: state.phase === "countdown" ? CTX.attempt : CTX.attempt,
+          role: CTX.role,
+        },
+      }),
+    });
+    state.phase = "recording";
+    state.recordingStartedAt = Date.now();
+  } catch (err) {
+    // Already recording is fine; otherwise surface.
+    if (!/409/.test(err.message)) {
+      state.error = `Could not start recording: ${err.message}`;
+      state.phase = "error";
+    } else {
+      state.phase = "recording";
+      state.recordingStartedAt = Date.now();
+    }
+  }
+  render();
+}
+
+async function stopRecording(evaluation) {
+  await api(`/api/control/${encodeURIComponent(CTX.sessionId)}/record/stop`, {
+    method: "POST",
+    body: JSON.stringify({ evaluation: evaluation || {} }),
+  });
+}
+
+async function evaluate() {
+  state.phase = "saving";
+  render();
+  try {
+    // 1. Run evaluator. The benchmark eval endpoint reads session state so we
+    //    don't need to pass the trajectory here.
+    const evalResult = await api(`/api/env/${CTX.env}/evaluate`, {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: CTX.sessionId,
+        task_id: null,
+        benchmark_state: {},
+        trajectory: [],
+      }),
+    });
+    state.evaluation = evalResult;
+    // 2. Tell env tab to stop recording and (since human context is already
+    //    in control state) save the trace to breakingweb/human/traces/.
+    await stopRecording(evalResult);
+    // 3. Poll for save_result to show up in control state.
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      const st = await api(`/api/control/${encodeURIComponent(CTX.sessionId)}/record-state`);
+      if (st.save_result) {
+        state.saveResult = st.save_result;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!state.saveResult) {
+      state.error = "Save didn't complete in 15s. The env tab may be stuck. Refresh it and try Evaluate again.";
+      state.phase = "error";
+      render();
+      return;
+    }
+    state.phase = "evaluated";
+  } catch (err) {
+    state.error = `Evaluate/save failed: ${err.message}`;
+    state.phase = "error";
+  }
+  render();
+}
+
+async function startWarm() {
+  state.phase = "loading";
+  render();
+  try {
+    // Reset session to rebuild fresh seeded state with same task+variant.
+    const newSession = await api(
+      `/api/env/${CTX.env}/session/${encodeURIComponent(CTX.sessionId)}/reset`,
+      { method: "POST" },
+    );
+    CTX.sessionId = newSession.session_id;
+    CTX.attempt = "warm";
+    // Reset ephemeral UI state for the new attempt.
+    state.evaluation = null;
+    state.saveResult = null;
+    state.countdownSec = COUNTDOWN_SECONDS;
+    state.recordingStartedAt = 0;
+    state.eventCount = 0;
+    // Navigate env tab to the new session URL so the iframe reloads with
+    // fresh state and picks up the new session_id in its record-state polling.
+    const startPath = newSession.start_path || "/";
+    const sep = startPath.includes("?") ? "&" : "?";
+    const envUrl = `${envBaseUrl(CTX.env)}${startPath}${sep}session=${encodeURIComponent(
+      CTX.sessionId,
+    )}&control=on&hide_toolbar=1&human_mode=1`;
+    if (envWindow && !envWindow.closed) {
+      envWindow.location.href = envUrl;
+    } else {
+      // The annotator closed the env tab. Reopen it.
+      window.open(envUrl, `wab-env-${CTX.env}`, "noopener=no");
+    }
+    await loadInstruction();
+    // Update our own URL so a refresh keeps the warm state.
+    const u = new URL(location.href);
+    u.searchParams.set("session_id", CTX.sessionId);
+    u.searchParams.set("attempt", "warm");
+    history.replaceState(null, "", u);
+    state.phase = "countdown";
+    render();
+    runCountdown();
+    return;
+  } catch (err) {
+    state.error = `Could not start warm attempt: ${err.message}`;
+    state.phase = "error";
+  }
+  render();
+}
+
+async function abandon() {
+  if (!confirm("Abandon this attempt? You'll start cold from scratch if you try again.")) return;
+  try {
+    await api(`/api/control/${encodeURIComponent(CTX.sessionId)}/record/stop`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  } catch {}
+  try {
+    await api(`/api/human/attempt/reset`, {
+      method: "POST",
+      body: JSON.stringify({ annotator: CTX.annotator, aid: CTX.aid }),
+    });
+  } catch {}
+  if (envWindow && !envWindow.closed) envWindow.close();
+  window.close();
+}
+
+async function submitPostTaskForm(body) {
+  try {
+    await api(`/api/human/attempt/post_task_form`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    state.formSubmitted = true;
+    state.phase = "done";
+    // Auto-close both tabs once the optional form is submitted — the
+    // assignment was already complete before the form was filled.
+    setTimeout(() => {
+      try { if (envWindow && !envWindow.closed) envWindow.close(); } catch {}
+      try { window.close(); } catch {}
+    }, 800);
+  } catch (err) {
+    state.error = `Form submit failed: ${err.message}`;
+    state.phase = "error";
+  }
+  render();
+}
+
+// ==========================================================================
+// Background polling
+// ==========================================================================
+
+// Poll env tab heartbeat + event count every 800ms while recording.
+let _pollTimer = null;
+function startPolling() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(async () => {
+    try {
+      const st = await api(`/api/control/${encodeURIComponent(CTX.sessionId)}/record-state`);
+      state.eventCount = st.event_count || 0;
+      state.lastHeartbeatMs = st.last_heartbeat_ms || 0;
+      state.envTabClosed = envWindow ? envWindow.closed : false;
+      // Only repaint the live stats region to avoid clobbering user input in
+      // the form etc.
+      paintLiveStats();
+      if (state.envTabClosed && state.phase === "recording") {
+        // Show the "env tab closed" warn line.
+        paintEnvWarn();
+      }
+    } catch {}
+  }, 800);
+}
+
+// ==========================================================================
+// Rendering
+// ==========================================================================
+const shell = document.getElementById("shell");
+
+function formatElapsed(ms) {
+  if (!ms || ms < 0) return "0:00";
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function render() {
+  shell.innerHTML = `
+    ${renderTopBar()}
+    <main>
+      ${renderHeader()}
+      ${renderBody()}
+    </main>
+  `;
+  bind();
+}
+
+function renderTopBar() {
+  const stale = state.envTabClosed || (Date.now() - state.lastHeartbeatMs > 8000 && state.lastHeartbeatMs > 0);
+  const dotClass = !state.lastHeartbeatMs ? "warn" : stale ? "stale" : "";
+  const label = !state.lastHeartbeatMs
+    ? "Env tab connecting..."
+    : stale
+    ? "Env tab unresponsive"
+    : "Env tab connected";
+  return `
+    <div class="topbar">
+      <div class="brand"><div class="logo">W</div><span>Control · ${CTX.annotator}</span></div>
+      <div class="right">
+        <span class="conn-dot ${dotClass}"></span>
+        <span id="conn-label">${label}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader() {
+  const attemptBadge = CTX.attempt === "warm" ? "attempt-warm" : "attempt-cold";
+  const roleBadge =
+    CTX.role === "duplicate"
+      ? `<span class="badge role">2nd-human duplicate</span>`
+      : "";
+  return `
+    <div class="task-header">
+      <h1>${CTX.title}</h1>
+      <div class="badges">
+        <span class="badge diff">${CTX.difficulty}</span>
+        <span class="badge ${CTX.condition}">${CTX.condition}</span>
+        <span class="badge ${attemptBadge}">${CTX.attempt} attempt</span>
+        ${roleBadge}
+        <span class="badge diff">${CTX.env} / ${CTX.base}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderBody() {
+  if (state.phase === "loading") return `<div class="card"><h2>Loading</h2><div>Fetching task instruction…</div></div>`;
+  if (state.phase === "error") return renderError();
+  if (state.phase === "done") return renderDone();
+  if (state.phase === "form") return renderForm();
+
+  const envWarn = state.envTabClosed
+    ? `<div class="warn-card" id="env-warn">
+         <div>⚠️ Env tab is closed — recording can't capture further events.</div>
+         <button class="secondary" id="reopen-env">Reopen env tab</button>
+       </div>`
+    : "";
+
+  return `
+    ${envWarn}
+    ${renderInstruction()}
+    ${renderLiveBlock()}
+  `;
+}
+
+function renderError() {
+  return `
+    <div class="error-card">❌ ${state.error}</div>
+    <div class="actions-row">
+      <button class="secondary" onclick="location.reload()">Reload</button>
+      <button class="ghost" onclick="window.close()">Close</button>
+    </div>
+  `;
+}
+
+function renderDone() {
+  return `
+    <div class="card">
+      <h2>All done</h2>
+      <div class="instruction-body">
+        ✅ Assignment saved (cold + warm + form). You can close this window and return to the dashboard to pick the next task.
+      </div>
+      <div class="actions-row" style="margin-top:18px">
+        <button onclick="window.close()">Close this window</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderInstruction() {
+  return `
+    <div class="card">
+      <h2>Your task</h2>
+      <div class="instruction-body">${escapeHtml(state.instruction)}</div>
+    </div>
+  `;
+}
+
+function renderLiveBlock() {
+  const phase = state.phase;
+  if (phase === "countdown") {
+    return `
+      <div class="countdown-card">
+        <div class="tick" id="tick">${state.countdownSec}</div>
+        <div class="desc">
+          Recording will auto-start in <b>${state.countdownSec}s</b>. Use this time to read the instruction.<br/>
+          Once recording starts, switch to the env tab and act naturally.
+        </div>
+        <button id="start-now">Start now</button>
+      </div>
+      <div class="actions-row">
+        <button class="ghost" id="abandon-btn">Abandon</button>
+      </div>
+    `;
+  }
+  if (phase === "recording") {
+    const elapsedMs = state.recordingStartedAt ? Date.now() - state.recordingStartedAt : 0;
+    return `
+      <div class="live-stats">
+        <div class="stat recording">
+          <span class="label">Status</span>
+          <span class="value"><span class="dot"></span>REC</span>
+        </div>
+        <div class="stat">
+          <span class="label">Elapsed</span>
+          <span class="value" id="elapsed">${formatElapsed(elapsedMs)}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Events</span>
+          <span class="value" id="events">${state.eventCount}</span>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="big" id="evaluate-btn">✓ Evaluate</button>
+        <button class="ghost" id="abandon-btn">Abandon</button>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <h2>Tips</h2>
+        <div class="instruction-body" style="font-size:13px">
+          • Switch to the env tab to interact. Your clicks / typing / scrolls are captured automatically.<br/>
+          • Click <b>Evaluate</b> here when you're confident the task is complete — this saves the trace and ends the attempt.<br/>
+          • If something is broken, click <b>Abandon</b> and start over from cold. Don't use DevTools.
+        </div>
+      </div>
+    `;
+  }
+  if (phase === "saving") {
+    return `
+      <div class="card"><h2>Saving</h2><div class="instruction-body">
+        Running evaluator and saving your ${CTX.attempt} trace…
+      </div></div>
+    `;
+  }
+  if (phase === "evaluated") {
+    const ev = state.evaluation || {};
+    const pass = Boolean(ev.success);
+    const score = ev.score ?? ev.final_score ?? 0;
+    const isCold = CTX.attempt === "cold";
+    let actions;
+    if (isCold) {
+      actions = `
+        <button class="big" id="start-warm">Start warm attempt →</button>
+        <button class="ghost" id="abandon-btn">Abandon (redo from cold)</button>`;
+    } else {
+      // Warm done: assignment is complete. Form is optional.
+      actions = `
+        <button class="big" id="finish-done">✓ Done — close windows</button>
+        <button class="secondary" id="open-form">Leave optional feedback…</button>`;
+    }
+    return `
+      <div class="card">
+        <h2>${CTX.attempt} attempt saved</h2>
+        <div class="eval-result">
+          <div class="eval-verdict ${pass ? "pass" : "fail"}">
+            ${pass ? "✓ PASS" : "✗ FAIL"} · score ${Number(score).toFixed(2)}
+          </div>
+          <div class="eval-reasoning">${escapeHtml(ev.reasoning || "(no reasoning)")}</div>
+        </div>
+        ${!isCold ? `<div class="instruction-body" style="font-size:12px; color:var(--muted); margin-top:12px">
+          Assignment is already marked complete on the dashboard. You can just close — the form is only if you want to flag a bug, ambiguity, or share notes.
+        </div>` : ""}
+      </div>
+      <div class="actions-row">
+        ${actions}
+      </div>
+    `;
+  }
+  return "";
+}
+
+function renderForm() {
+  const isIntervention = CTX.condition === "intervention";
+  return `
+    <div class="card">
+      <h2>Optional feedback</h2>
+      <div class="instruction-body" style="font-size:13px; margin-bottom:14px">
+        Everything here is optional. Rate if you want, or skip any row. Use the checkboxes
+        and comments box only if you want to flag a specific bug, ambiguity, or alternate strategy —
+        otherwise just click Submit or close this window.
+      </div>
+      <div class="form-grid">
+        ${ratingRow("clarity", "Instruction clarity", "Could you understand what was being asked?")}
+        ${ratingRow("realism", "Realism", "Does this task resemble a real-world use case?")}
+        ${ratingRow("fun_value", "Demo value", "Would this be good to show to others?")}
+        ${isIntervention ? ratingRow("intervention_naturalness", "Intervention naturalness", "Did the failure feel natural or contrived?") : ""}
+        <div class="checkbox-row"><input type="checkbox" id="f-bug"><label for="f-bug">Suspected bug</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="f-amb"><label for="f-amb">Instruction was ambiguous</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="f-alt"><label for="f-alt">Alternate valid strategy exists</label></div>
+        <div>
+          <label style="font-size:13px">Notes (optional)</label>
+          <textarea id="f-comments"></textarea>
+        </div>
+      </div>
+      <div class="actions-row" style="margin-top:18px">
+        <button id="submit-form">Submit</button>
+        <button class="ghost" id="skip-form">Skip — close windows</button>
+      </div>
+    </div>
+  `;
+}
+
+function ratingRow(name, label, hint) {
+  return `
+    <div class="form-row">
+      <label>${label}<span class="hint">${hint}</span></label>
+      <div class="rating" data-name="${name}">
+        ${[1,2,3,4,5].map((v) => `<button data-value="${v}">${v}</button>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+// Only repaint the volatile parts so we don't nuke the user's form input.
+function paintLiveStats() {
+  const el = document.getElementById("elapsed");
+  if (el && state.recordingStartedAt) {
+    el.textContent = formatElapsed(Date.now() - state.recordingStartedAt);
+  }
+  const ev = document.getElementById("events");
+  if (ev) ev.textContent = String(state.eventCount);
+  const cl = document.getElementById("conn-label");
+  const stale = state.envTabClosed || (Date.now() - state.lastHeartbeatMs > 8000 && state.lastHeartbeatMs > 0);
+  if (cl) {
+    cl.textContent = !state.lastHeartbeatMs ? "Env tab connecting..." : stale ? "Env tab unresponsive" : "Env tab connected";
+  }
+  const dot = document.querySelector(".conn-dot");
+  if (dot) {
+    dot.className = "conn-dot" + (!state.lastHeartbeatMs ? " warn" : stale ? " stale" : "");
+  }
+}
+
+function paintEnvWarn() {
+  // Inject a warn card above the instruction if missing.
+  if (document.getElementById("env-warn")) return;
+  const body = document.querySelector("main");
+  if (!body) return;
+  const warn = document.createElement("div");
+  warn.className = "warn-card";
+  warn.id = "env-warn";
+  warn.innerHTML = `<div>⚠️ Env tab is closed — recording can't capture further events.</div>
+                    <button class="secondary" id="reopen-env">Reopen env tab</button>`;
+  body.insertBefore(warn, body.querySelector(".card"));
+  warn.querySelector("#reopen-env").addEventListener("click", reopenEnvTab);
+}
+
+function reopenEnvTab() {
+  const startPath = "/"; // env tab will navigate to /env/{env}/{start_path}; it reads session from query
+  // Try to fetch the session summary to get the actual start_path.
+  api(`/api/env/${CTX.env}/session/${encodeURIComponent(CTX.sessionId)}`)
+    .then((s) => {
+      const sp = s.start_path || "/";
+      const sep = sp.includes("?") ? "&" : "?";
+      const envUrl = `${envBaseUrl(CTX.env)}${sp}${sep}session=${encodeURIComponent(CTX.sessionId)}&control=on&hide_toolbar=1&human_mode=1`;
+      window.open(envUrl, `wab-env-${CTX.env}`, "noopener=no");
+    })
+    .catch(() => {});
+}
+
+function bind() {
+  const startNow = document.getElementById("start-now");
+  if (startNow) startNow.addEventListener("click", () => startRecording());
+  const evaluateBtn = document.getElementById("evaluate-btn");
+  if (evaluateBtn) evaluateBtn.addEventListener("click", () => evaluate());
+  const startWarmBtn = document.getElementById("start-warm");
+  if (startWarmBtn) startWarmBtn.addEventListener("click", () => startWarm());
+  const openForm = document.getElementById("open-form");
+  if (openForm)
+    openForm.addEventListener("click", () => {
+      state.phase = "form";
+      render();
+    });
+  const finishDone = document.getElementById("finish-done");
+  if (finishDone)
+    finishDone.addEventListener("click", () => {
+      // Close env tab if still open, then close this control tab.
+      try { if (envWindow && !envWindow.closed) envWindow.close(); } catch {}
+      window.close();
+    });
+  const abandonBtn = document.getElementById("abandon-btn");
+  if (abandonBtn) abandonBtn.addEventListener("click", () => abandon());
+  const reopenEnv = document.getElementById("reopen-env");
+  if (reopenEnv) reopenEnv.addEventListener("click", reopenEnvTab);
+
+  // Form
+  document.querySelectorAll(".rating").forEach((row) => {
+    row.querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => {
+        row.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+      }),
+    );
+  });
+  const skipBtn = document.getElementById("skip-form");
+  if (skipBtn)
+    skipBtn.addEventListener("click", () => {
+      try { if (envWindow && !envWindow.closed) envWindow.close(); } catch {}
+      window.close();
+    });
+  const submitBtn = document.getElementById("submit-form");
+  if (submitBtn)
+    submitBtn.addEventListener("click", () => {
+      const r = (n) =>
+        Number(document.querySelector(`.rating[data-name=${n}] .active`)?.dataset.value || 0);
+      const isIntervention = CTX.condition === "intervention";
+      submitPostTaskForm({
+        annotator: CTX.annotator,
+        aid: CTX.aid,
+        clarity: r("clarity") || 3,
+        realism: r("realism") || 3,
+        fun_value: r("fun_value") || 3,
+        intervention_naturalness: isIntervention ? r("intervention_naturalness") || 3 : null,
+        suspected_bug: document.getElementById("f-bug").checked,
+        ambiguous_instruction: document.getElementById("f-amb").checked,
+        alternate_valid_strategy: document.getElementById("f-alt").checked,
+        comments: document.getElementById("f-comments").value.trim(),
+      });
+    });
+}
+
+// ==========================================================================
+// Countdown loop
+// ==========================================================================
+function runCountdown() {
+  const tick = () => {
+    if (state.phase !== "countdown") return;
+    state.countdownSec -= 1;
+    const t = document.getElementById("tick");
+    if (t) t.textContent = state.countdownSec;
+    if (state.countdownSec <= 0) {
+      startRecording();
+    } else {
+      setTimeout(tick, 1000);
+    }
+  };
+  setTimeout(tick, 1000);
+}
+
+// ==========================================================================
+// Boot
+// ==========================================================================
+async function boot() {
+  if (!CTX.annotator || !CTX.aid || !CTX.sessionId) {
+    state.error = "Missing required URL params (annotator, aid, session_id).";
+    state.phase = "error";
+    render();
+    return;
+  }
+  render();
+  await loadInstruction();
+  state.phase = "countdown";
+  state.countdownSec = COUNTDOWN_SECONDS;
+  render();
+  startPolling();
+  runCountdown();
+}
+
+boot();
+</script>
+</body>
+</html>

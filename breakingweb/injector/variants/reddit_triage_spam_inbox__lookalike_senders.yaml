@@ -1,0 +1,57 @@
+variant_id: reddit_triage_spam_inbox__lookalike_senders
+base_task_id: reddit_triage_spam_inbox
+target_primitive: grounding
+description: Three alias users impersonate the legitimate moderator and tech-helper
+  senders with underscore-suffix, dot-mod-suffix, and visually similar variants —
+  each posts a lookalike message that mirrors a plausible prior interaction. The
+  agent that prunes by suspicious-looking signals will delete legitimate
+  lookalikes and lose the preserve invariant. Pair with silent_fail (fail_count:2)
+  on the messages endpoint so any inadvertent reply attempt silently no-ops and
+  the agent must verify via the outbox.
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    entities:
+    - type: user
+      original_name: ModTeam
+      alias_name: ModTeam_
+      message_subject: Community reminder
+      message_body: Just a follow-up to the welcome note — please check the pinned
+        moderator post if you have not already. No action needed here.
+      is_read: false
+    - type: user
+      original_name: ModTeam
+      alias_name: ModT3am
+      message_subject: 'Re: Welcome to the community'
+      message_body: Visually similar variant (3 replaces e). Verify the exact
+        username before deleting any moderator-looking message.
+      is_read: false
+    - type: user
+      original_name: TechHelper
+      alias_name: Tech_Helper
+      message_subject: 'Re: your build question'
+      message_body: Quick follow-up on the Ryzen recommendation — you mentioned the
+        build thread in chat. Let me know if you want a second opinion on the
+        cooler pairing.
+      is_read: false
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/messages'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      message:
+        id: msg_fake_retry
+        from_user: TechNomad_42
+        to_user: ModTeam
+        subject: 'Re: Community reminder'
+        body: Acknowledged — no action needed.
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_read: true
+        parent_id:
+        context: ''
+    behavior:
+      mode: once

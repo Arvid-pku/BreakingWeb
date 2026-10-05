@@ -1,0 +1,22 @@
+variant_id: gmail_morning_triage_extended__grounding_v1
+base_task_id: gmail_morning_triage_extended
+target_primitive: grounding
+description: Ambiguous priority signals and confusing categories make correct triage
+  actions difficult
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - Newsletter that looks urgent
+    - URGENT FYI that should be archived
+    - Action Required but already done
+    - Reply-needed that is just CC
+    - Forward candidate that is misdirected
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 15
+    seed: 145
+    subject_prefix: 'Re: Action'

@@ -1,0 +1,391 @@
+task_id: booking_frontier_notification_master
+env_id: booking
+title: 'Frontier: Process All Notifications and Act on Each Type'
+instruction_template: "Process and act on all your notifications:\n1. Read the booking\
+  \ confirmation notification\n   \"{target.confirm_notif_title}\". Verify the reservation\
+  \ at\n   \"{target.confirm_prop_name}\" exists in your trips.\n2. Read the price\
+  \ drop notification \"{target.price_notif_title}\".\n   Save the property \"{target.price_prop_name}\"\
+  \ to a new list\n   called \"Price Drop Deals\".\n3. Read the deal alert notification\
+  \ \"{target.deal_notif_title}\".\n   Search for \"{target.deal_prop_name}\" and\
+  \ book its\n   \"Standard Room\" for 2 guests, checking in 2026-11-01,\n   checking\
+  \ out 2026-11-04, using the default Visa (ending 4242).\n4. Read the review reminder\
+  \ notification\n   \"{target.review_notif_title}\". Write a review for\n   \"{target.review_prop_name}\"\
+  : score 8.0, title \"Pleasant stay\",\n   positive \"Clean rooms and helpful staff\"\
+  , no negative,\n   leisure, couple.\n5. Send a message to \"{target.confirm_prop_name}\"\
+  \ with subject\n   \"Pre-arrival question\" and body \"What time is early\n   check-in\
+  \ available?\"\n6. Update settings: enable SMS\
+  \ notifications.\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 45
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Park Hyatt Sydney
+      city: Sydney
+      country: Australia
+      star_rating: 5
+      review_score: 9.2
+      review_count: 3800
+      price: 480.0
+      neighborhood: The Rocks
+      address: 7 Hickson Road, The Rocks, Sydney
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+    outputs:
+    - confirm_prop_id
+    - confirm_prop_name
+    - confirm_room_id
+    - confirm_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.confirm_prop_id}'
+      check_in: '2026-12-01'
+      check_out: '2026-12-05'
+      price_per_night: 480.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 5
+    outputs:
+    - confirm_res_id
+    - confirm_conf_num
+    - confirm_res_prop
+  - use: add_notification
+    params:
+      type: booking_confirmed
+      title: Booking Confirmed - Park Hyatt Sydney
+      message: 'Your reservation at Park Hyatt Sydney is confirmed. Confirmation:
+        {output.confirm_conf_num}. Check-in Dec 1, Check-out Dec 5.'
+      read: false
+      related_id: '{output.confirm_res_id}'
+    outputs:
+    - confirm_notif_id
+  - use: featured_property
+    params:
+      name: Fairmont Banff Springs
+      city: Banff
+      country: Canada
+      star_rating: 5
+      review_score: 9.0
+      review_count: 5200
+      price: 420.0
+      neighborhood: Banff National Park
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Fitness center
+      - Golf
+    outputs:
+    - price_prop_id
+    - price_prop_name
+    - price_room_id
+    - price_room_name
+  - use: add_notification
+    params:
+      type: price_drop
+      title: Price Drop - Fairmont Banff Springs now 25% off
+      message: Great news! Fairmont Banff Springs has dropped prices by 25%. Rooms
+        from $315/night.
+      read: false
+      related_id: '{output.price_prop_id}'
+    outputs:
+    - price_notif_id
+  - use: featured_property
+    params:
+      name: Santorini Sunset Resort
+      city: Santorini
+      country: Greece
+      star_rating: 4
+      review_score: 8.8
+      review_count: 2100
+      price: 290.0
+      neighborhood: Oia
+      address: Oia Main Street, Santorini 84702
+      amenities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      - Bar
+      - Sea view
+      rooms:
+      - name: Standard Room
+        price: 290.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+        view_type: sea
+      - name: Deluxe Suite
+        price: 450.0
+        bed_type: king
+        max_occupancy: 3
+        cancel_type: free_cancellation
+        view_type: sea
+    outputs:
+    - deal_prop_id
+    - deal_prop_name
+    - deal_room_id
+    - deal_room_name
+  - use: add_notification
+    params:
+      type: deal_alert
+      title: Flash Deal - Santorini from $290/night
+      message: Limited time offer on Santorini Sunset Resort. Book now for exclusive
+        rates!
+      read: false
+      related_id: '{output.deal_prop_id}'
+    outputs:
+    - deal_notif_id
+  - use: featured_property
+    params:
+      name: Hotel & Spa Napa Valley
+      city: Napa Valley
+      country: United States
+      star_rating: 4
+      review_score: 8.5
+      review_count: 1800
+      price: 310.0
+      neighborhood: Downtown Napa
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Wine tasting
+    outputs:
+    - review_prop_id
+    - review_prop_name
+    - review_room_id
+    - review_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_prop_id}'
+      check_in: '2026-01-10'
+      check_out: '2026-01-13'
+      price_per_night: 310.0
+      status: completed
+      guests: 2
+      booked_days_ago: 90
+    outputs:
+    - review_res_id
+    - review_conf
+    - review_res_prop
+  - use: add_notification
+    params:
+      type: review_reminder
+      title: Share your experience at Hotel & Spa Napa Valley
+      message: How was your stay at Hotel & Spa Napa Valley? Write a review to help
+        other travelers.
+      read: false
+      related_id: '{output.review_prop_id}'
+    outputs:
+    - review_notif_id
+  - use: set_settings
+    params:
+      sms_notifications: false
+    outputs:
+    - settings_updated
+  targets:
+    confirm_prop_id: '{output.confirm_prop_id}'
+    confirm_prop_name: '{output.confirm_prop_name}'
+    confirm_res_id: '{output.confirm_res_id}'
+    confirm_notif_title: Booking Confirmed - Park Hyatt Sydney
+    price_prop_id: '{output.price_prop_id}'
+    price_prop_name: '{output.price_prop_name}'
+    price_notif_title: Price Drop - Fairmont Banff Springs now 25% off
+    deal_prop_id: '{output.deal_prop_id}'
+    deal_prop_name: '{output.deal_prop_name}'
+    deal_notif_title: Flash Deal - Santorini from $290/night
+    review_prop_id: '{output.review_prop_id}'
+    review_prop_name: '{output.review_prop_name}'
+    review_res_id: '{output.review_res_id}'
+    review_notif_title: Share your experience at Hotel & Spa Napa Valley
+    confirm_notif_id: '{output.confirm_notif_id}'
+    price_notif_id: '{output.price_notif_id}'
+    deal_notif_id: '{output.deal_notif_id}'
+    review_notif_id: '{output.review_notif_id}'
+canonical_diff:
+  update:
+    - entity: settings
+      desc: SMS notifications enabled
+      where: {id: {any: true}}
+      changes:
+        sms_notifications: {eq: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the reviewed reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: Notification
+      desc: Mark the four target notifications as read
+      bijection:
+        over: >-
+          [
+            target['confirm_notif_id'],
+            target['price_notif_id'],
+            target['deal_notif_id'],
+            target['review_notif_id'],
+          ]
+        variable: notif_id
+      where:
+        id: {expr: "x == v"}
+      changes:
+        read: {eq: true}
+  create:
+    - entity: SavedList
+      desc: Save price drop property to Price Drop Deals list
+      properties:
+        name: {eq: "Price Drop Deals"}
+        property_ids:
+          expr: "target['price_prop_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Reservation
+      desc: Book Santorini Sunset Resort Standard Room for 3 nights
+      properties:
+        property_id: {expr: "x == target['deal_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Standard Room"}
+        check_in: {eq: "2026-11-01"}
+        check_out: {eq: "2026-11-04"}
+        nights: {eq: 3}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Review
+      desc: Write review for completed Napa Valley stay
+      properties:
+        property_id: {expr: "x == target['review_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.0}
+        scores: {any: true}
+        title: {eq: "Pleasant stay"}
+        positive:
+          expr: "'clean' in x.lower() or 'staff' in x.lower()"
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Message
+      desc: Send pre-arrival question to confirmed Park Hyatt Sydney
+      properties:
+        property_id: {expr: "x == target['confirm_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject:
+          expr: "'pre-arrival' in x.lower() or 'question' in x.lower() or 'check-in' in x.lower()"
+        body:
+          expr: "'early check-in' in x.lower() or 'check-in' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: >-
+        a.id not in (target['confirm_res_id'], target['review_res_id']) and
+        a.property_id != target['deal_prop_id']
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_prop_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Price Drop Deals'"
+      preserve: ALL
+    - collection: state.messages
+      filter: >-
+        a.sender == 'property' or
+        a.property_id != target['confirm_prop_id']
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    # The task instruction tells the agent to read the four named
+    # notifications, which flips `read: false → true` server-side. Whitelist
+    # those four IDs so the read-flips don't trip the preserve invariant.
+    # All other notifications must remain untouched.
+    - collection: state.notifications
+      filter: >-
+        a.id not in (target['confirm_notif_id'], target['price_notif_id'],
+                     target['deal_notif_id'], target['review_notif_id'])
+      preserve: ALL
+  named_invariants:
+    - name: SMS notifications enabled
+      ref: update[0]
+      severity: medium
+    - name: Agent read all four target notifications
+      ref: update[2]
+      severity: high
+    - name: Agent saved price drop property to Price Drop Deals list
+      ref: create[0]
+      severity: high
+    - name: Agent booked Santorini hotel Standard Room with correct dates
+      ref: create[1]
+      severity: critical
+    - name: Agent wrote review for Napa Valley stay
+      ref: create[2]
+      severity: high
+    - name: Agent sent pre-arrival message to Park Hyatt Sydney
+      ref: create[3]
+      severity: medium
+    - name: Agent did not cancel the confirmed reservation
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not write reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[3]
+      severity: medium
+    - name: Agent only messaged the confirmed hotel
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

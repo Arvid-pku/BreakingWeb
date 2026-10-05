@@ -1,0 +1,308 @@
+task_id: amazon_order_audit_correction
+env_id: amazon
+title: Audit Orders Then Cancel, Return, Reorder, and Review
+instruction_template: 'Audit and correct your order history: 1. Open the pending order
+  for ''{target.pend_name}'' on its detail page to confirm its status, then cancel
+  it. 2. Find the delivered order for ''{target.del2_name}'' and return it with reason
+  ''changed_mind''. 3. Find ''{target.del3_name}'' in your order history and reorder
+  it. 4. Write a 5-star review for ''Ceramic Mug Set 4-Pack'' with the title ''{target.review_title}''.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 48
+primary_primitives:
+- exploration
+secondary_primitives: []
+start_path: /orders
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Smart Power Strip 6-Outlet
+      brand: VoltEdge
+      category: Electronics
+      price: 24.99
+      rating: 4.3
+      features:
+      - 6 AC outlets
+      - 3 USB ports
+      - Surge protection
+      - Voice assistant compatible
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_pend
+    - product_name_pend
+    - product_price_pend
+  - use: featured_product
+    params:
+      name: Wireless Trackpad Pro
+      brand: TechNova
+      category: Electronics
+      price: 49.99
+      rating: 4.4
+      features:
+      - Multi-touch gestures
+      - Rechargeable battery
+      - Glass surface
+      - USB-C connectivity
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ship
+    - product_name_ship
+    - product_price_ship
+  - use: featured_product
+    params:
+      name: Ceramic Mug Set 4-Pack
+      brand: Hearthway
+      category: Home & Kitchen
+      price: 22.99
+      rating: 4.5
+      features:
+      - Handcrafted ceramic
+      - 12 oz capacity each
+      - Microwave safe
+      - Dishwasher safe
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_del1
+    - product_name_del1
+    - product_price_del1
+  - use: featured_product
+    params:
+      name: Cotton Throw Blanket
+      brand: CedarCraft
+      category: Home & Kitchen
+      price: 38.99
+      rating: 4.6
+      features:
+      - 100% organic cotton
+      - 50x60 inch size
+      - Machine washable
+      - Herringbone weave
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_del2
+    - product_name_del2
+    - product_price_del2
+  - use: featured_product
+    params:
+      name: Stainless Steel Tumbler
+      brand: HydroLife
+      category: Sports & Outdoors
+      price: 18.99
+      rating: 4.2
+      features:
+      - 20 oz capacity
+      - Double-wall vacuum insulated
+      - Spill-proof lid
+      - BPA-free
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_del3
+    - product_name_del3
+    - product_price_del3
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_pend}'
+      status: pending
+      days_ago: 1
+    outputs:
+    - order_id_pend
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_ship}'
+      status: shipped
+      days_ago: 3
+    outputs:
+    - order_id_ship
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_del1}'
+      status: delivered
+      days_ago: 7
+    outputs:
+    - order_id_del1
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_del2}'
+      status: delivered
+      days_ago: 14
+    outputs:
+    - order_id_del2
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_del3}'
+      status: delivered
+      days_ago: 21
+    outputs:
+    - order_id_del3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_electronics
+  targets:
+    pend_name: '{output.product_name_pend}'
+    order_id_pend: '{output.order_id_pend}'
+    del2_name: '{output.product_name_del2}'
+    del2_pid: '{output.product_id_del2}'
+    order_id_del2: '{output.order_id_del2}'
+    del3_name: '{output.product_name_del3}'
+    del3_pid: '{output.product_id_del3}'
+    review_title: Perfect Everyday Mug Set
+    del1_pid: '{output.product_id_del1}'
+canonical_diff:
+  create:
+  - entity: ReturnRequest
+    desc: Return filed for delivered order 2 with reason changed_mind
+    properties:
+      order_id: {expr: "x == target['order_id_del2']"}
+      product_id: {expr: "x == target['del2_pid']"}
+      reason: {eq: changed_mind}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: Order
+    desc: Reorder placed for product from delivered order 3
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['del3_pid'] and x[0]['quantity']
+          == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Review
+    desc: 5-star review for Ceramic Mug Set (del1)
+    properties:
+      product_id: {expr: "x == target['del1_pid']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['review_title']"}
+      body: {any: true}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Order
+    desc: Pending order cancelled
+    where:
+      id: {expr: "x == target['order_id_pend']"}
+    changes:
+      status: {eq: cancelled}
+  - entity: Product
+    desc: Product review_count incremented for del1 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['del1_pid']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['del1_pid'])
+          + 1"
+  constraints:
+  - desc: Agent opened the pending order detail page before cancelling it
+    expr: "target['order_id_pend'] in state.viewed_order_ids"
+    severity: critical
+  invariant:
+  - collection: state.orders
+    filter: "a.id != target['order_id_pend'] and not any(it.get('product_id') == target['del3_pid']
+      for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.returns
+    filter: "a.order_id != target['order_id_del2']"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['del1_pid']"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id != target['del1_pid']"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other return requests
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not write reviews for other products
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[3]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

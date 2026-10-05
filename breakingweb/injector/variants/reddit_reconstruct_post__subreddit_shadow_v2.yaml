@@ -1,0 +1,22 @@
+variant_id: reddit_reconstruct_post__subreddit_shadow_v2
+base_task_id: reddit_reconstruct_post
+target_primitive: grounding
+description: A second lookalike community and a same-title crosspost appear beside the real subreddit.
+  The agent must still act in the exact community named by the task.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: datascienceofficial
+      display_name: r/datascienceofficial
+      description: Official-sounding lookalike community.
+      subscribers: 88000
+    - type: post
+      subreddit: datascienceofficial
+      title: '{target.original_title}'
+      author: crosspost_bot
+      score: 212
+      comments: 24
+      body: Same title posted into the wrong, official-sounding subreddit.

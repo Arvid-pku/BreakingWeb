@@ -1,0 +1,109 @@
+task_id: pp_message_correct_provider
+env_id: patient_portal
+title: Follow Up on Pending Referral With PCP
+instruction_template: You have a pending referral to orthopedics. Schedule exactly
+  one follow-up appointment with the referring provider, which is your PCP, using
+  the next available PCP slot. Use the appointment reason exactly "Orthopedic referral
+  status review". Do not schedule the orthopedic specialist and do not send any messages.
+difficulty: hard
+time_limit_seconds: 240
+expected_steps: 15
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Back Pain
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - orthopedics
+      - cardiology
+      - neurology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - orthopedics
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    ortho_provider_ids: '{output.providers_by_specialty.orthopedics}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one PCP appointment at the next available slot for referral-status review"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Orthopedic referral status review"}
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id == target['pcp_id'] for s in p.available_slots)
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.referrals
+      filter: "a.id in target['pending_ref_ids']"
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify the pending referral's status"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

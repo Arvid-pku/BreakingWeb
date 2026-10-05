@@ -1,0 +1,213 @@
+task_id: amazon_order_management_suite
+env_id: amazon
+title: Full Order Lifecycle Management
+instruction_template: 'Complete a full order management workflow. First, place an
+  order for "{target.first_order_product}" using the shipping address for Jordan Parker
+  at 742 Evergreen Terrace and the Visa card ending in 4242. After the order is placed,
+  check the order details to confirm it. Then cancel that order. Next, place a new
+  order containing "{target.second_item1}" and "{target.second_item2}" using the same
+  address and payment method. Verify that the first order shows as cancelled and the
+  second order is confirmed.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 45
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Portable SSD 1TB
+      brand: Samsung
+      category: Electronics
+      price: 109.99
+      rating: 4.7
+      features:
+      - USB 3.2 Gen 2
+      - 1050 MB/s read speed
+      - Shock resistant
+      - Compact design
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_first
+    - product_name_first
+    - product_price_first
+  - use: featured_product
+    params:
+      name: Mechanical Pencil Set Premium
+      brand: Pentel
+      category: Office Supplies
+      price: 14.99
+      rating: 4.5
+      features:
+      - 3 pencil set
+      - 0.5mm and 0.7mm
+      - Eraser refills included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_second1
+    - product_name_second1
+    - product_price_second1
+  - use: featured_product
+    params:
+      name: Notebook 5-Pack Lined
+      brand: Moleskine
+      category: Office Supplies
+      price: 24.99
+      rating: 4.6
+      features:
+      - A5 size
+      - 80 pages each
+      - Lay-flat binding
+      - Acid-free paper
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_second2
+    - product_name_second2
+    - product_price_second2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 30.0
+      - 250.0
+    outputs:
+    - catalog_elec
+  - use: product_catalog
+    params:
+      category: Office Supplies
+      count: 8
+      price_range:
+      - 5.0
+      - 60.0
+    outputs:
+    - catalog_office
+  targets:
+    first_order_product: Portable SSD 1TB
+    first_product_id: '{output.product_id_first}'
+    second_item1: Mechanical Pencil Set Premium
+    second_item1_id: '{output.product_id_second1}'
+    second_item2: Notebook 5-Pack Lined
+    second_item2_id: '{output.product_id_second2}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: First order containing the first product, cancelled
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['first_product_id'] and
+          x[0]['quantity'] == 1"
+      status: {eq: cancelled}
+      shipping_address_id:
+        expr: "any(a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen
+          Terrace' for a in state.addresses if a.id == x)"
+      payment_method_id:
+        expr: "any(p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods
+          if p.id == x)"
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Second order containing both second-order items, not cancelled
+    properties:
+      items:
+        expr: "len(x) == 2 and {it['product_id'] for it in x} == {target['second_item1_id'],
+          target['second_item2_id']} and all(it['quantity'] == 1 for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id:
+        expr: "any(a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen
+          Terrace' for a in state.addresses if a.id == x)"
+      payment_method_id:
+        expr: "any(p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods
+          if p.id == x)"
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') in [target['first_product_id'], target['second_item1_id'],
+      target['second_item2_id']] for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

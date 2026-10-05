@@ -1,0 +1,94 @@
+variant_id: amazon_bulk_cart_build__cart_add_retry
+base_task_id: amazon_bulk_cart_build
+target_primitive: backtracking
+description: >
+  Two-layer entity-identity verification trap: (a) 4 decoy SKUs in the
+  catalog share the target product names but are distinct products
+  (GenericAccessories brand, lower price); the agent's search returns
+  decoys at the top, so a verify-by-name pass picks the wrong SKU.
+  (b) The first /cart/add POST silent-fails with a templated body that
+  echoes the agent's own request (defeats trust-the-response-body
+  verify). (c) The first /checkout POST misleading-successes with an
+  empty-items order body so the agent must verify the order persisted
+  via /orders before declaring done. canonical_diff requires the order
+  to contain target['pid_1..4'] specifically, so picking decoys fails.
+  Recovery: pick the correct brand on each search (4 verifies), retry
+  the first add (1 extra), and re-checkout (1 extra) — 6 extra actions,
+  borderline but achievable in the 30-step budget.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: '{target.product_1}'
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 9.99
+      rating: 4.1
+      review_count: 120
+    - type: product
+      name: '{target.product_2}'
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 19.99
+      rating: 4.0
+      review_count: 95
+    - type: product
+      name: '{target.product_3}'
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 7.49
+      rating: 4.2
+      review_count: 230
+    - type: product
+      name: '{target.product_4}'
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 24.99
+      rating: 3.9
+      review_count: 78
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      cart_item:
+        id: 'cart_pending_{request.product_id}'
+        product_id: '{request.product_id}'
+        product_name: 'Pending: {request.product_id}'
+        quantity: '{request.quantity}'
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/amazon/checkout'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      order:
+        id: order_pending_fake
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        discount: 0.0
+        total: 0.0
+        status: confirmed
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: 'Arriving in 3 days'
+        promo_code:

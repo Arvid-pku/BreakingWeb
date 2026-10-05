@@ -1,0 +1,88 @@
+task_id: gmail_recover_deleted_draft
+env_id: gmail
+title: Recover Deleted Draft
+instruction_template: 'You were composing an important email to {target.recipient_name}
+  ({target.recipient_email}) about "{target.draft_subject}" but it was accidentally
+  deleted. Check your trash, find the draft content, then compose and send a new email
+  to the same recipient with the same subject. Make sure to include the key information:
+  {target.key_point_1}, {target.key_point_2}, and {target.key_point_3}.'
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: recover_deleted_draft
+    params: {}
+    outputs:
+    - recipient_email
+    - recipient_name
+    - draft_subject
+    - draft_email_id
+    - key_point_1
+    - key_point_2
+    - key_point_3
+    - trash_noise_ids
+  targets:
+    recipient_email: '{output.recipient_email}'
+    recipient_name: '{output.recipient_name}'
+    draft_subject: '{output.draft_subject}'
+    draft_email_id: '{output.draft_email_id}'
+    key_point_1: '{output.key_point_1}'
+    key_point_2: '{output.key_point_2}'
+    key_point_3: '{output.key_point_3}'
+    trash_noise_ids: '{output.trash_noise_ids}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose and send new email to recipient with draft subject and key points
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['recipient_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          expr: "x == target['draft_subject']"
+        body:
+          expr: >-
+            target['key_point_1'] in x
+            and target['key_point_2'] in x
+            and target['key_point_3'] in x
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the recovered draft email
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

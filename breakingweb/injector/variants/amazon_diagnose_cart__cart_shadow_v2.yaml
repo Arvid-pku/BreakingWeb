@@ -1,0 +1,46 @@
+variant_id: amazon_diagnose_cart__cart_shadow_v2
+base_task_id: amazon_diagnose_cart
+target_primitive: state_tracking
+description: "Three near-duplicate Portable Bluetooth Speaker rows already sit in the cart with identical product_name and variant_selections; sort or scan-by-name cannot uniquely target the row whose quantity needs correcting. The first two cart-update PUT calls silently no-op so the agent must verify the row actually changed quantity before reporting done."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: cart_item
+      product_name: Portable Bluetooth Speaker
+      brand: JBL
+      category: Electronics
+      quantity: 1
+      unit_price: 69.99
+      variant_selections: {}
+    - type: cart_item
+      product_name: Portable Bluetooth Speaker
+      brand: JBL
+      category: Electronics
+      quantity: 3
+      unit_price: 69.99
+      variant_selections: {}
+    - type: cart_item
+      product_name: Portable Bluetooth Speaker
+      brand: JBL
+      category: Electronics
+      quantity: 4
+      unit_price: 69.99
+      variant_selections: {}
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/*'
+    methods: [PUT]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart update
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

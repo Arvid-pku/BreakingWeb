@@ -1,0 +1,94 @@
+task_id: rh_cost_basis_reconciliation
+env_id: robinhood
+title: Trim AAPL Position and Set Rebuy Alert
+instruction_template: Your {target.symbol} position is oversized. Sell half of
+  your {target.symbol} shares (round down to a whole number) using a limit order
+  at the current ask price. Then set a price alert on {target.symbol} at 10%
+  below the current price in case you want to rebuy later.
+difficulty: hard
+time_limit_seconds: 250
+expected_steps: 8
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      quantities:
+      - '75'
+      - '30'
+      cost_bases:
+      - '172.50'
+      - '385.00'
+    outputs: []
+  targets:
+    symbol: AAPL
+    sell_quantity: 37
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Limit sell order for half of AAPL shares at ask price
+    properties:
+      symbol: {expr: "x == target['symbol']"}
+      side: {eq: sell}
+      order_type: {eq: limit}
+      status: {eq: pending}
+      quantity: {expr: "int(x) == target['sell_quantity']"}
+      limit_price: {expr: "float(x) == float(state.get_stock(target['symbol']).ask)"}
+      filled_quantity: {eq: 0}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: price_alerts
+    desc: Price alert at 10% below current AAPL price
+    properties:
+      symbol: {expr: "x == target['symbol']"}
+      condition: {eq: below}
+      target_price: {expr: "abs(float(x) - float(state.get_stock(target['symbol']).price)
+          * 0.90) <= 0.5"}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.orders
+    filter: "a.side == 'buy' and a.symbol == target['symbol']"
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol != target['symbol']"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  constraints:
+  - desc: Ask-limit trim order is placed but not filled prematurely
+    expr: any(o.symbol == target['symbol'] and o.side == 'sell' and
+      o.order_type == 'limit' and o.status == 'pending' and o.filled_quantity ==
+      Decimal('0') and int(o.quantity) == target['sell_quantity'] for o in
+      state.orders if o.id not in [io.id for io in initial.orders])
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, grounding by requiring
+  the agent to calculate half of a position, place a correctly priced limit
+  order, and set a price alert.

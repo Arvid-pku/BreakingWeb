@@ -1,0 +1,179 @@
+task_id: pp_pre_surgery_clearance
+env_id: patient_portal
+title: Pre-Surgery Clearance Workflow
+instruction_template: 'Complete pre-surgery clearance for your upcoming orthopedic
+  procedure using appointments only: 1) Schedule exactly one pre-operative lab appointment
+  with a phlebotomy / laboratory provider, using reason "Pre-operative lab work",
+  2) Schedule exactly one PCP appointment with reason "Surgical clearance visit",
+  3) Verify the surgery referral''s pre-authorization status is approved, 4) Schedule
+  exactly one orthopedic procedure appointment only after the lab appointment and
+  at least 7 days later. Use the appointment reason exactly "Orthopedic procedure
+  clearance". Do not send any messages.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Knee Osteoarthritis
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - orthopedics
+      - phlebotomy
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - orthopedics
+      - phlebotomy
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - orthopedics
+    outputs:
+    - approved_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: lab_results_panel
+    params:
+      resulted_count: 2
+      pending_count: 0
+    outputs:
+    - resulted_lab_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    ortho_provider_ids: '{output.providers_by_specialty.orthopedics}'
+    lab_provider_ids: '{output.providers_by_specialty.phlebotomy}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one pre-operative lab appointment with a phlebotomy/lab provider"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Pre-operative lab work"}
+        provider_id:
+          expr: "x in target['lab_provider_ids']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one PCP surgical-clearance appointment"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Surgical clearance visit"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one orthopedic procedure appointment, at least 7 days after pre-op lab"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Orthopedic procedure clearance"}
+        provider_id:
+          expr: "x in target['ortho_provider_ids']"
+        datetime:
+          # Spacing predicate (was a high-severity constraint): orthopedic
+          # procedure must be >= 7 days after the most recent newly-scheduled lab.
+          expr: >-
+            any(
+              (x - lab.datetime).days >= 7
+              for lab in state.appointments
+              if lab.status == 'scheduled'
+              and lab.reason == 'Pre-operative lab work'
+              and lab.id not in {y.id for y in initial.appointments}
+            )
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

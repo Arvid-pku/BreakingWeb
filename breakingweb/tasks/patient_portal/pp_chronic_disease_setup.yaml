@@ -1,0 +1,226 @@
+task_id: pp_chronic_disease_setup
+env_id: patient_portal
+title: Chronic Disease Monitoring Setup
+instruction_template: 'Establish a chronic disease monitoring plan for your conditions
+  ({target.conditions_list}) using only appointments: 1) Schedule exactly one monitoring
+  appointment with reason "HbA1c monitoring", 2) Schedule exactly one monitoring appointment
+  with reason "Kidney function monitoring", 3) Schedule exactly one PCP appointment
+  with reason "Monthly blood pressure review", 4) Schedule exactly one cardiology
+  appointment with reason "Annual cardiology monitoring", 5) Schedule exactly one
+  endocrinology appointment with reason "Annual endocrinology monitoring".'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      - Chronic Kidney Disease
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - neurology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      expiring_soon_count: 1
+    outputs:
+    - active_rx_ids
+    - expiring_rx_ids
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - cardiology
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+    - prior_auth_ref_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 3
+      trend_test: HbA1c
+      trend_values:
+      - '6.8'
+      - '7.2'
+      - '7.5'
+    outputs:
+    - resulted_lab_ids
+    - trend_lab_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    conditions_list: '{output.conditions_list}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    active_rx_ids: '{output.active_rx_ids}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # Shape: five non-bijection Appointment creates, one per chronic-disease
+  # monitoring action:
+  #   (a) HbA1c monitoring — any provider (unconstrained specialty).
+  #   (b) Kidney function monitoring — any provider.
+  #   (c) PCP blood-pressure review — provider_id == pcp_id.
+  #   (d) Annual cardiology monitoring — provider_id in cardio_provider_ids.
+  #   (e) Annual endocrinology monitoring — provider_id in endo_provider_ids.
+  # Exact reason strings are required by the instruction.
+  create:
+    - entity: Appointment
+      desc: "Schedule one HbA1c monitoring appointment (any provider)"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "HbA1c monitoring"}
+        provider_id: {any: true}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one kidney function monitoring appointment (any provider)"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Kidney function monitoring"}
+        provider_id: {any: true}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one PCP appointment for monthly blood pressure review"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Monthly blood pressure review"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one cardiology appointment for annual cardiology monitoring"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Annual cardiology monitoring"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one endocrinology appointment for annual endocrinology monitoring"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Annual endocrinology monitoring"}
+        provider_id:
+          expr: "x in target['endo_provider_ids']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    # Pre-existing appointments (upcoming + completed history) must not be
+    # cancelled or modified. New creates are scoped to IDs not in initial.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    # Instruction: "do not modify any prescriptions". Covers active rx,
+    # expiring rx, and any others seeded.
+    - collection: state.prescriptions
+      preserve: ALL
+    # Instruction: "Do not send any messages". Preserve pre-existing and
+    # forbid new (broad invariant — no filter).
+    - collection: state.messages
+      preserve: ALL
+    # Specialist referrals remain as seeded — approved referrals stay
+    # approved, no agent-side mutation required.
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

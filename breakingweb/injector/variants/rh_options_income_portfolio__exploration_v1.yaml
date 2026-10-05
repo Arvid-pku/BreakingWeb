@@ -1,0 +1,41 @@
+variant_id: rh_options_income_portfolio__exploration_v1
+base_task_id: rh_options_income_portfolio
+target_primitive: exploration
+description: >
+  Confusing existing sold options on the same portfolio symbols at nearby
+  deltas and expirations force the agent to explore each chain thoroughly
+  to find the correct 0.30-delta strike rather than reusing existing positions.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: AAPL
+      option_type: call
+      side: sell
+      strike: "185.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "3.80"
+    - symbol: MSFT
+      option_type: call
+      side: sell
+      strike: "410.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "5.60"
+    - symbol: GOOGL
+      option_type: put
+      side: sell
+      strike: "135.00"
+      expiration_days: 28
+      quantity: 2
+      average_cost: "4.40"
+    - symbol: TSLA
+      option_type: put
+      side: sell
+      strike: "225.00"
+      expiration_days: 56
+      quantity: 1
+      average_cost: "9.70"

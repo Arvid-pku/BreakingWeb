@@ -1,0 +1,140 @@
+task_id: gmail_client_handoff
+env_id: gmail
+title: Onboard client portfolio from handoff email, update stale contacts, and confirm
+instruction_template: 'You are taking over a client portfolio. Alex Drummond sent
+  you a "Client Portfolio Handoff" email listing 5 client contacts with their names,
+  emails, companies, and account status. Perform the following:
+
+  1. Check your existing contacts for each of the 5 listed clients.
+
+  2. For each listed client who does NOT already have a contact entry, add them as
+  a contact with the note "[Company] — [Account Status]" using the company and status
+  from the handoff email.
+
+  3. For each listed client who already has a contact entry, update their note to
+  "[Company] — [Account Status]" using the current info from the handoff email, replacing
+  whatever note was there before.
+
+  4. Reply to Alex Drummond''s handoff email (reply only, not reply-all) with the
+  message body: "Confirmed. All 5 clients onboarded."'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 34
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: client_handoff
+    params: {}
+    outputs:
+    - handoff_email_id
+    - deepak_rajan_id
+    - felicity_okafor_id
+    - deepak_rajani_id
+    - rena_followup_id
+  targets:
+    handoff_email_id: '{output.handoff_email_id}'
+    deepak_rajan_id: '{output.deepak_rajan_id}'
+    felicity_okafor_id: '{output.felicity_okafor_id}'
+    deepak_rajani_id: '{output.deepak_rajani_id}'
+    rena_followup_id: '{output.rena_followup_id}'
+canonical_diff:
+  create:
+    - entity: contacts
+      desc: Add Marta Sandoval as new contact
+      count: 1
+      properties:
+        email:
+          eq: m.sandoval@lumico.com
+        note:
+          eq: "Lumico — Active"
+    - entity: contacts
+      desc: Add Erik Lund as new contact
+      count: 1
+      properties:
+        email:
+          eq: e.lund@nordgen.se
+        note:
+          eq: "Nordgen — Active"
+    - entity: contacts
+      desc: Add Yuki Tanaka as new contact
+      count: 1
+      properties:
+        email:
+          eq: y.tanaka@kaizenlabs.jp
+        note:
+          eq: "Kaizen Labs — Onboarding"
+    - entity: sent
+      desc: Reply to Alex Drummond confirming all 5 clients onboarded
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['handoff_email_id']"
+        to:
+          expr: "x == ['a.drummond@company.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Confirmed. All 5 clients onboarded."
+  update:
+    - entity: contacts
+      desc: Update Deepak Rajan note
+      where:
+        id:
+          expr: "x == target['deepak_rajan_id']"
+      changes:
+        note:
+          eq: "Thetawave — Renewal pending"
+    - entity: contacts
+      desc: Update Felicity Okafor note
+      where:
+        id:
+          expr: "x == target['felicity_okafor_id']"
+      changes:
+        note:
+          eq: "Clearbridge — Active"
+  invariant:
+    - collection: state.contacts
+      filter: "a.id not in [target['deepak_rajan_id'], target['felicity_okafor_id']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent added Marta Sandoval
+      ref: create[0]
+      severity: high
+    - name: Agent added Erik Lund
+      ref: create[1]
+      severity: high
+    - name: Agent added Yuki Tanaka
+      ref: create[2]
+      severity: high
+    - name: Agent replied to Alex confirming all clients onboarded
+      ref: create[3]
+      severity: high
+    - name: Agent updated Deepak Rajan note
+      ref: update[0]
+      severity: high
+    - name: Agent updated Felicity Okafor note
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify other contacts
+      ref: invariant[0]
+      severity: high

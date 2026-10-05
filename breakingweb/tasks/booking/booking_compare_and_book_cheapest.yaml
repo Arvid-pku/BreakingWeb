@@ -1,0 +1,171 @@
+task_id: booking_compare_and_book_cheapest
+env_id: booking
+title: Compare Tokyo Hotels and Book the Cheapest
+instruction_template: 'Compare hotels in "Tokyo" and find the cheapest option among
+  the available properties with a review score of at least 8.0. Book the cheapest
+  qualifying hotel''s most affordable room for 2 nights checking in on 2026-06-10
+  and checking out on 2026-06-12 for 1 guest. Use the default Visa payment method
+  (ending in 4242). Enter your name and email from your account profile.
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 16
+primary_primitives:
+- verification
+start_path: /home
+seed:
+  distractors: 0
+  skip_real_hotels: true
+  actors: {}
+  steps:
+  - use: compare_properties
+    params:
+      city: Tokyo
+      country: Japan
+      properties:
+      - name: Shinjuku Park Tower Hotel
+        star_rating: 5
+        review_score: 9.1
+        review_count: 3201
+        price: 320.0
+        neighborhood: Shinjuku
+        amenities:
+        - Free WiFi
+        - Spa
+        - Pool
+        - Fitness center
+        genius_discount_pct: 0
+        rooms:
+        - name: Deluxe City View
+          price: 320.0
+          bed_type: king
+          max_occupancy: 2
+          meals_included: breakfast
+          cancel_type: free_cancellation
+          original_price: null
+          view_type: city
+      - name: Shibuya Crossing Inn
+        star_rating: 3
+        review_score: 8.2
+        review_count: 1456
+        price: 145.0
+        neighborhood: Shibuya
+        amenities:
+        - Free WiFi
+        - Laundry
+        genius_discount_pct: 0
+        rooms:
+        - name: Standard Twin
+          price: 145.0
+          bed_type: twin
+          max_occupancy: 2
+          meals_included: none
+          cancel_type: free_cancellation
+          original_price: null
+          view_type: street
+      - name: Ginza Luxury Suites
+        star_rating: 4
+        review_score: 8.8
+        review_count: 2089
+        price: 275.0
+        neighborhood: Ginza
+        amenities:
+        - Free WiFi
+        - Room service
+        - Concierge
+        - Spa
+        genius_discount_pct: 10
+        rooms:
+        - name: Classic Room
+          price: 275.0
+          bed_type: queen
+          max_occupancy: 2
+          meals_included: breakfast
+          cancel_type: free_cancellation
+          original_price: 305.0
+          view_type: garden
+    outputs:
+    - property_id_1
+    - property_name_1
+    - property_id_2
+    - property_name_2
+    - property_id_3
+    - property_name_3
+  targets:
+    cheapest_property_id: '{output.property_id_2}'
+    cheapest_property_name: '{output.property_name_2}'
+    expensive_property_id: '{output.property_id_1}'
+canonical_diff:
+  create:
+    - entity: Reservation
+      desc: Book the cheapest qualifying Tokyo hotel (review >= 8.0) for correct dates
+      properties:
+        property_id: {expr: "x == target['cheapest_property_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {any: true}
+        check_in: {eq: "2026-06-10"}
+        check_out: {eq: "2026-06-12"}
+        nights: {eq: 2}
+        guests: {eq: 1}
+        rooms: {any: true}
+        price_per_night: {expr: "x == min(rt.price_per_night for p in initial.properties if p.id == target['cheapest_property_id'] for rt in p.room_types if rt.is_available and rt.max_occupancy >= 1)"}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {expr: "x.full_name == initial.owner_name and x.email == initial.owner_email"}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['cheapest_property_id'] or a.check_in != '2026-06-10'"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent booked the cheapest qualifying Tokyo hotel with correct dates and guest count
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

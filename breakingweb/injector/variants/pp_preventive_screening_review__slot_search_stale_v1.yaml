@@ -1,0 +1,14 @@
+variant_id: pp_preventive_screening_review__slot_search_stale_v1
+base_task_id: pp_preventive_screening_review
+target_primitive: planning
+description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability checks instead of abandoning the workflow.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/appointments/available-slots**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

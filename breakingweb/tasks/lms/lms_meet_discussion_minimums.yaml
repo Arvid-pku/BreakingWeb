@@ -1,0 +1,259 @@
+task_id: lms_meet_discussion_minimums
+env_id: lms
+title: Meet Discussion Post and Reply Minimums
+instruction_template: In the discussion "{target.discussion_title}" for {target.course_code},
+  meet that discussion's own stated participation requirements. Open the discussion and
+  read ITS stated minimum number of top-level posts and minimum number of replies (other
+  discussions have different minimums, so do not assume they match). Author exactly the
+  stated number of new top-level posts, then post exactly the stated number of replies,
+  with each reply attached to a different existing classmate post. Every post and reply
+  you write must contain a substantive body (at least 20 characters). Do not edit any
+  existing post, do not post in any other discussion, and do not send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: discussion_forums
+    params:
+      count: 4
+      posts_per: 7
+      target_min_posts: 3
+      target_min_replies: 2
+      min_posts: 1
+      min_replies: 3
+    outputs:
+    - discussion_ids
+    - target_discussion_id
+    - target_discussion_title
+    - target_course_code
+    - target_min_posts
+    - target_min_replies
+    - reply_parent_post_ids
+    - target_top_level_post_ids
+  targets:
+    discussion_title: '{output.target_discussion_title}'
+    course_code: '{output.target_course_code}'
+    target_discussion_id: '{output.target_discussion_id}'
+    target_min_posts: '{output.target_min_posts}'
+    target_min_replies: '{output.target_min_replies}'
+    reply_parent_post_ids: '{output.reply_parent_post_ids}'
+    target_top_level_post_ids: '{output.target_top_level_post_ids}'
+canonical_diff:
+  create:
+    - entity: DiscussionPost
+      desc: Create the first new top-level post in the target discussion
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          length:
+            expr: "x >= 20"
+        parent_post_id:
+          eq: null
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+    - entity: DiscussionPost
+      desc: Create the second new top-level post in the target discussion
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          length:
+            expr: "x >= 20"
+        parent_post_id:
+          eq: null
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+    - entity: DiscussionPost
+      desc: Create the third new top-level post in the target discussion
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          length:
+            expr: "x >= 20"
+        parent_post_id:
+          eq: null
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+    # Two reply-create checks (target_min_replies == 2). The instruction lets the
+    # student reply to ANY distinct existing classmate top-level posts (7 are seeded),
+    # so each reply's parent must be a member of the eligible classmate-top-level set
+    # rather than a seed-pinned first-2 id. Two identical singleton creates bind two
+    # DISTINCT reply candidates (the matcher excludes already-matched entries);
+    # distinctness + exact count are enforced by the constraints below.
+    - entity: DiscussionPost
+      desc: Create a reply attached to a distinct existing classmate top-level post
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          length:
+            expr: "x >= 20"
+        parent_post_id:
+          expr: "x in {p.id for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.parent_post_id is None and p.author_id != state.student.id}"
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+    - entity: DiscussionPost
+      desc: Create a second reply attached to a distinct existing classmate top-level post
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          length:
+            expr: "x >= 20"
+        parent_post_id:
+          expr: "x in {p.id for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.parent_post_id is None and p.author_id != state.student.id}"
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+  invariant:
+    - collection: state.discussion_posts
+      filter: "a.discussion_id != target['target_discussion_id']"
+      preserve: ALL
+      comprehensive: true
+      weight: 1.0
+    - collection: state.discussions
+      preserve: ALL
+      weight: 1.0
+    - collection: state.courses
+      preserve: ALL
+      weight: 1.0
+    - collection: state.enrollments
+      preserve: ALL
+      weight: 1.0
+    - collection: state.assignments
+      preserve: ALL
+      weight: 1.0
+    - collection: state.modules
+      preserve: ALL
+      weight: 1.0
+    - collection: state.peer_reviews
+      preserve: ALL
+      weight: 1.0
+    - collection: state.announcements
+      preserve: ALL
+      weight: 1.0
+    - collection: state.grades
+      preserve: ALL
+      weight: 1.0
+    - collection: state.calendar_events
+      preserve: ALL
+      weight: 1.0
+    - collection: state.sent_messages
+      preserve: ALL
+      weight: 1.0
+    - collection: state.student
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  - desc: Agent did not edit any existing discussion post
+    expr: "all(p.updated_at is None for p in state.discussion_posts)"
+    severity: high
+  - desc: Student met exactly the stated post and reply minimums in the target discussion
+    expr: "len([p for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.author_id == state.student.id and p.parent_post_id is None]) == int(target['target_min_posts']) and len([p for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.author_id == state.student.id and p.parent_post_id is not None]) == int(target['target_min_replies'])"
+    severity: high
+  - desc: Each new reply attaches to a distinct existing classmate post
+    expr: "len({p.parent_post_id for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.author_id == state.student.id and p.parent_post_id is not None}) == int(target['target_min_replies'])"
+    severity: critical
+  - desc: Each reply parent is a distinct existing classmate top-level post in the target discussion
+    expr: "{p.parent_post_id for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.author_id == state.student.id and p.parent_post_id is not None}.issubset({p.id for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.parent_post_id is None and p.author_id != state.student.id})"
+    severity: critical
+  - desc: Every new post and reply the student authored in the target discussion has a substantive body
+    expr: "all(len(p.body.strip()) >= 20 for p in state.discussion_posts if p.discussion_id == target['target_discussion_id'] and p.author_id == state.student.id and p.timestamp >= session_start)"
+    severity: high
+  named_invariants:
+    - name: Agent did not post in non-target discussions
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify discussions
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify course records
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify modules
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+secondary_primitives: []

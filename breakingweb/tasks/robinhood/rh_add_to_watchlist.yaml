@@ -1,0 +1,45 @@
+task_id: rh_add_to_watchlist
+env_id: robinhood
+title: Add Stock to Existing Watchlist
+instruction_template: 'Add NVDA to your "Tech Stocks" watchlist.'
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+  - grounding
+start_path: /
+
+seed:
+  distractors: 5
+  steps:
+    - use: stock_universe
+      params:
+        count: 20
+        must_include: ["NVDA", "AAPL", "MSFT"]
+      outputs: []
+    - use: watchlist
+      params:
+        name: "Tech Stocks"
+        symbols: ["AAPL", "MSFT"]
+      outputs: [watchlist_id]
+  targets:
+    watchlist_id: "{output.watchlist_id}"
+
+canonical_diff:
+  update:
+  - entity: watchlists
+    desc: Tech Stocks watchlist now includes NVDA
+    where:
+      id: {expr: "x == target['watchlist_id']"}
+    changes:
+      symbols: {contains: "NVDA"}
+  invariant:
+  - collection: state.watchlists
+    filter: "a.id != target['watchlist_id']"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL

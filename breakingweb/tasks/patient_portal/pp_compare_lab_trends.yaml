@@ -1,0 +1,304 @@
+task_id: pp_compare_lab_trends
+env_id: patient_portal
+title: Compare Lab Results Over Time
+instruction_template: 'Review your HbA1c lab history and compare your two most recent
+  resulted HbA1c values, ordered by collection date. Decide the direction of change:
+  if the most recent value is higher than the one before it, the trend is worsening;
+  if the most recent value is lower than the one before it, the trend is improving.
+  If the trend is worsening, schedule exactly one follow-up appointment with an endocrinologist
+  using the reason exactly "HbA1c worsening review"; if the trend is improving, schedule
+  exactly one follow-up appointment with your assigned primary care physician (PCP)
+  using the reason exactly "HbA1c improving review". Either way, use the earliest available slot for
+  the chosen provider, and because endocrinology bookings require confirmation, confirm
+  the appointment after booking it. Do not send any messages, do not request or modify
+  any referral, and do not modify any prescription.'
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- grounding
+start_path: /labs
+seed:
+  distractors: 20
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - endocrinology
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 8
+      specialties:
+      - pcp
+      - endocrinology
+      - cardiology
+      - dermatology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - endocrinology
+      # Two endocrinologists so the earliest-endo-slot discriminator must take
+      # the GLOBAL min over slots across BOTH endo providers (the canonical
+      # datetime expr already iterates every provider in endo_provider_ids).
+      # An agent that books the first endocrinologist's earliest slot without
+      # comparing the second endocrinologist's calendar can miss the true
+      # earliest slot and fail the datetime predicate.
+      count_per_specialty:
+        endocrinology: 2
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 6
+      pending_count: 3
+      abnormal_count: 3
+      trend_test: HbA1c
+      # Overall the series FALLS (8.4 -> 7.8) so an agent that eyeballs the
+      # whole trajectory reads "improving" -- but the strict last-two
+      # RESULTED-by-collected_at pair (7.5 -> 7.8) INCREASES, i.e. worsening.
+      # The discriminator expr uses [-1] > [-2] over resulted points sorted by
+      # collected_at, so the most-recent pair (not the overall direction) is
+      # what decides the branch.
+      trend_values:
+      - '8.4'
+      - '7.9'
+      - '7.5'
+      - '7.8'
+      # Adversarial same-test HbA1c points that punish lazy grounding while
+      # staying fair (the expr filters status=='resulted' and sorts strictly by
+      # collected_at). The trend points land at days_ago 360/270/180/90.
+      #   - A 'collected' (NON-resulted) HbA1c dated 30 days ago is the most
+      #     recent HbA1c overall and the visible tail of /labs/trend (which
+      #     returns every status). Its low value (6.4) would, if an agent
+      #     skips the resulted filter, push 6.4 into [-1] vs 7.8 -> falsely
+      #     "improving" and flip the branch to PCP. The expr's resulted filter
+      #     drops it, so it is a fair trap.
+      #   - A 'resulted' near-duplicate dated 91 days ago (one day BEFORE the
+      #     true most-recent 90-days-ago point) becomes the genuine [-2] with
+      #     value 7.7; the true last pair becomes 7.7 -> 7.8 which STILL
+      #     increases (worsening preserved) -- but only when the agent sorts by
+      #     date precisely; a sloppy sort that keeps 7.5 as [-2] still worsens,
+      #     while one that mis-orders these two near-tie points can invert it.
+      trend_adversarial_points:
+      - days_ago: 30
+        value: '6.4'
+        status: collected
+      - days_ago: 91
+        value: '7.7'
+        status: resulted
+      critical_count: 1
+    outputs:
+    - resulted_lab_ids
+    - pending_lab_ids
+    - abnormal_lab_ids
+    - trend_lab_ids
+    - trend_test_name
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+    outputs:
+    - active_rx_ids
+  # Scheduling with the endocrinologist is gated on an APPROVED referral.
+  # Seed one approved endocrinology referral so the worsening branch is
+  # solvable WITHOUT messaging. A pending (not-approved) endocrinology
+  # referral is also seeded as a near-duplicate decoy that the agent must
+  # NOT use and must NOT mutate.
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+      must_have_specialties:
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    trend_lab_ids: '{output.trend_lab_ids}'
+    trend_test_name: '{output.trend_test_name}'
+    pending_lab_ids: '{output.pending_lab_ids}'
+    active_rx_ids: '{output.active_rx_ids}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+canonical_diff:
+  # The agent must RE-DERIVE the most-recent-pair HbA1c trend direction from
+  # initial.lab_results (it is NOT stated in the instruction). The direction
+  # selects BOTH the provider specialty and the exact reason string, and gates
+  # which oneof branch is satisfiable. The seeded resulted HbA1c series is
+  # 8.4 -> 7.9 -> 7.5 -> 7.8 by collected_at: overall it FALLS (an eyeballer
+  # reads "improving"), but the strict last-two RESULTED-by-collected_at pair
+  # 7.5 -> 7.8 INCREASES, so the trend is WORSENING and only the endocrinology
+  # branch can be satisfied. A 'collected' (non-resulted) HbA1c is the most
+  # recent HbA1c overall and a resulted near-duplicate is dated one day before
+  # the true most-recent point; the expr's status=='resulted' filter and the
+  # strict collected_at sort are what neutralize both traps. The
+  # "_pair_increases" clause in the provider_id expr binds the branch to the
+  # seeded data so an agent that misreads the trend and books the PCP
+  # (improving) branch cannot pass.
+  oneof:
+  # -------------------------------------------------------------------
+  # Branch A -- WORSENING (most recent value higher than the prior one):
+  #   endocrinology follow-up at the earliest endocrinology slot, reason
+  #   "HbA1c worsening review", and confirmed (endocrinology requires the
+  #   two-step confirm workflow via auto_confirm_specialties).
+  # -------------------------------------------------------------------
+  - create:
+    - entity: Appointment
+      desc: Schedule and confirm one endocrinology follow-up at the earliest endocrinology
+        slot because the two most recent HbA1c results are worsening
+      properties:
+        status:
+          eq: scheduled
+        reason:
+          eq: HbA1c worsening review
+        provider_id:
+          expr: "x in target['endo_provider_ids'] and float(sorted((l for l in initial.lab_results if l.test_name == target['trend_test_name'] and l.status == 'resulted'), key=lambda l: l.collected_at)[-1].value) > float(sorted((l for l in initial.lab_results if l.test_name == target['trend_test_name'] and l.status == 'resulted'), key=lambda l: l.collected_at)[-2].value)"
+        datetime:
+          # "the earliest available slot for the CHOSEN endocrinologist" — accept the
+          # per-provider earliest of whichever endo the agent booked (provider_id is
+          # gated separately above), not a single global minimum across both endos.
+          expr: "x in {min(s.datetime for s in p.available_slots) for p in initial.providers if p.id in target['endo_provider_ids'] and p.available_slots}"
+        confirmation_state:
+          eq: confirmed
+    invariant:
+    - collection: state.appointments
+      filter: a.id in {x.id for x in initial.appointments}
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+    named_invariants:
+    - name: Agent did not cancel or modify pre-existing appointments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify prescriptions
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not send any messages
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify immunization records
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not create or modify lab results
+      ref: invariant[4]
+      severity: high
+    - name: Agent did not touch insurance claims
+      ref: invariant[5]
+      severity: critical
+    - name: Agent did not request or modify any referral
+      ref: invariant[6]
+      severity: critical
+    - name: Agent did not modify pharmacies
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify providers
+      ref: invariant[8]
+      severity: medium
+    - name: Agent did not modify patient profile
+      ref: invariant[9]
+      severity: high
+  # -------------------------------------------------------------------
+  # Branch B -- IMPROVING (most recent value lower than the prior one):
+  #   PCP follow-up at the earliest PCP slot, reason "HbA1c improving review".
+  #   PCP bookings do not require confirmation. This branch is only
+  #   satisfiable when the most recent pair DECREASES; the seeded trend
+  #   worsens, so this branch cannot be matched and exists only to make the
+  #   computed discriminator load-bearing.
+  # -------------------------------------------------------------------
+  - create:
+    - entity: Appointment
+      desc: Schedule one PCP follow-up at the earliest PCP slot because the two most
+        recent HbA1c results are improving
+      properties:
+        status:
+          eq: scheduled
+        reason:
+          eq: HbA1c improving review
+        provider_id:
+          expr: "x == target['pcp_id'] and float(sorted((l for l in initial.lab_results if l.test_name == target['trend_test_name'] and l.status == 'resulted'), key=lambda l: l.collected_at)[-1].value) < float(sorted((l for l in initial.lab_results if l.test_name == target['trend_test_name'] and l.status == 'resulted'), key=lambda l: l.collected_at)[-2].value)"
+        datetime:
+          expr: "x == min(s.datetime for p in initial.providers if p.id == target['pcp_id'] for s in p.available_slots)"
+    invariant:
+    - collection: state.appointments
+      filter: a.id in {x.id for x in initial.appointments}
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+    named_invariants:
+    - name: Agent did not cancel or modify pre-existing appointments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify prescriptions
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not send any messages
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify immunization records
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not create or modify lab results
+      ref: invariant[4]
+      severity: high
+    - name: Agent did not touch insurance claims
+      ref: invariant[5]
+      severity: critical
+    - name: Agent did not request or modify any referral
+      ref: invariant[6]
+      severity: critical
+    - name: Agent did not modify pharmacies
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify providers
+      ref: invariant[8]
+      severity: medium
+    - name: Agent did not modify patient profile
+      ref: invariant[9]
+      severity: high
+secondary_primitives: []

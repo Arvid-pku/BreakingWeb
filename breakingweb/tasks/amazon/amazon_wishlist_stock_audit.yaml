@@ -1,0 +1,266 @@
+task_id: amazon_wishlist_stock_audit
+env_id: amazon
+title: Purchase In-Stock Wishlist Items and Remove Out-of-Stock
+instruction_template: 'Go to your wishlist and review all items. Check which items
+  are currently in stock. Purchase all in-stock wishlist items in a single order.
+  Remove every out-of-stock item from your wishlist.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 35
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /wishlist
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Wireless Charging Pad
+      brand: ChargeMax
+      category: Electronics
+      price: 29.99
+      rating: 4.5
+      features:
+      - Qi compatible
+      - LED indicator
+      - Non-slip surface
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_in1
+    - product_name_in1
+    - product_price_in1
+  - use: featured_product
+    params:
+      name: Yoga Resistance Band Set
+      brand: Endurafit
+      category: Sports & Outdoors
+      price: 19.99
+      rating: 4.4
+      features:
+      - 5 resistance levels
+      - Latex-free
+      - Carry bag included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_in2
+    - product_name_in2
+    - product_price_in2
+  - use: featured_product
+    params:
+      name: Bamboo Cutting Board Set
+      brand: CedarCraft
+      category: Home & Kitchen
+      price: 34.99
+      rating: 4.6
+      features:
+      - 3-piece set
+      - Juice grooves
+      - Antimicrobial
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_in3
+    - product_name_in3
+    - product_price_in3
+  - use: featured_product
+    params:
+      name: Smart Fitness Watch
+      brand: TechNova
+      category: Electronics
+      price: 89.99
+      rating: 4.3
+      features:
+      - Heart rate monitor
+      - GPS tracking
+      - 7-day battery
+      variants: []
+      in_stock: false
+    outputs:
+    - product_id_out1
+    - product_name_out1
+    - product_price_out1
+  - use: featured_product
+    params:
+      name: Leather Messenger Bag
+      brand: UrbanStride
+      category: Clothing
+      price: 64.99
+      rating: 4.2
+      features:
+      - Genuine leather
+      - Padded laptop sleeve
+      - Adjustable strap
+      variants: []
+      in_stock: false
+    outputs:
+    - product_id_out2
+    - product_name_out2
+    - product_price_out2
+  - use: featured_product
+    params:
+      name: Portable Camping Stove
+      brand: WildPath
+      category: Sports & Outdoors
+      price: 49.99
+      rating: 4.1
+      features:
+      - Butane powered
+      - Windproof design
+      - Carrying case included
+      variants: []
+      in_stock: false
+    outputs:
+    - product_id_out3
+    - product_name_out3
+    - product_price_out3
+  - use: wishlist_items
+    params:
+      product_ids:
+      - '{output.product_id_in1}'
+      - '{output.product_id_in2}'
+      - '{output.product_id_in3}'
+      - '{output.product_id_out1}'
+      - '{output.product_id_out2}'
+      - '{output.product_id_out3}'
+    outputs: []
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 15.0
+      - 100.0
+    outputs:
+    - catalog_electronics
+  targets:
+    in1: '{output.product_id_in1}'
+    in2: '{output.product_id_in2}'
+    in3: '{output.product_id_in3}'
+    out1: '{output.product_id_out1}'
+    out2: '{output.product_id_out2}'
+    out3: '{output.product_id_out3}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed containing all three in-stock wishlist items
+    properties:
+      items:
+        expr: "len(x) == 3 and {it['product_id'] for it in x} == {target['in1'], target['in2'],
+          target['in3']} and all(it['quantity'] == 1 for it in x)"
+      status:
+        eq: confirmed
+      shipping_address_id:
+        any: true
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  delete:
+  - entity: wishlist
+    desc: Out-of-stock item 1 removed from wishlist
+    where:
+      value:
+        expr: x == target['out1']
+  - entity: wishlist
+    desc: Out-of-stock item 2 removed from wishlist
+    where:
+      value:
+        expr: x == target['out2']
+  - entity: wishlist
+    desc: Out-of-stock item 3 removed from wishlist
+    where:
+      value:
+        expr: x == target['out3']
+  invariant:
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['in1'] for it in (a.items or
+      [])) and any(it.get('product_id') == target['in2'] for it in (a.items or
+      [])) and any(it.get('product_id') == target['in3'] for it in (a.items or
+      [])))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value not in [target['out1'], target['out2'], target['out3'], target['in1'],
+      target['in2'], target['in3']]"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

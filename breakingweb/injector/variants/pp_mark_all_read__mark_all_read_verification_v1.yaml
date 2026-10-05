@@ -1,0 +1,61 @@
+variant_id: pp_mark_all_read__mark_all_read_verification_v1
+base_task_id: pp_mark_all_read
+target_primitive: verification
+description: >
+  Two stacked verification stressors on the exact load-bearing predicate
+  (final per-message is_read state). (1) Per-message read POSTs intermittently
+  return a fake is_read:true body WITHOUT persisting, so trusting the optimistic
+  per-click toast leaves several clinical/scheduling messages still unread and
+  fails the 7-message bijection. (2) The bulk mark-all-read endpoint loudly
+  reports {updated_count: 7} success without persisting either, baiting the
+  shortcut (which would over-mark billing + rx_renewal and trip the critical
+  constraint) while convincing the agent the job is done. The agent must re-fetch
+  the messages list and verify each is_read flag + category rather than trust any
+  success signal.
+injections:
+# Stressor 1 — silent per-message failures (verification family). Multiple of
+# the 7 actionable read POSTs return an optimistic is_read:true body that is
+# NOT persisted. mode=intermittent + fail_count=3 scatters 3 silent fails
+# across the per-message reads, so an agent that trusts the per-click toast
+# leaves several messages unread -> bijection unsaturated.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/messages/*/read'
+    methods:
+    - POST
+    fail_count: 3
+    response_body:
+      id: msg_4f9b1a2c8e
+      from_type: patient
+      provider_id: prov_a82c441f
+      subject: Acknowledgement
+      body: Marked as read.
+      thread_id: thread_d2a8f3c1
+      timestamp: '2026-04-26T08:00:00+00:00'
+      is_read: true
+      category: clinical
+      linked_entity_id: null
+      linked_entity_type: null
+    behavior:
+      mode: intermittent
+      probability: 0.45
+# Stressor 2 — loud misleading bulk success (verification family). The
+# mark-all-read endpoint returns an affirmative success body claiming all 7
+# were updated, WITHOUT persisting. This baits the over-marking shortcut AND
+# makes the agent believe the task is complete, so it skips the final
+# per-message read-back. misleading_success is crueler than silent_fail for
+# verification because the signal is affirmative.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/messages/mark-all-read'
+    methods:
+    - POST
+    fail_count: 3
+    success_body:
+      count: 7
+      updated_count: 7
+      success: true
+      message: All messages marked as read.
+      toast: 7 messages marked as read.

@@ -1,0 +1,28 @@
+variant_id: booking_change_language__settings_retry
+base_task_id: booking_change_language
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/settings'
+    methods:
+    - PUT
+    fail_count: 1
+    response_body:
+      id: settings_fake_retry
+      default_payment_id: null
+      email_notifications: true
+      deal_alerts: true
+      review_reminders: true
+      price_alerts: true
+      newsletter: false
+      sms_notifications: false
+      language: English
+      currency: USD
+      country: United States
+      two_factor_enabled: false
+    behavior:
+      mode: once

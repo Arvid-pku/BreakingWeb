@@ -1,0 +1,30 @@
+variant_id: lms_check_assignment_grade__announcement_shadow_refresh_v2
+base_task_id: lms_check_assignment_grade
+target_primitive: grounding
+description: Shadow announcement records plus a later correction compete for attention,
+  so the agent must ground on the exact LMS target before acting.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: announcement
+      course_code: '{target.course_code}'
+      title: Course update follow-up
+      body: Archived clarification that does not replace the active announcement.
+      priority: normal
+    - type: announcement
+      course_code: '{target.course_code}'
+      title: Course update correction
+      body: Earlier logistics note for a prior announcement batch.
+      priority: urgent
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    course_code: '{target.course_code}'
+    type: announcement

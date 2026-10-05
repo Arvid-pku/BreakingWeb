@@ -1,0 +1,54 @@
+variant_id: rh_portfolio_rebalance__planning_v1
+base_task_id: rh_portfolio_rebalance
+target_primitive: planning
+description: >
+  Noise pending orders on the same target symbols (AAPL, MSFT, GOOGL, AMZN)
+  with different quantities and prices force the agent to plan around
+  existing order state and calculate correct rebalance trades that account
+  for what is already pending.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: AAPL
+      side: buy
+      order_type: limit
+      quantity: 12
+      limit_price: "168.00"
+      time_in_force: gtc
+      status: pending
+    - symbol: MSFT
+      side: sell
+      order_type: limit
+      quantity: 7
+      limit_price: "395.00"
+      time_in_force: day
+      status: pending
+    - symbol: GOOGL
+      side: buy
+      order_type: limit
+      quantity: 4
+      limit_price: "148.00"
+      time_in_force: gtc
+      status: pending
+    - symbol: AMZN
+      side: sell
+      order_type: limit
+      quantity: 15
+      limit_price: "172.00"
+      time_in_force: day
+      status: pending
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

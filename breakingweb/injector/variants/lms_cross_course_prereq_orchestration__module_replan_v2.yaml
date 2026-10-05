@@ -1,0 +1,19 @@
+variant_id: lms_cross_course_prereq_orchestration__module_replan_v2
+base_task_id: lms_cross_course_prereq_orchestration
+target_primitive: planning
+description: A later LMS correction changes the action context after the first pass,
+  so the agent must re-plan instead of following its initial route blindly.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 42
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    type: announcement

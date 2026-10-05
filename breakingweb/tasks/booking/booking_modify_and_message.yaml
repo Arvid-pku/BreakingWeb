@@ -1,0 +1,162 @@
+task_id: booking_modify_and_message
+env_id: booking
+title: Modify Reservation Dates and Message Hotel
+instruction_template: "Find your reservation at \"{target.property_name}\" (confirmation\
+  \ number {target.confirmation_number}). Modify it as follows: 1. Change the check-in\
+  \ date to {target.new_check_in} and check-out date\n   to {target.new_check_out}.\n\
+  2. Add a special request for \"Late checkout at 2pm please\". 3. After the modification\
+  \ is saved, send a message to the hotel with the\n   subject \"Modified reservation\
+  \ - late checkout request\" and body text\n   confirming that you have updated your\
+  \ dates and requesting late checkout\n   at 2pm.\n"
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Grand Hotel Vesuvio
+      city: Naples
+      country: Italy
+      star_rating: 5
+      review_score: 9.0
+      review_count: 3456
+      price: 320.0
+      neighborhood: Seafront
+      address: Via Partenope 45, 80121 Naples
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Fitness center
+      - Concierge
+      - Sea view
+    outputs:
+    - fp1_id
+    - fp1_name
+    - fp1_room
+    - fp1_rname
+  - use: modify_reservation
+    params:
+      property_id: '{output.fp1_id}'
+      check_in: '2026-06-10'
+      check_out: '2026-06-14'
+      guests: 2
+      booked_days_ago: 12
+    outputs:
+    - target_res_id
+    - target_conf
+    - target_res_prop
+    - target_check_in
+    - target_check_out
+  - use: featured_property
+    params:
+      name: Rome Central Suites
+      city: Rome
+      country: Italy
+      star_rating: 4
+      review_score: 8.4
+      price: 210.0
+    outputs:
+    - fp2_id
+    - fp2_name
+    - fp2_room
+    - fp2_rname
+  - use: create_reservation
+    params:
+      property_id: '{output.fp2_id}'
+      check_in: '2026-07-05'
+      check_out: '2026-07-08'
+      status: confirmed
+      booked_days_ago: 5
+    outputs:
+    - distractor_res_id
+    - distractor_conf
+    - distractor_res_prop
+  targets:
+    property_id: '{output.fp1_id}'
+    property_name: '{output.fp1_name}'
+    reservation_id: '{output.target_res_id}'
+    confirmation_number: '{output.target_conf}'
+    new_check_in: '2026-06-12'
+    new_check_out: '2026-06-16'
+    distractor_res_id: '{output.distractor_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Modify the target reservation to new dates and add late checkout special request
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        check_in: {eq: "2026-06-12"}
+        check_out: {eq: "2026-06-16"}
+        nights: {any: true}
+        status: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        guest_info: {any: true}
+  create:
+    - entity: Message
+      desc: Send a message to the hotel about the modification and requesting late checkout
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'modified' in x.lower() or 'late checkout' in x.lower()"}
+        body: {expr: "'late checkout' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id'] and not (a.property_id == target['property_id'] and a.check_in == '2026-06-12')"
+      preserve: ALL
+    - collection: state.messages
+      filter: "not (a.sender == 'guest' and a.property_id == target['property_id'])"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent modified the target reservation dates correctly
+      ref: update[0]
+      severity: critical
+    - name: Agent sent a message about the modification with late checkout request
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify or delete other messages
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

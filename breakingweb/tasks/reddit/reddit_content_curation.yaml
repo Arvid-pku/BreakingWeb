@@ -1,0 +1,198 @@
+task_id: reddit_content_curation
+title: Cross-Subreddit Content Curation
+instruction_template: 'Complete this content curation workflow:
+
+
+  1. Search for posts about "artificial intelligence". Save the post titled "{target.save_title}" from r/technology.
+
+
+  2. Navigate to r/{target.comment_sub} and find the post titled "{target.comment_post_title}" by u/{target.comment_author}. Upvote it and add a top-level comment with exactly: "{target.comment_text}"
+
+
+  3. Subscribe to r/{target.join_sub} (you are not currently a member).
+
+
+  4. Create a new text post in r/{target.join_sub} with title exactly: "{target.new_title}" and body exactly: "{target.new_body}"
+
+
+  Do not save any other posts. Do not comment on any other posts.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: technology
+      title: OpenAI releases GPT-5 with native multimodal reasoning at no extra cost
+      body: 'Major artificial intelligence launch: the new model handles text, images, audio, and video natively. Benchmarks show state-of-the-art performance across reasoning tasks.'
+      score: 42000
+      flair_text: AI
+    outputs:
+    - save_id
+    - save_title
+    - save_sub
+  - use: target_post
+    params:
+      subreddit: MachineLearning
+      title: Why transformer alternatives keep failing to scale
+      body: A deep dive into why Mamba, RWKV, and other architectures haven't displaced transformers.
+      author: NeuralNexus
+      score: 8900
+    outputs:
+    - comment_post_id
+    - comment_post_title
+    - comment_sub
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: decoy_posts
+    params:
+      subreddit: technology
+      count: 3
+      title_pattern: OpenAI announces {topic} for enterprise
+    outputs:
+    - decoy_post_ids
+  targets:
+    save_title: '{output.save_title}'
+    save_id: '{output.save_id}'
+    comment_sub: '{output.comment_sub}'
+    comment_post_title: '{output.comment_post_title}'
+    comment_post_id: '{output.comment_post_id}'
+    comment_author: NeuralNexus
+    comment_text: The fundamental issue is hardware co-design. Transformers won because GPUs are optimized for dense matrix multiplication, which attention maps to perfectly.
+    join_sub: Piracy
+    new_title: Legal streaming alternatives that actually have good catalogs in 2026
+    new_body: I compiled a list of streaming services with the best price-to-content ratio. Surprisingly, some free ad-supported services have caught up to paid ones.
+    decoy_post_ids: '{output.decoy_post_ids}'
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: GPT-5 technology post saved
+    where:
+      id:
+        expr: "x == target['save_id']"
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    desc: MachineLearning post upvoted
+    where:
+      id:
+        expr: "x == target['comment_post_id']"
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Subreddit
+    desc: Subscribed to r/Piracy
+    where:
+      id:
+        expr: "state.get_subreddit(x).name == target['join_sub']"
+    changes:
+      is_subscribed:
+        eq: true
+  create:
+  - entity: Post
+    desc: Post created in r/Piracy with exact title and body
+    properties:
+      subreddit_name:
+        expr: "x == target['join_sub']"
+      title:
+        expr: "x == target['new_title']"
+      body:
+        expr: "x == target['new_body']"
+      author_name:
+        expr: "x == state.owner_username"
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    desc: Exact top-level comment posted on MachineLearning post
+    properties:
+      post_id:
+        expr: "x == target['comment_post_id']"
+      body:
+        expr: "x == target['comment_text']"
+      parent_id:
+        eq:
+      author_name:
+        expr: "x == state.owner_username"
+  invariant:
+  - collection: state.subreddits
+    filter: "True"
+    preserve: ALL
+  - collection: state.posts
+    filter: "True"
+    preserve: ALL
+  - collection: state.comments
+    filter: "True"
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent saved the GPT-5 post in r/technology
+    ref: update[0]
+    severity: high
+  - name: Agent upvoted the MachineLearning post
+    ref: update[1]
+    severity: high
+  - name: Agent subscribed to r/Piracy
+    ref: update[2]
+    severity: high
+  - name: Agent created the exact Piracy post
+    ref: create[0]
+    severity: high
+  - name: Agent posted the exact comment on the MachineLearning post
+    ref: create[1]
+    severity: high
+  - name: Agent did not unsubscribe from any existing communities
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify unrelated comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not touch inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send any direct messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not touch notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+env_id: reddit

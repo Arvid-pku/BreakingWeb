@@ -1,0 +1,231 @@
+task_id: gmail_vendor_security_questionnaire
+env_id: gmail
+title: Vendor Security Questionnaire Response
+instruction_template: 'CloudVault Inc. (vendor-security@cloudvault.io) sent a security
+  questionnaire with 8 numbered questions in an email with subject "Security Questionnaire:
+  Acme Corp Onboarding". Note: the vendor''s email has vendor-security@cloudvault.io
+  in the CC field and procurement@cloudvault.io in the TO field — reply to this thread
+  (which will go to the original sender), do not compose a new email to the CC or
+  TO addresses.
+
+
+  The answers are spread across 6 internal emails:
+
+  - From engineering@acme.com ("Re: CloudVault Questionnaire - Engineering Answers"):
+  Q1 (encryption standard), Q2 (key management), Q5 (API authentication — original).
+
+  - From legal@acme.com ("CloudVault Security Responses - Legal"): Q3 (data residency),
+  Q6 (breach notification SLA).
+
+  - From compliance@acme.com ("CloudVault Audit Responses"): Q4 (compliance frameworks),
+  Q7 (audit frequency).
+
+  - From it-ops@acme.com ("Fwd: Re: CloudVault Questionnaire - IT Answers"): Q8 (backup
+  frequency and retention). This email is a forward of a forward — use the outermost
+  (most recent) text, not the inner forwarded answer.
+
+  - From engineering@acme.com ("UPDATED: CloudVault Questionnaire - Engineering Answers"):
+  updated Q5 answer. This supersedes the original Q5.
+
+  - From compliance@acme.com ("CloudVault Audit Responses — Additional Context"):
+  additional context for Q7 but does NOT change the answer.
+
+
+  Reply to the vendor''s email thread with all 8 answers using the format "Q1: [answer]"
+  through "Q8: [answer]". For Q5, use the UPDATED engineering answer, not the original.
+  For Q8, use the outermost IT answer.
+
+
+  CC the following people on the reply (look up their addresses in the Labels & contacts
+  page — click the Labels link in the sidebar): Dana Park, Frank Osei, Grace Liu.
+
+
+  After composing the reply, star each of the 6 internal source emails. Then update
+  the contact note for each CC''d person: Dana Park: "CloudVault questionnaire — responded
+  Q1, Q2, Q5"; Frank Osei: "CloudVault questionnaire — responded Q3, Q6"; Grace Liu:
+  "CloudVault questionnaire — responded Q4, Q7".
+
+
+  Finally, forward the vendor''s original questionnaire email to {target.forward_to}
+  with the added note "All 8 answers submitted. See reply thread."'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 80
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: vendor_security_questionnaire
+    params: {}
+    outputs:
+    - vendor_email_id
+    - internal_email_ids
+    - decoy_vendor_id
+    - decoy_digest_id
+    - q1_answer
+    - q2_answer
+    - q3_answer
+    - q4_answer
+    - q5_correct
+    - q5_wrong
+    - q6_answer
+    - q7_answer
+    - q8_correct
+    - q8_wrong
+    - cc_addresses
+    - wrong_cc
+    - forward_to
+    - dana_park_email
+    - frank_osei_email
+    - grace_liu_email
+    - dana_note
+    - frank_note
+    - grace_note
+  targets:
+    vendor_email_id: '{output.vendor_email_id}'
+    internal_email_ids: '{output.internal_email_ids}'
+    decoy_vendor_id: '{output.decoy_vendor_id}'
+    decoy_digest_id: '{output.decoy_digest_id}'
+    q1_answer: '{output.q1_answer}'
+    q2_answer: '{output.q2_answer}'
+    q3_answer: '{output.q3_answer}'
+    q4_answer: '{output.q4_answer}'
+    q5_correct: '{output.q5_correct}'
+    q5_wrong: '{output.q5_wrong}'
+    q6_answer: '{output.q6_answer}'
+    q7_answer: '{output.q7_answer}'
+    q8_correct: '{output.q8_correct}'
+    q8_wrong: '{output.q8_wrong}'
+    cc_addresses: '{output.cc_addresses}'
+    wrong_cc: '{output.wrong_cc}'
+    forward_to: '{output.forward_to}'
+    dana_park_email: '{output.dana_park_email}'
+    frank_osei_email: '{output.frank_osei_email}'
+    grace_liu_email: '{output.grace_liu_email}'
+    dana_note: '{output.dana_note}'
+    frank_note: '{output.frank_note}'
+    grace_note: '{output.grace_note}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to vendor questionnaire with all 8 answers and CCs
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['vendor_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['vendor_email_id'])]"
+        body:
+          expr: >-
+            target['q1_answer'] in x
+            and target['q2_answer'] in x
+            and target['q3_answer'] in x
+            and target['q4_answer'] in x
+            and target['q5_correct'] in x
+            and target['q6_answer'] in x
+            and target['q7_answer'] in x
+            and target['q8_correct'] in x
+        cc:
+          expr: "sorted(x) == sorted(target['cc_addresses']) and len(x) == len(target['cc_addresses'])"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Forward vendor questionnaire to coordinator
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['vendor_email_id']"
+        to:
+          expr: "x == [target['forward_to']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          substring_all:
+            - All 8 answers submitted
+  update:
+    - entity: emails
+      desc: Star all 6 internal source emails
+      bijection:
+        over: "target['internal_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+    - entity: contacts
+      desc: Update Dana Park contact note
+      where:
+        email:
+          expr: "x == target['dana_park_email']"
+      changes:
+        note:
+          expr: "x == target['dana_note']"
+    - entity: contacts
+      desc: Update Frank Osei contact note
+      where:
+        email:
+          expr: "x == target['frank_osei_email']"
+      changes:
+        note:
+          expr: "x == target['frank_note']"
+    - entity: contacts
+      desc: Update Grace Liu contact note
+      where:
+        email:
+          expr: "x == target['grace_liu_email']"
+      changes:
+        note:
+          expr: "x == target['grace_note']"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['internal_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      filter: >-
+        a.email != target['dana_park_email']
+        and a.email != target['frank_osei_email']
+        and a.email != target['grace_liu_email']
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to vendor with all 8 answers and correct CCs
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded vendor questionnaire to coordinator
+      ref: create[1]
+      severity: high
+    - name: Agent starred all 6 internal source emails
+      ref: update[0]
+      severity: high
+    - name: Agent updated Dana Park note
+      ref: update[1]
+      severity: medium
+    - name: Agent updated Frank Osei note
+      ref: update[2]
+      severity: medium
+    - name: Agent updated Grace Liu note
+      ref: update[3]
+      severity: medium
+    - name: Agent did not modify unrelated contacts
+      ref: invariant[4]
+      severity: high

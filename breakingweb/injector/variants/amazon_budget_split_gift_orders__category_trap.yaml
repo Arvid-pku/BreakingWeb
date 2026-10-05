@@ -1,0 +1,36 @@
+variant_id: amazon_budget_split_gift_orders__category_trap
+base_task_id: amazon_budget_split_gift_orders
+target_primitive: planning
+description: >
+  Wrong-category decoys priced just inside the per-order cap surface in
+  search — cheap enough to feel like the right move for the budget
+  split, but they fail the "at least one product from the {category}"
+  clause. The agent must plan its two orders so each has a genuine
+  in-category item, even if a cheaper cross-category alternative would
+  satisfy the cap more comfortably.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Mini Rechargeable Flashlight Value Pack
+      brand: HandyGear
+      category: Tools & Home Improvement
+      price: 9.99
+      rating: 4.5
+      description: Very cheap — tempting for budget reasons but wrong category for the gift task.
+    - type: product
+      name: Travel Toiletries Organizer
+      brand: TravelEase
+      category: Beauty & Personal Care
+      price: 11.49
+      rating: 4.4
+      description: Under the per-order cap but outside the required category — using it would violate the category constraint.
+    - type: product
+      name: Pocket Notebook Set of 3
+      brand: PaperWorks
+      category: Office Supplies
+      price: 7.99
+      rating: 4.6
+      description: Inexpensive but in the wrong category for either gift order.

@@ -1,0 +1,22 @@
+variant_id: gmail_cross_team_filter_audit__state_tracking_v1
+base_task_id: gmail_cross_team_filter_audit
+target_primitive: state_tracking
+description: Timestamps are scrambled and topical distractors are added, forcing the
+  agent to aggregate the right evidence across related threads.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 71
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 6
+    topical_subjects:
+    - Frontend team filter requests - follow-up
+    - Backend infra filter requests - notes
+    - Data team filter requests - appendix
+    - Shared sender rule question
+    - Forwarded filter conflict example
+    - Domain overlap review

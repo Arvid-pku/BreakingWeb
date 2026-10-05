@@ -1,0 +1,176 @@
+task_id: lms_view_late_policy
+env_id: lms
+title: Apply Each Course Late Policy and Submit Recoverable Overdue Work
+instruction_template: 'You have fallen behind in several courses. Review the syllabus
+  late policy (the maximum number of late days allowed) for every course you are enrolled
+  in. For each assignment that has not been submitted and is now past its due date,
+  decide whether it can still be turned in: it is recoverable only if the number of
+  days it is overdue is within (less than or equal to) that course''s maximum late
+  days. An assignment overdue by exactly the maximum is still recoverable; one overdue
+  by even a single day more is not. Submit every recoverable overdue assignment with
+  file "late_submit.pdf". Do NOT submit any overdue assignment whose course no longer
+  allows it (it is past the maximum late days), do NOT re-upload assignments you have
+  already turned in, and do NOT send any messages.'
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /courses
+seed:
+  distractors: 0
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 5
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 8
+      missing_count: 3
+      unrecoverable_missing_count: 2
+      late_within_grace_count: 2
+      boundary_missing_count: 5
+    outputs:
+    - assignment_ids
+    - overdue_assignment_id
+    - overdue_assignment_title
+    - allows_late_submit
+    - decoy_assignment_id
+    - missing_assignment_ids
+    - recoverable_missing_assignment_ids
+    - recoverable_late_assignment_ids
+    - unrecoverable_assignment_ids
+  - use: announcements_feed
+    params:
+      count: 4
+      unread_count: 3
+    outputs:
+    - announcement_ids
+    - latest_announcement_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    overdue_assignment_id: '{output.overdue_assignment_id}'
+    overdue_assignment_title: '{output.overdue_assignment_title}'
+    allows_late_submit: '{output.allows_late_submit}'
+    decoy_assignment_id: '{output.decoy_assignment_id}'
+    latest_announcement_id: '{output.latest_announcement_id}'
+    missing_assignment_ids: '{output.missing_assignment_ids}'
+    recoverable_missing_assignment_ids: '{output.recoverable_missing_assignment_ids}'
+    recoverable_late_assignment_ids: '{output.recoverable_late_assignment_ids}'
+    unrecoverable_assignment_ids: '{output.unrecoverable_assignment_ids}'
+canonical_diff:
+  # Bijection over the seed-computed recoverable-missing set. The agent must
+  # RE-DERIVE this set by reading each course's late policy and comparing
+  # days-overdue to that course's max_late_days. The bijection MUST saturate:
+  # every recoverable overdue assignment has to be submitted with
+  # late_submit.pdf, and submitting an unrecoverable one (past max late days)
+  # is collateral damage caught by invariant[0] (critical).
+  update:
+  - entity: Assignment
+    desc: Submit each recoverable overdue assignment with late_submit.pdf
+    bijection:
+      over: "target['recoverable_missing_assignment_ids'].split(',') if target['recoverable_missing_assignment_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: late_submit.pdf
+      # Freshness: the submission must have happened during this session, and
+      # at-or-after the assignment's original due date (it is overdue work).
+      submitted_at:
+        expr: "x is not None and x >= session_start and initial.get_assignment(v) is not None and x >= initial.get_assignment(v).due_at"
+      attempt_count:
+        expr: "x >= initial.get_assignment(v).attempt_count + 1"
+  invariant:
+  # Every assignment OTHER than the recoverable-missing set is frozen. This is
+  # the most-tempting-sibling guard: the unrecoverable missing assignments
+  # (past max late days) and the already-late submissions live here and must
+  # not be touched. Escalated to critical via named_invariants.
+  - collection: state.assignments
+    filter: "a.id not in (target['recoverable_missing_assignment_ids'].split(',') if target['recoverable_missing_assignment_ids'] else [])"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: high
+  - desc: No unrecoverable overdue assignment was submitted
+    expr: "all(initial.get_assignment(aid) is not None and state.get_assignment(aid) is not None and state.get_assignment(aid).submission_status == 'not_submitted' for aid in (target['unrecoverable_assignment_ids'].split(',') if target['unrecoverable_assignment_ids'] else []))"
+    severity: critical
+  named_invariants:
+  - name: Agent submitted every recoverable overdue assignment
+    ref: update[0]
+    severity: high
+  - name: Agent did not touch any non-recoverable or already-submitted assignment
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not modify the student record
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

@@ -1,0 +1,30 @@
+variant_id: lms_semester_recovery_plan__assignment_backtrack_retry_v1
+base_task_id: lms_semester_recovery_plan
+target_primitive: backtracking
+description: The first LMS attempt fails transiently, so the agent must recover cleanly and redo the correct action.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/lms/messages/send'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      title: Weekly submission practice copy
+      assignment_type: homework
+      submission_status: not_submitted
+    - type: assignment
+      title: Weekly submission archived version
+      assignment_type: homework
+      submission_status: graded
+      score: '88'
+      feedback: This is an older graded copy.

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Office supplies">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="86" y="116" width="172" height="184" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="6"/>
+  <path d="M116 160h112M116 198h112M116 236h84" stroke="#94a3b8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M284 92l32 18-108 190-38 14 6-40z" fill="#ff9900" stroke="#232f3e" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M270 116l32 18" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+</svg>

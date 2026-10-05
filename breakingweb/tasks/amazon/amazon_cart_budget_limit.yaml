@@ -1,0 +1,171 @@
+task_id: amazon_cart_budget_limit
+env_id: amazon
+title: Build a Cart Under a Budget Limit
+instruction_template: 'Add at least 3 items from the "{target.category}" category
+  to your cart whose subtotal (item prices only, before tax and shipping) is
+  under ${target.budget}, then complete checkout using the shipping address for
+  Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242.
+
+  '
+difficulty: medium
+time_limit_seconds: 280
+expected_steps: 20
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Stainless Steel Cookware Set
+      brand: T-fal
+      category: Home & Kitchen
+      price: 79.99
+      rating: 4.5
+      features:
+      - 5-piece set
+      - Dishwasher safe
+      - Even heat distribution
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_1
+    - product_name_1
+    - product_price_1
+  - use: featured_product
+    params:
+      name: Silicone Spatula Set
+      brand: OXO
+      category: Home & Kitchen
+      price: 18.99
+      rating: 4.7
+      features:
+      - Heat resistant to 600F
+      - Set of 4
+      - Ergonomic handles
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_2
+    - product_name_2
+    - product_price_2
+  - use: featured_product
+    params:
+      name: Glass Food Storage Containers
+      brand: Pyrex
+      category: Home & Kitchen
+      price: 34.99
+      rating: 4.6
+      features:
+      - 10-piece set
+      - Microwave safe
+      - Leak-proof lids
+      - BPA free
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_3
+    - product_name_3
+    - product_price_3
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 12
+      price_range:
+      - 10.0
+      - 120.0
+    outputs:
+    - product_ids
+  targets:
+    category: Home & Kitchen
+    budget: '200'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order placed with at least 3 items from the target category under budget
+    properties:
+      items:
+        expr: "len(x) >= 3 and all(any(p.id == it['product_id'] and p.category == target['category'] for p in state.products) for it in x) and sum(it['unit_price'] * it['quantity'] for it in x) < float(target['budget'])"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

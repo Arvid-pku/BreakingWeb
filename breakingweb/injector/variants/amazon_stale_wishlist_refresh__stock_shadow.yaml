@@ -1,0 +1,40 @@
+variant_id: amazon_stale_wishlist_refresh__stock_shadow
+base_task_id: amazon_stale_wishlist_refresh
+target_primitive: state_tracking
+description: >
+  Electronics decoys whose names echo the flagged OOS items surface in
+  search. The agent must remove exactly the OOS wishlist entries it was
+  told about and add an in-stock replacement in the same (Electronics)
+  category — not a decoy whose name mimics the OOS item.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Ultrabook Laptop Sleeve 14-inch Deluxe
+      brand: Voltrex
+      category: Electronics
+      price: 34.99
+      rating: 4.4
+      match_image_of: Ultrabook Laptop Sleeve 14-inch
+      description: In-stock sibling of the flagged OOS sleeve; similar name
+        tempts the agent to substitute for the OOS item instead of picking a
+        clean replacement from the catalog.
+    - type: product
+      name: Ultrabook Laptop Sleeve 14-inch XL
+      brand: Voltrex
+      category: Electronics
+      price: 39.99
+      rating: 4.3
+      match_image_of: Ultrabook Laptop Sleeve 14-inch
+      description: Upsell variant with near-identical name; agent must avoid
+        treating it as the flagged OOS item.
+    - type: product
+      name: Wireless Mouse Travel Plus
+      brand: TechNova
+      category: Electronics
+      price: 29.99
+      rating: 4.2
+      match_image_of: Wireless Mouse Travel Edition
+      description: Lookalike of the OOS wireless mouse in the same category.

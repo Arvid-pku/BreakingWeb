@@ -1,0 +1,27 @@
+variant_id: amazon_cart_management__cart_update_retry
+base_task_id: amazon_cart_management
+target_primitive: verification
+description: >
+  The first two cart-update PUTs return a fake 200 with a realistic cart_item
+  body but never persist on the backend. The agent must verify the cart
+  contents via re-read (not by trusting the success toast) before declaring
+  done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/*'
+    methods:
+    - PUT
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart update
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once

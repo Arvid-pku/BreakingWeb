@@ -1,0 +1,255 @@
+task_id: amazon_precision_cart_rebuild
+env_id: amazon
+title: Rebuild Cart with Precise Removals, Quantity Changes, and New Products
+instruction_template: 'Rebuild your shopping cart with these precise changes: 1. Remove
+  these items: ''Cotton Bath Towel Set'', ''Yoga Strap Set'', and ''Vitamin D3 Supplement''.
+  2. Change the quantity of ''Wireless Mouse Pro'' to 3. 3. Change the quantity of
+  ''Glass Food Containers'' to 2. 4. Search for ''{target.new_1}'' and add 1 to your
+  cart. 5. Search for ''{target.new_2}'' and add 1 to your cart. 6. Complete checkout.
+
+  '
+difficulty: frontier
+time_limit_seconds: 480
+expected_steps: 45
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /cart
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Wireless Mouse Pro
+        price: 29.99
+        quantity: 1
+        brand: Wavefront
+        category: Electronics
+      - name: Bamboo Notebook Stand
+        price: 24.99
+        quantity: 1
+        brand: EcoDesk
+        category: Office Supplies
+      - name: Cotton Bath Towel Set
+        price: 34.99
+        quantity: 1
+        brand: NestWell
+        category: Home & Kitchen
+      - name: Running Headband 3-Pack
+        price: 12.99
+        quantity: 1
+        brand: FitEdge
+        category: Clothing
+      - name: Glass Food Containers
+        price: 27.99
+        quantity: 1
+        brand: PureVessel
+        category: Home & Kitchen
+      - name: Yoga Strap Set
+        price: 9.99
+        quantity: 1
+        brand: IronPeak
+        category: Sports & Outdoors
+      - name: LED Book Light
+        price: 14.99
+        quantity: 1
+        brand: LuminDesk
+        category: Office Supplies
+      - name: Vitamin D3 Supplement
+        price: 16.99
+        quantity: 1
+        brand: VitaBloom
+        category: Health & Beauty
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  - use: featured_product
+    params:
+      name: Mechanical Keyboard Compact
+      brand: TechNova
+      category: Electronics
+      price: 54.99
+      rating: 4.7
+      features:
+      - Cherry MX switches
+      - RGB backlighting
+      - Compact 75% layout
+      - USB-C detachable cable
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_new1
+    - product_name_new1
+    - product_price_new1
+  - use: featured_product
+    params:
+      name: Memory Foam Wrist Rest
+      brand: PosturePlus
+      category: Office Supplies
+      price: 19.99
+      rating: 4.5
+      features:
+      - Ergonomic design
+      - Cooling gel layer
+      - Non-slip base
+      - Machine washable cover
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_new2
+    - product_name_new2
+    - product_price_new2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 70.0
+    outputs:
+    - catalog_electronics
+  targets:
+    new_1: '{output.product_name_new1}'
+    new_pid_1: '{output.product_id_new1}'
+    new_2: '{output.product_name_new2}'
+    new_pid_2: '{output.product_id_new2}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order has the required rebuilt cart contents
+    properties:
+      items:
+        expr: "len(x) == 7 and any(it['product_name'] == 'Wireless Mouse Pro' and
+          it['quantity'] == 3 for it in x) and any(it['product_name'] == 'Glass Food
+          Containers' and it['quantity'] == 2 for it in x) and any(it['product_name']
+          == 'Bamboo Notebook Stand' and it['quantity'] == 1 for it in x) and any(it['product_name']
+          == 'Running Headband 3-Pack' and it['quantity'] == 1 for it in x) and any(it['product_name']
+          == 'LED Book Light' and it['quantity'] == 1 for it in x) and any(it['product_id']
+          == target['new_pid_1'] and it['quantity'] == 1 for it in x) and any(it['product_id']
+          == target['new_pid_2'] and it['quantity'] == 1 for it in x) and all(it['product_name']
+          not in ['Cotton Bath Towel Set', 'Yoga Strap Set', 'Vitamin D3 Supplement']
+          for it in x)"
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  delete:
+  - entity: CartItem
+    desc: Cotton Bath Towel Set removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Cotton Bath Towel Set}
+  - entity: CartItem
+    desc: Yoga Strap Set removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Yoga Strap Set}
+  - entity: CartItem
+    desc: Vitamin D3 Supplement removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Vitamin D3 Supplement}
+  - entity: CartItem
+    desc: Kept cart item 1 cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept cart item 2 cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept cart item 3 cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept cart item 4 cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept cart item 5 cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

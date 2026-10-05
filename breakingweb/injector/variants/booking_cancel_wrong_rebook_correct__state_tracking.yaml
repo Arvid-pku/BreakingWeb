@@ -1,0 +1,15 @@
+variant_id: booking_cancel_wrong_rebook_correct__state_tracking_v1
+base_task_id: booking_cancel_wrong_rebook_correct
+target_primitive: state_tracking
+description: Intermittent 3-second API delays and one stale-cache response force the
+  agent to re-verify state after mutations.
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: .*
+      delay_ms: 1500
+    - path_pattern: reservations|reviews|saved-lists
+      method: GET
+      stale_duration_ms: 4000

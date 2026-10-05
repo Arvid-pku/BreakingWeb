@@ -1,0 +1,157 @@
+task_id: reddit_profile_engage_message
+title: Profile Research and Outreach
+instruction_template: '1. Visit u/{target.user}''s profile. Find their post "{target.user_post}" in r/{target.user_sub}. Upvote and save it.
+
+  2. Comment on it with exactly: "{target.comment}"
+
+  3. Send u/{target.user} a message with subject "{target.msg_sub}" and body exactly: "{target.msg_body}"
+
+  4. Subscribe to r/{target.join}.
+
+  5. Set theme to "dark".'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: dataisbeautiful
+      title: I analyzed 10 years of Stack Overflow survey data and found surprising trends
+      body: Interactive dashboard in comments.
+      author: DataWizard42
+      score: 28000
+      flair_text: OC
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+    outputs:
+    - subscriptions
+  targets:
+    user: DataWizard42
+    user_post: '{output.post_title}'
+    user_sub: '{output.subreddit_name}'
+    post_id: '{output.post_id}'
+    comment: Incredible analysis. The decline in jQuery usage inversely correlated with React adoption is fascinating.
+    msg_sub: Your SO survey analysis
+    msg_body: Would you be open to sharing the raw dataset? I would love to build on your analysis.
+    join: MachineLearning
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Target post upvoted and saved
+    where:
+      id:
+        expr: x == target['post_id']
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  - entity: Subreddit
+    desc: Subscribed to r/{target.join}
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+  create:
+  - entity: Comment
+    desc: Exact comment posted on target post
+    properties:
+      post_id:
+        expr: x == target['post_id']
+      body:
+        expr: x == target['comment']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Message
+    collection: state.sent_messages
+    desc: Outreach message sent to u/{target.user} with exact subject and body
+    properties:
+      to_user:
+        expr: x == target['user']
+      subject:
+        expr: x == target['msg_sub']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    filter: a.id != state.get_subreddit_by_name(target['join']).id
+    preserve: ALL
+  - collection: state.posts
+    filter: a.id != target['post_id']
+    preserve: ALL
+  - collection: state.comments
+    filter: a.id in [c.id for c in initial.comments]
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Target post upvoted and saved
+    ref: update[0]
+    severity: high
+  - name: Subscribed to r/{target.join}
+    ref: update[1]
+    severity: high
+  - name: Exact comment posted on target post
+    ref: create[0]
+    severity: high
+  - name: Outreach message sent to u/{target.user}
+    ref: create[1]
+    severity: high
+  - name: Other subreddits not resubscribed or unsubscribed
+    ref: invariant[0]
+    severity: high
+  - name: Other posts not modified or voted on
+    ref: invariant[1]
+    severity: high
+  - name: Existing comments not altered or deleted
+    ref: invariant[2]
+    severity: medium
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities ==
+      initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

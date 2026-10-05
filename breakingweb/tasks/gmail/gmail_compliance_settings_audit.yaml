@@ -1,0 +1,100 @@
+task_id: gmail_compliance_settings_audit
+env_id: gmail
+title: Compliance Settings Audit
+instruction_template: 'Read the email from it-security@company.io (subject: "Q1 Compliance:
+  Gmail Settings Audit Required"). It specifies four required settings: undo send
+  delay must be 30 seconds, default reply behavior must be "Reply" (not "Reply all"),
+  send-and-archive must be enabled, and maximum page size must be 50 conversations
+  per page. Navigate to Gmail settings and check each setting''s current value. Change
+  only the settings that do not already match the policy. Then reply to the IT security
+  email (not Reply All) with a message listing which settings were already compliant
+  and which you changed, using the format "Already compliant: [list]. Changed: [list]."'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 22
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: compliance_settings_audit
+    params: {}
+    outputs:
+    - it_email_id
+    - it_thread_id
+    - decoy_email_id
+    - decoy_thread_id
+  targets:
+    it_email_id: '{output.it_email_id}'
+    it_thread_id: '{output.it_thread_id}'
+    decoy_email_id: '{output.decoy_email_id}'
+    decoy_thread_id: '{output.decoy_thread_id}'
+canonical_diff:
+  create:
+  - entity: sent
+    desc: Reply to IT security email with compliance audit results
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['it_email_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['it_email_id'])]"
+      cc:
+        eq: []
+      bcc:
+        eq: []
+      body:
+        substring_all:
+        - Already compliant
+        - Changed
+  update:
+  - entity: settings
+    desc: All four compliance settings configured per policy
+    where:
+      id: { any: true }
+    changes:
+      undo_send_seconds: { eq: 30 }
+      default_reply_behavior: { eq: reply }
+      send_and_archive: { eq: true }
+      max_page_size: { eq: 50 }
+  invariant:
+  - collection: state.emails
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    filter: 'True'
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    preserve: ALL
+  - collection: state.labels
+    preserve: ALL
+  - collection: state.filters
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.display_density == initial.settings.display_density
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent replied to IT security email with compliance report
+    ref: create[0]
+    severity: high
+  - name: Agent did not modify inbox emails
+    ref: invariant[0]
+    severity: medium

@@ -1,0 +1,64 @@
+task_id: reddit_edit_own_post
+env_id: reddit
+title: Edit Your Own Post
+instruction_template: 'Navigate to r/technology and find your own post titled "{target.post_title}". Edit the body to exactly: "UPDATE: After 8 months of full-time Linux use, I can confirm the productivity gains are real. I wrote a detailed follow-up on my blog." Do not edit or delete any other posts.'
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 7
+primary_primitives:
+- verification
+start_path: /feed
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: owner_post
+    params:
+      subreddit: technology
+      title: 'Switching to Linux for development: 6-month honest review'
+      body: Here are my detailed thoughts after switching from macOS to Pop!_OS.
+      score: 4521
+    outputs:
+    - post_id
+    - post_title
+  targets:
+    post_id: '{output.post_id}'
+    post_title: '{output.post_title}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Edit the target post body and mark as edited
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      body:
+        eq: "UPDATE: After 8 months of full-time Linux use, I can confirm the productivity gains are real. I wrote a detailed follow-up on my blog."
+      is_edited:
+        eq: true
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent edited the target post with the exact required body
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify any other posts
+    ref: invariant[0]
+    severity: high
+secondary_primitives: []

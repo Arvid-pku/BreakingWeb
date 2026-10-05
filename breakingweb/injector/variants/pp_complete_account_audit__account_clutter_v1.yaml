@@ -1,0 +1,79 @@
+variant_id: pp_complete_account_audit__account_clutter_v1
+base_task_id: pp_complete_account_audit
+target_primitive: exploration
+description: >-
+  Discovery noise is aimed directly at the graded answer path. The first provider
+  directory lookup and the first slot-availability lookup both return EMPTY, so the
+  agent cannot conclude "no open-panel admin provider exists" or "no availability"
+  from a single pass — it must retry and explore the full directory. On top of that,
+  a same-reason ("Account audit review"), same-type (in-person) lookalike appointment
+  is already seeded on a DIFFERENT open-panel Administration provider with an earlier
+  datetime, so the agent must distinguish the pre-existing seeded decoy from its OWN
+  required booking rather than assuming the audit appointment already exists. The
+  trio stresses exploration (find the right open-panel admin provider through empty
+  results), planning (persist the earliest-in-person-slot derivation through a stale
+  slot view), and grounding (do not confuse the seeded same-reason decoy for the
+  target) — exactly the load-bearing predicate the base now grades.
+injections:
+# Layer 1 (network, exploration): the first provider directory / search pass
+# returns no items, forcing the agent to retry and explore the full directory
+# instead of concluding no admin provider exists.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/providers/search**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/providers**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+# Layer 2 (network, planning): the first available-slots lookup shows no
+# availability, pressuring premature abandonment of the earliest-in-person-slot
+# computation. The agent must retry rather than give up or book elsewhere.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/appointments/available-slots**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+# Layer 3 (seed, grounding): two same-reason, same-type lookalike appointments
+# already exist on a DIFFERENT open-panel Administration provider, with earlier
+# datetimes. They are baseline (snapshot captured after injection), so the
+# "exactly one NEW scheduled appointment" constraint still expects the agent's
+# single booking — but an agent that mistakes a seeded decoy for "the audit
+# appointment already exists" will either skip the booking (fail the create) or
+# re-book a duplicate (fail the +1 constraint). The decoys land on
+# decoy_admin_provider_id (an OPEN-panel admin provider) so they never trip the
+# open-panel discriminator, keeping the variant fair for a correct agent.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: appointment
+      provider_id: '{target.decoy_admin_provider_id}'
+      reason: Account audit review
+      status: scheduled
+      appointment_type: in-person
+      days_ahead: 1
+      hour: 9
+      location: Main Campus
+    - type: appointment
+      provider_id: '{target.decoy_admin_provider_id}'
+      reason: Account audit review
+      status: scheduled
+      appointment_type: in-person
+      days_ahead: 2
+      hour: 10
+      location: Main Campus

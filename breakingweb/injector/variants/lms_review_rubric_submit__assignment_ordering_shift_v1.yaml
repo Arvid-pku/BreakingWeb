@@ -1,0 +1,38 @@
+variant_id: lms_review_rubric_submit__assignment_ordering_shift_v1
+base_task_id: lms_review_rubric_submit
+target_primitive: planning
+description: The rubric-total ranking and the winner's rubric-criteria count are
+  perturbed on the exact axes the plan depends on. Due dates are scrambled so the
+  earliest-due tie-break (now load-bearing because several assignments tie on rubric
+  total) cannot be trusted as displayed, and the first read of the winning
+  assignment's rubric returns a STALE body with a different criteria count and a
+  different points total — so an agent that reads once and caches mis-ranks the
+  winner and computes the wrong file_name N. Only an agent that re-derives the
+  tie-break from current state and re-reads the rubric recovers.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 42
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/assignments/{target.highest_points_unsubmitted_id}/rubric'
+    stale_body:
+      assignment_id: '{target.highest_points_unsubmitted_id}'
+      rubric:
+      - criterion: Thesis
+        max_points: '18'
+        description: Stale rubric snapshot — clarity of the central argument.
+      - criterion: Evidence
+        max_points: '18'
+        description: Stale rubric snapshot — quality of supporting evidence.
+      - criterion: Analysis
+        max_points: '17'
+        description: Stale rubric snapshot — depth of critical analysis.
+      - criterion: Writing Quality
+        max_points: '17'
+        description: Stale rubric snapshot — grammar, style, and clarity.
+    stale_count: 1
+    behavior:
+      mode: once

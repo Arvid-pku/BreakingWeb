@@ -1,0 +1,106 @@
+task_id: pp_check_immunizations
+env_id: patient_portal
+title: Check Immunizations and Schedule
+instruction_template: Check which vaccinations are due and schedule an appointment
+  for the first one that is due.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- planning
+start_path: /profile
+seed:
+  distractors: 5
+  steps:
+  - use: patient_profile
+    params:
+      conditions: []
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 4
+      specialties:
+      - pcp
+      - cardiology
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 1
+    outputs:
+    - upcoming_ids
+  - use: immunization_record
+    params:
+      completed_count: 3
+      due_count: 1
+    outputs:
+    - due_vaccine_names
+    - due_vaccine_short_names
+  targets:
+    pcp_id: '{output.pcp_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    due_vaccine_names: '{output.due_vaccine_names}'
+    due_vaccine_short_names: '{output.due_vaccine_short_names}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule an appointment for the overdue vaccine"
+      count: 1
+      properties:
+        status: {eq: scheduled}
+        reason:
+          # Match the bare short_name (e.g. "Tdap") rather than the full
+          # parenthetical form (e.g. "Tdap (Tetanus)"). Agents rarely type
+          # the full parenthetical when scheduling. See PP-2 in the
+          # 2026-04-26 trajectory audit.
+          expr: "any(v.lower() in (x or '').lower() for v in target['due_vaccine_short_names'])"
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[1]
+      severity: medium
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

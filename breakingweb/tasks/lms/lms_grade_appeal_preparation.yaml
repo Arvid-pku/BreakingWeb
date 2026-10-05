@@ -1,0 +1,205 @@
+task_id: lms_grade_appeal_preparation
+env_id: lms
+title: Grade Appeal — Resubmit Disputed Assignments and Post Notice
+instruction_template: Prepare a grade appeal for {target.course_code}. Review every
+  graded assignment's score and rubric. Find the two assignments where your score
+  is furthest below the assignment's total possible points. Resubmit both with files
+  "appeal_evidence_1.pdf" and "appeal_evidence_2.pdf" (largest gap first). Then post
+  a formal dispute notice in the "{target.target_discussion_title}" discussion forum
+  stating which assignments you are disputing.
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 40
+primary_primitives:
+- exploration
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS201
+    outputs:
+    - course_ids
+    - course_codes
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.7
+      late_count: 1
+    outputs:
+    - assignment_ids
+    - decoy_assignment_id
+    - disputed_title_1
+    - disputed_title_2
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - most_disputed_assignment_ids
+  - use: discussion_forums
+    params:
+      count: 2
+      posts_per: 3
+    outputs:
+    - discussion_ids
+    - target_discussion_id
+    - target_discussion_title
+  - use: peer_review_assignments
+    params:
+      count: 2
+      statuses:
+      - submitted
+      - submitted
+    outputs:
+    - review_ids
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    most_disputed_assignment_ids: '{output.most_disputed_assignment_ids}'
+    target_discussion_id: '{output.target_discussion_id}'
+    target_discussion_title: '{output.target_discussion_title}'
+    disputed_title_1: '{output.disputed_title_1}'
+    disputed_title_2: '{output.disputed_title_2}'
+    decoy_assignment_id: '{output.decoy_assignment_id}'
+canonical_diff:
+  update:
+    - entity: Assignment
+      desc: Resubmit the most-disputed assignment with appeal_evidence_1.pdf
+      where:
+        id:
+          expr: "x == [aid.strip() for aid in target['most_disputed_assignment_ids'].split(',') if aid.strip()][0]"
+      changes:
+        submission_status:
+          in:
+            - submitted
+            - late
+        file_name:
+          eq: appeal_evidence_1.pdf
+        attempt_count:
+          expr: "x >= 2"
+        submitted_at:
+          expr: "x >= session_start"
+    - entity: Assignment
+      desc: Resubmit the second most-disputed assignment with appeal_evidence_2.pdf
+      where:
+        id:
+          expr: "x == [aid.strip() for aid in target['most_disputed_assignment_ids'].split(',') if aid.strip()][1]"
+      changes:
+        submission_status:
+          in:
+            - submitted
+            - late
+        file_name:
+          eq: appeal_evidence_2.pdf
+        attempt_count:
+          expr: "x >= 2"
+        submitted_at:
+          expr: "x >= session_start"
+  create:
+    - entity: DiscussionPost
+      desc: Post a formal dispute notice in the target discussion forum
+      count: 1
+      properties:
+        discussion_id:
+          expr: "x == target['target_discussion_id']"
+        author_id:
+          expr: "x == state.student.id"
+        author_name:
+          expr: "x == state.student.name"
+        body:
+          expr: "all(s in x for s in [target['course_code'], target['disputed_title_1'], target['disputed_title_2']])"
+        parent_post_id:
+          eq: null
+        timestamp:
+          expr: "x >= session_start"
+        updated_at:
+          eq: null
+        is_anonymous:
+          eq: false
+  invariant:
+    - collection: state.assignments
+      filter: "a.id not in [aid.strip() for aid in target['most_disputed_assignment_ids'].split(',') if aid.strip()]"
+      preserve: ALL
+    - collection: state.discussion_posts
+      filter: "a.discussion_id != target['target_discussion_id']"
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+    - name: Agent resubmitted the most-disputed assignment
+      ref: update[0]
+      severity: high
+    - name: Agent resubmitted the second most-disputed assignment
+      ref: update[1]
+      severity: high
+    - name: Agent posted the dispute notice in the target forum
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify other assignments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not post in non-target discussions
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify discussions
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify course records
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[4]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+secondary_primitives: []

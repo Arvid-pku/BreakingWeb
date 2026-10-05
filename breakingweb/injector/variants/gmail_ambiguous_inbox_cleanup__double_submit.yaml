@@ -1,0 +1,13 @@
+variant_id: gmail_ambiguous_inbox_cleanup__double_submit
+base_task_id: gmail_ambiguous_inbox_cleanup
+target_primitive: verification
+description: >
+  Submit-style buttons are not idempotent: a second click within 2s fires
+  the action AGAIN. Retries must be gated by readback, not by time.
+injections:
+  - layer: client
+    params:
+      action: double_submit_trap
+      selector: "button[type=submit], [data-wab-submit]"
+      window_ms: 2000
+      behavior: { mode: persistent }

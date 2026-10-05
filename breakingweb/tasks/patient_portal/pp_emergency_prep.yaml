@@ -1,0 +1,164 @@
+task_id: pp_emergency_prep
+env_id: patient_portal
+title: Emergency Action Plan Review
+instruction_template: Review your profile data for completeness, then schedule exactly one PCP follow-up appointment using
+  the next available PCP slot with the appointment reason exactly "Medication wallet card review". In the appointment notes,
+  list every allergy currently on your profile, comma-separated, so the PCP can cross-check against your wallet card. Do not
+  modify your emergency contact, allergies, or insurance, and do not send any messages.
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 40
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 14
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Asthma
+      - Type 2 Diabetes
+      - Hypertension
+      allergies:
+      - Penicillin
+      - Sulfa
+      - Shellfish
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+    - allergies_list
+    - insurance_plan_name
+    - member_id
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - billing
+      must_include:
+      - pcp
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      expired_count: 2
+    outputs:
+    - active_rx_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 4
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: lab_results_panel
+    params:
+      resulted_count: 2
+      abnormal_count: 1
+    outputs:
+    - resulted_lab_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+  - entity: Appointment
+    desc: Schedule one PCP appointment for medication wallet card review at the PCP's next available slot; notes must list
+      every allergy on the patient profile
+    properties:
+      status:
+        eq: scheduled
+      reason:
+        eq: Medication wallet card review
+      provider_id:
+        expr: x == target['pcp_id']
+      datetime:
+        expr: "x == min(\n  s.datetime\n  for p in initial.providers\n  if p.id == target['pcp_id']\n  for s in p.available_slots\n\
+          )"
+      notes:
+        expr: "x is not None and all(\n  allergy.lower() in x.lower()\n  for allergy in initial.patient.allergies\n)"
+      type:
+        any: true
+      linked_referral_id:
+        any: true
+      pre_auth_status:
+        any: true
+      booked_at:
+        any: true
+      location:
+        any: true
+  invariant:
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  # Patient singleton must be preserved (was three high/critical-severity
+  # constraints checking emergency_contact, allergies, and insurance_plan).
+  # As a diffable singleton, any agent modification produces an Update entry
+  # which the unaccounted sweep flags via this filter.
+  - collection: state.patient
+    preserve: ALL
+    comprehensive: true
+  - collection: state.providers
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not cancel or modify pre-existing appointments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify prescriptions
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not send any messages
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[5]
+    severity: critical
+  - name: Agent did not create or modify referrals
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not modify pharmacies
+    ref: invariant[7]
+    severity: medium
+  - name: Patient profile (emergency contact, allergies, insurance plan) preserved
+    ref: invariant[8]
+    severity: critical
+  - name: Agent did not schedule more than one PCP medication-wallet-card appointment
+    ref: create[0]
+    severity: medium
+secondary_primitives: []

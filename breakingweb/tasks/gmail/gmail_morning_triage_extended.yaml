@@ -1,0 +1,166 @@
+task_id: gmail_morning_triage_extended
+env_id: gmail
+title: Morning Triage Extended
+instruction_template: Process your morning inbox. Star the two emails that mention
+  an end-of-day deadline or need your sign-off. Archive the newsletter in your Promotions
+  tab and the FYI update in your Primary tab. Forward the email that asks you to loop
+  in a colleague — find the correct person from the email body. Reply to the email
+  from {target.reply_sender_name} about the project update (Reply only, not Reply
+  All). Reply to the email from {target.reply_b_sender_name} confirming receipt. Then
+  create an 'Action Required' label and apply it to the two starred emails.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 45
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: morning_triage_extended
+    params: {}
+    outputs:
+    - urgent_a_id
+    - urgent_b_id
+    - fyi_decoy_id
+    - promo_id
+    - fyi_id
+    - forward_id
+    - forward_to_email
+    - reply_a_id
+    - reply_sender_name
+    - reply_phrase_a
+    - reply_b_id
+    - reply_b_sender_name
+  targets:
+    urgent_a_id: '{output.urgent_a_id}'
+    urgent_b_id: '{output.urgent_b_id}'
+    fyi_decoy_id: '{output.fyi_decoy_id}'
+    promo_id: '{output.promo_id}'
+    fyi_id: '{output.fyi_id}'
+    forward_id: '{output.forward_id}'
+    forward_to_email: '{output.forward_to_email}'
+    reply_a_id: '{output.reply_a_id}'
+    reply_sender_name: '{output.reply_sender_name}'
+    reply_phrase_a: '{output.reply_phrase_a}'
+    reply_b_id: '{output.reply_b_id}'
+    reply_b_sender_name: '{output.reply_b_sender_name}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward the loop-in email to the correct colleague
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['forward_id']"
+        to:
+          expr: "x == [target['forward_to_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Reply to project update email from reply_sender_name
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['reply_a_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['reply_a_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['reply_phrase_a'] in x"
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Reply to email from reply_b_sender_name confirming receipt
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['reply_b_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['reply_b_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: labels
+      desc: Create Action Required label
+      count: 1
+      properties:
+        name:
+          eq: "Action Required"
+  update:
+    - entity: emails
+      desc: Star both urgent emails and apply Action Required label
+      bijection:
+        over: "[target['urgent_a_id'], target['urgent_b_id']]"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - "Action Required"
+    - entity: emails
+      desc: Archive the newsletter from Promotions
+      where:
+        id:
+          expr: "x == target['promo_id']"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Archive the FYI update
+      where:
+        id:
+          expr: "x == target['fyi_id']"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in [target['urgent_a_id'], target['urgent_b_id'], target['promo_id'], target['fyi_id']]"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Action Required'"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded loop-in email to correct colleague
+      ref: create[0]
+      severity: high
+    - name: Agent replied to project update email
+      ref: create[1]
+      severity: high
+    - name: Agent confirmed receipt to reply_b sender
+      ref: create[2]
+      severity: high
+    - name: Agent created Action Required label
+      ref: create[3]
+      severity: high
+    - name: Agent starred urgent emails and applied label
+      ref: update[0]
+      severity: high
+    - name: Agent archived newsletter and FYI
+      ref: update[1]
+      severity: high

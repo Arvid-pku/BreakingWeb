@@ -1,0 +1,139 @@
+task_id: amazon_cancel_order
+env_id: amazon
+title: Place an Order Then Cancel It
+instruction_template: 'Search for "{target.product_name}", add it to your cart, and
+  complete the purchase using the shipping address for Jordan Parker at 742 Evergreen
+  Terrace and the Visa card ending in 4242. Then immediately go to your orders and
+  cancel the order you just placed.
+
+  '
+difficulty: medium
+time_limit_seconds: 280
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Robot Vacuum Cleaner
+      brand: iRobot
+      category: Home & Kitchen
+      price: 249.99
+      rating: 4.4
+      features:
+      - Smart mapping
+      - Self-emptying base
+      - Alexa compatible
+      - 90-minute runtime
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 8
+      price_range:
+      - 30.0
+      - 400.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed for target product and then cancelled
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      status: {eq: cancelled}
+      shipping_address_id: {expr: "any(a.id == x and a.full_name == 'Jordan Parker'
+          and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"}
+      payment_method_id: {expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four
+          == '4242' for p in state.payment_methods)"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,101 @@
+task_id: booking_save_property
+env_id: booking
+title: Save a Property to a List
+instruction_template: 'Find the property "{target.property_name}" in {target.property_city}
+  and save it to your existing saved list named "{target.list_name}".
+
+  '
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 7
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Riverside Palace Hotel
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.2
+      price: 350.0
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_saved_list
+    params:
+      name: Dream Destinations
+    outputs:
+    - list_id
+    - list_name
+  - use: decoy_property
+    params:
+      city: London
+      count: 4
+    outputs:
+    - decoy_property_id
+    - decoy_property_name
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    property_city: London
+    list_id: '{output.list_id}'
+    list_name: Dream Destinations
+canonical_diff:
+  update:
+    - entity: SavedList
+      desc: Add the target property to the target saved list
+      where:
+        id: {expr: "x == target['list_id']"}
+      changes:
+        property_ids:
+          expr: "set(x) == {target['property_id']}"
+        updated_at: {any: true}
+  invariant:
+    - collection: state.saved_lists
+      filter: "a.id != target['list_id']"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent added the target property to the target saved list
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify or delete other saved lists
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

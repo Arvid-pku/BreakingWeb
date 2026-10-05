@@ -1,0 +1,120 @@
+task_id: gmail_thread_blame_trace
+env_id: gmail
+title: Trace who introduced a pricing error by reading backwards through a thread
+instruction_template: 'In the thread "Vendor Contract Renewal - Apex Solutions", someone
+  first introduced the
+
+  wrong unit price of $4,500 (the correct price is $5,400 per the original contract).
+  Read
+
+  the entire thread. Identify the person who FIRST wrote "$4,500" in the thread. Forward
+
+  that specific message (the one where "$4,500" first appears) to Mariela Voss
+
+  <{target.mariela_voss_email}> with the subject "Pricing error origin" and body containing
+
+  "This is the message that introduced the $4,500 error."'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 24
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    anika_shah:
+      name: Anika Shah
+      domain: procure.co
+      is_vip: false
+    leo_huang:
+      name: Leo Huang
+      domain: procure.co
+      is_vip: false
+    tomasz_krol:
+      name: Tomasz Krol
+      domain: procure.co
+      is_vip: false
+    priya_sen:
+      name: Priya Sen
+      domain: procure.co
+      is_vip: false
+    mariela_voss:
+      name: Mariela Voss
+      domain: procure.co
+      is_vip: true
+  steps:
+  - use: thread_blame_trace
+    params: {}
+    outputs:
+    - mariela_voss_email
+    - blame_msg_3_id
+    - target_thread_id
+    - forwarding_chain_decoy_id
+    - blame_msg_1_id
+    - blame_msg_2_id
+    - blame_msg_4_id
+    - blame_msg_5_id
+    - blame_msg_6_id
+    - blame_msg_7_id
+    - blame_msg_8_id
+    - blame_msg_9_id
+  targets:
+    mariela_voss_email: '{output.mariela_voss_email}'
+    blame_msg_3_id: '{output.blame_msg_3_id}'
+    target_thread_id: '{output.target_thread_id}'
+    forwarding_chain_decoy_id: '{output.forwarding_chain_decoy_id}'
+    blame_msg_1_id: '{output.blame_msg_1_id}'
+    blame_msg_2_id: '{output.blame_msg_2_id}'
+    blame_msg_4_id: '{output.blame_msg_4_id}'
+    blame_msg_5_id: '{output.blame_msg_5_id}'
+    blame_msg_6_id: '{output.blame_msg_6_id}'
+    blame_msg_7_id: '{output.blame_msg_7_id}'
+    blame_msg_8_id: '{output.blame_msg_8_id}'
+    blame_msg_9_id: '{output.blame_msg_9_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward blame message 3 to Mariela Voss with required subject and body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['blame_msg_3_id']"
+        to:
+          expr: "x == [target['mariela_voss_email']]"
+        subject:
+          eq: "Pricing error origin"
+        body:
+          substring_all:
+            - "This is the message that introduced the $4,500 error."
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded blame message to Mariela Voss
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

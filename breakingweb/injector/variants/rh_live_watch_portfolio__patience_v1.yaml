@@ -1,0 +1,29 @@
+variant_id: rh_live_watch_portfolio__patience_v1
+base_task_id: rh_live_watch_portfolio
+target_primitive: patience
+description: >
+  The positions endpoint returns stale portfolio values for the first
+  several refreshes, making it appear the portfolio has not yet crossed
+  $15,000. Progressive delays further slow updates. The agent must keep
+  monitoring and not sell prematurely based on stale data.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: "**/api/env/robinhood/positions"
+    stale_count: 6
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: delay
+    url_pattern: "**/api/env/robinhood/positions"
+    delay_ms: 3750
+    behavior:
+      mode: progressive
+      stages:
+      - delay_ms: 2000
+        after_call: 3
+      - delay_ms: 3500
+        after_call: 7
+      - delay_ms: 2000

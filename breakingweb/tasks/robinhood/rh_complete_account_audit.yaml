@@ -1,0 +1,126 @@
+task_id: rh_complete_account_audit
+env_id: robinhood
+title: Complete Account Remediation
+instruction_template: 'Perform a complete account audit and fix everything you find:
+  (1) check all position quantities against your buy/sell transaction totals — for
+  any stock with a mismatch, add it to a new watchlist called "Discrepancy Review",
+  (2) delete all price alerts for stocks you no longer own, (3) remove any recurring
+  investment that has missed its scheduled execution, and (4) mark all unread notifications
+  as read.'
+difficulty: frontier
+time_limit_seconds: 550
+expected_steps: 35
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - AMZN
+      - GOOGL
+      - NFLX
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 6
+    outputs: []
+  - use: transaction_ledger
+    params:
+      months: 6
+      quantity_mismatch_stock: TSLA
+    outputs:
+    - mismatch_symbol
+  - use: recurring_investments
+    params:
+      count: 3
+      include_history: true
+      overdue_count: 1
+    outputs:
+    - overdue_symbols
+  - use: price_alerts
+    params:
+      count: 4
+      include_stale: true
+      stale_symbol: NFLX
+    outputs: []
+  - use: notifications
+    params:
+      count: 8
+      unread_ratio: 0.5
+    outputs: []
+  targets:
+    mismatch_symbol: '{output.mismatch_symbol}'
+    stale_symbol: NFLX
+    overdue_symbols: '{output.overdue_symbols}'
+canonical_diff:
+  create:
+  - entity: watchlists
+    desc: New "Discrepancy Review" watchlist containing the mismatch symbol
+    properties:
+      name: {eq: Discrepancy Review}
+      symbols: {expr: "target['mismatch_symbol'] in x"}
+  update:
+  - entity: notifications
+    desc: All unread notifications marked as read
+    bijection:
+      over: "[n for n in initial.notifications if not n.is_read]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      is_read: {eq: true}
+  delete:
+  - entity: price_alerts
+    desc: Stale price alerts for unowned stocks removed
+    bijection:
+      over: "[a for a in initial.price_alerts if a.symbol not in initial.owned_symbols() and not a.id.startswith('alert_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  - entity: recurring_investments
+    desc: Overdue recurring investments removed
+    bijection:
+      over: "[r for r in initial.recurring_investments if r.id in [x.id for x in initial.overdue_recurring_investments()] and not r.id.startswith('ri_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol in initial.owned_symbols() and not a.id.startswith('alert_decoy_')"
+    preserve: ALL
+  - collection: state.recurring_investments
+    filter: "a.id not in [x.id for x in initial.overdue_recurring_investments()] and not a.id.startswith('ri_decoy_')"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.is_read"
+    preserve: ALL
+  - collection: state.watchlists
+    filter: "a.name != 'Discrepancy Review'"
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, exploration, patience, grounding
+  by requiring the agent to audit multiple account areas and take corrective action
+  for each issue found.

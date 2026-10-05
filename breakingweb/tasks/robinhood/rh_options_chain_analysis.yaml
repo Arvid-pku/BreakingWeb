@@ -1,0 +1,49 @@
+task_id: rh_options_chain_analysis
+env_id: robinhood
+title: Buy the Highest Open Interest TSLA Put
+instruction_template: For TSLA, find the put option with the highest open interest
+  expiring within 2 weeks and buy 1 contract of it.
+difficulty: hard
+time_limit_seconds: 220
+expected_steps: 8
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - TSLA
+      - AAPL
+      - NVDA
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: TSLA
+      expirations_count: 6
+      strikes_per_expiration: 12
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Buy 1 TSLA put with highest open interest within 2 weeks
+    properties:
+      status: {in: [pending, filled]}
+      legs: {expr: "all(leg['underlying_symbol'] == 'TSLA' and leg['option_type'] == 'put' and leg['side'] == 'buy' and leg['quantity'] == 1 and state.highest_open_interest_contract('TSLA', option_type='put', max_days=14) is not None and leg['strike'] == state.highest_open_interest_contract('TSLA', option_type='put', max_days=14).strike and leg['expiration'] == state.highest_open_interest_contract('TSLA', option_type='put', max_days=14).expiration for leg in x)"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures exploration, state_tracking, grounding by requiring the
+  agent to navigate the options chain, identify the correct contract, and execute
+  the purchase.

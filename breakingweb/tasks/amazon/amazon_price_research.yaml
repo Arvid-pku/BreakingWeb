@@ -1,0 +1,153 @@
+task_id: amazon_price_research
+env_id: amazon
+title: Research Wireless Earbuds Under $100
+instruction_template: "You are researching wireless earbuds under $100 for a future
+  purchase.\n1. Search Amazon for wireless earbuds.\n2. View the product pages of
+  at least three different wireless-earbud listings from at least two different brands,
+  all priced under $100.\n3. Do NOT add anything to your cart, your wishlist, or place
+  an order — this is research only.\n"
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 15
+primary_primitives:
+- exploration
+secondary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Wireless Bluetooth Earbuds Pro
+      brand: SoundCore
+      category: Electronics
+      price: 59.99
+      rating: 4.5
+      features:
+      - Active noise cancellation
+      - 32-hour battery
+      - IPX5 waterproof
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_earbud1
+    - product_name_earbud1
+    - product_price_earbud1
+  - use: featured_product
+    params:
+      name: Wireless Earbuds Essential
+      brand: JLab
+      category: Electronics
+      price: 29.99
+      rating: 4.2
+      features:
+      - Touch controls
+      - USB-C charging
+      - 24-hour battery
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_earbud2
+    - product_name_earbud2
+    - product_price_earbud2
+  - use: featured_product
+    params:
+      name: AirFlow Wireless Earbuds Sport
+      brand: Jabra
+      category: Electronics
+      price: 89.99
+      rating: 4.6
+      features:
+      - Secure fit for workouts
+      - Wind-noise reduction
+      - Multi-device pairing
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_earbud3
+    - product_name_earbud3
+    - product_price_earbud3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 250.0
+    outputs:
+    - catalog_ids
+  targets:
+    earbud1_id: '{output.product_id_earbud1}'
+    earbud2_id: '{output.product_id_earbud2}'
+    earbud3_id: '{output.product_id_earbud3}'
+canonical_diff:
+  # READ-ONLY task: preserve Amazon state while requiring observable page-view
+  # evidence from the final state's browsing/recently-viewed data.
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  constraints:
+  - desc: Agent viewed all three target wireless-earbud listings
+    expr: "all(pid in state.recently_viewed for pid in [target['earbud1_id'], target['earbud2_id'], target['earbud3_id']])"
+    severity: critical
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not add items to cart
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium

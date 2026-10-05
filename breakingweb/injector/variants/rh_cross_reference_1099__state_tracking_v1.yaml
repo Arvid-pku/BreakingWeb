@@ -1,0 +1,28 @@
+variant_id: rh_cross_reference_1099__state_tracking_v1
+base_task_id: rh_cross_reference_1099
+target_primitive: state_tracking
+description: >
+  Portfolio positions are shuffled and confusing extra positions are added
+  (AMZN, NFLX at similar cost bases), plus transaction timestamps are scrambled.
+  Agent must carefully cross-reference the 1099 against the correct holdings
+  and transaction records despite misleading position order and noisy history.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 42
+- layer: server
+  params:
+    action: scramble_order_timestamps
+    seed: 42
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+      - symbol: "AMZN"
+        quantity: "10"
+        cost_basis: "172.00"
+      - symbol: "NFLX"
+        quantity: "15"
+        cost_basis: "248.00"

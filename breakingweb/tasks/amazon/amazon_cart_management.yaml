@@ -1,0 +1,119 @@
+task_id: amazon_cart_management
+env_id: amazon
+title: Manage Shopping Cart Items
+instruction_template: 'Your cart has several items. Remove the item "{target.remove_product}"
+  from the cart and change the quantity of "{target.update_product}" to {target.new_quantity}.
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 15
+primary_primitives:
+- verification
+start_path: /cart
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Laptop Stand
+        price: 49.99
+        quantity: 1
+      - name: Wireless Keyboard
+        price: 79.99
+        quantity: 2
+      - name: Desk Lamp
+        price: 34.99
+        quantity: 1
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  targets:
+    remove_product: Desk Lamp
+    update_product: Wireless Keyboard
+    new_quantity: '3'
+canonical_diff:
+  update:
+  - entity: CartItem
+    desc: Target product quantity updated to the new value
+    where:
+      id: {expr: "any(it.product_name == target['update_product'] and it.id == x for it in state.cart_items)"}
+    changes:
+      quantity: {expr: "x == int(target['new_quantity'])"}
+  delete:
+  - entity: CartItem
+    desc: Remove-product removed from cart
+    where:
+      product_name: {expr: "x == target['remove_product']"}
+  invariant:
+  - collection: state.cart_items
+    filter: "a.product_name not in (target['update_product'], target['remove_product'])"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other cart items
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

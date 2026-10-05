@@ -1,0 +1,31 @@
+variant_id: gmail_weekly_digest_preparation__state_tracking_v1
+base_task_id: gmail_weekly_digest_preparation
+target_primitive: state_tracking
+description: >
+  20 topical distractor emails from digest-bucket domains with misleading subjects,
+  plus scrambled timestamps that obscure the 7-day window boundary.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 91
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 30
+    topical_count: 14
+    topical_subjects:
+      - "Re: Weekly status update — Engineering"
+      - "Fwd: Digest report from last week"
+      - "Weekly Digest — corrections needed"
+      - "Re: Infrastructure monitoring alert"
+      - "Sales pipeline weekly summary"
+      - "Finance Q1 closeout — action required"
+      - "Client Alpha: revised deliverables"
+      - "Client Beta: contract amendment"
+      - "Facilities: HVAC maintenance schedule"
+      - "IT Support: ticket backlog report"
+      - "DevOps: deployment rollback notice"
+      - "Legal: NDA renewal reminder"
+      - "Re: Weekly Digest Categories (old version)"
+      - "Operations weekly standup notes"

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Packaged grocery">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="112" y="72" width="176" height="250" rx="18" fill="#166534" stroke="#14532d" stroke-width="8"/>
+  <rect x="136" y="112" width="128" height="74" rx="10" fill="#f0fdf4"/>
+  <path d="M166 150c22-34 48-34 68 0-22 12-46 12-68 0z" fill="#22c55e"/>
+  <rect x="148" y="224" width="104" height="18" rx="9" fill="#ff9900"/>
+  <rect x="156" y="258" width="88" height="14" rx="7" fill="#dcfce7"/>
+</svg>

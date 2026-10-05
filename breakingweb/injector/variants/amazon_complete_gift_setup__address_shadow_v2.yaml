@@ -1,0 +1,46 @@
+variant_id: amazon_complete_gift_setup__address_shadow_v2
+base_task_id: amazon_complete_gift_setup
+target_primitive: grounding
+description: "Three near-duplicate Maria Chen address rows collide on full_name and street prefix; name-search alone cannot identify which row matches the gift target's exact street/ZIP, so the agent must compare exact tuples to pick the correct shipping_address_id. The first two address-update PUT calls silently no-op so the agent must verify the address state before checkout."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: address
+      full_name: Maria Chen
+      street_address: 500 Oak Ave
+      city: Portland
+      state: OR
+      zip_code: '97201'
+    - type: address
+      full_name: Maria Chen
+      street_address: 500 Oak Ave Apt 2
+      city: Portland
+      state: OR
+      zip_code: '97201'
+    - type: address
+      full_name: Maria Chen
+      street_address: 500 Oak Ave Suite 100
+      city: Portland
+      state: OR
+      zip_code: '97202'
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses/*'
+    methods: [PUT]
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior: { mode: once }

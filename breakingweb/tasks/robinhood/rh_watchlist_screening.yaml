@@ -1,0 +1,110 @@
+task_id: rh_watchlist_screening
+env_id: robinhood
+title: Screen and Act on Watchlist Stocks
+instruction_template: 'Screen your "{target.watchlist_name}" watchlist. For each stock,
+  check if it meets ALL of these criteria: P/E ratio under 25, dividend yield above
+  2%, and current price within 10% of the 52-week high. Remove stocks that fail all
+  three criteria. For stocks that pass all three, place a limit buy order for $500
+  worth at 3% below current price.'
+difficulty: expert
+time_limit_seconds: 400
+expected_steps: 24
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - KO
+      - JNJ
+      - PG
+      - XOM
+      - CVX
+      - T
+      - VZ
+      - MO
+    outputs: []
+  - use: watchlist
+    params:
+      name: Potential Buys
+      symbols:
+      - KO
+      - JNJ
+      - PG
+      - XOM
+      - CVX
+      - T
+      - VZ
+      - MO
+    outputs:
+    - passing_symbols
+    - failing_all_symbols
+    - initial_watchlist_count
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    watchlist_name: Potential Buys
+    passing_symbols: '{output.passing_symbols}'
+    failing_all_symbols: '{output.failing_all_symbols}'
+    initial_watchlist_count: '{output.initial_watchlist_count}'
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Limit buy order at 3% below price for each passing symbol
+    bijection:
+      over: "target['passing_symbols']"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      status: {eq: pending}
+      limit_price: {expr: "abs(float(x) - float(state.get_stock(v).price) * 0.97) <= 1.0"}
+      quantity: {expr: "Decimal(str(x)) == Decimal(max(1, int(Decimal('500') /
+          state.get_stock(v).price)))"}
+      filled_quantity: {eq: 0}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  update:
+  - entity: watchlists
+    desc: Failing symbols removed from watchlist
+    bijection:
+      over: "['NEEDED'] if target['failing_all_symbols'] else []"
+      variable: tag
+    where:
+      name: {expr: "x == target['watchlist_name']"}
+    changes:
+      symbols: {expr: "all(sym not in x for sym in target['failing_all_symbols'])"}
+  invariant:
+  - collection: state.orders
+    filter: "(a.side == 'buy' and a.symbol not in target['passing_symbols']) or a.side == 'sell'"
+    preserve: ALL
+  - collection: state.watchlists
+    filter: "a.name != target['watchlist_name']"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  constraints:
+  - desc: Each passing-symbol order represents about $500 of buying intent
+    expr: all(o.quantity == Decimal(max(1, int(Decimal('500') /
+      state.get_stock(o.symbol).price))) and o.status == 'pending' and
+      o.filled_quantity == Decimal('0') for o in state.orders if o.side == 'buy'
+      and o.symbol in target['passing_symbols'] and o.id not in [io.id for io in
+      initial.orders])
+    severity: critical
+secondary_primitives: []

@@ -1,0 +1,66 @@
+variant_id: rh_consolidate_recurring__planning_v1
+base_task_id: rh_consolidate_recurring
+target_primitive: planning
+description: >
+  Additional noise recurring investments with overlapping symbols and varied
+  frequencies are added, and positions are shuffled so the portfolio view does
+  not align with the recurring list ordering. The agent must carefully plan
+  which investments to consolidate, computing correct combined amounts across
+  weekly and monthly frequencies.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+      - symbol: AAPL
+        side: buy
+        order_type: market
+        quantity: 2
+        limit_price: null
+      - symbol: VOO
+        side: buy
+        order_type: market
+        quantity: 1
+        limit_price: null
+      - symbol: MSFT
+        side: sell
+        order_type: limit
+        quantity: 3
+        limit_price: 420.00
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 55
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+      - type: recurring_investment
+        title: "AAPL Recurring Investment Executed"
+        message: "Your weekly $15.00 AAPL investment purchased 0.078 shares at $192.30."
+      - type: recurring_investment
+        title: "MSFT Recurring Investment Executed"
+        message: "Your monthly $50.00 MSFT investment purchased 0.122 shares at $410.15."
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: VTI
+      condition: below
+      target_price: 200.00
+      status: triggered
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/recurring/*'
+    methods:
+    - DELETE
+    - PATCH
+    fail_count: 1
+    success_body:
+      success: true
+      status: deleted
+    behavior:
+      mode: once

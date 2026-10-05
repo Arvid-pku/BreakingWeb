@@ -1,0 +1,240 @@
+task_id: reddit_full_inbox_management
+title: Full Inbox Lifecycle Management
+instruction_template: '1. Mark all notifications as read.
+
+  2. Go to Messages. Mark all as read.
+
+  3. Reply to u/{target.reply1_from}''s message (the one with subject "{target.reply1_sub}") using the message''s Reply button so the reply subject becomes "Re: {target.reply1_sub}". Reply body exactly: "{target.reply1_body}"
+
+  4. Reply to u/{target.reply2_from}''s message (the one with subject "{target.reply2_sub}") using the message''s Reply button so the reply subject becomes "Re: {target.reply2_sub}". Reply body exactly: "{target.reply2_body}"
+
+  5. Delete the message with subject "{target.delete_sub}".
+
+  6. Compose new message to u/{target.new_to} subject "{target.new_subject}" body exactly: "{target.new_body}"
+
+  7. Go to Settings: disable email for messages and mentions. Set theme to "dark".
+
+
+  Do not delete other messages.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- grounding
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: PhotonWave
+      subject: Photo walk Saturday?
+      body: Want to join?
+      is_read: false
+    outputs:
+    - r1_id
+    - r1_sub
+    - r1_from
+  - use: target_message
+    params:
+      from_user: NeuralNexus
+      subject: Paper review request
+      body: Can you review my draft?
+      is_read: false
+    outputs:
+    - r2_id
+    - r2_sub
+    - r2_from
+  - use: target_message
+    params:
+      from_user: ryushin6
+      subject: URGENT account compromised!!!
+      body: Click link immediately.
+      is_read: false
+    outputs:
+    - del_id
+    - del_sub
+    - del_from
+  - use: capture_notification_ids
+    params: {}
+    outputs:
+    - all_notification_ids
+    - unread_notification_ids
+  - use: capture_message_ids
+    params:
+      exclude:
+      - '{output.del_id}'
+    outputs:
+    - all_message_ids
+    - unread_message_ids
+  targets:
+    reply1_id: '{output.r1_id}'
+    reply1_from: '{output.r1_from}'
+    reply1_sub: '{output.r1_sub}'
+    reply1_body: Sounds great! I will bring my 50mm lens. What time?
+    reply2_id: '{output.r2_id}'
+    reply2_from: '{output.r2_from}'
+    reply2_sub: '{output.r2_sub}'
+    reply2_body: Happy to review it. Send me the PDF and I will have comments by Wednesday.
+    delete_sub: '{output.del_sub}'
+    delete_id: '{output.del_id}'
+    new_to: ByteRunner
+    new_subject: Weekend coding session
+    new_body: Want to pair program on the database migration library this weekend? I have some ideas for the retry logic.
+    unread_notification_ids: '{output.unread_notification_ids}'
+    unread_message_ids: '{output.unread_message_ids}'
+canonical_diff:
+  update:
+  - entity: Notification
+    desc: All unread notifications marked as read
+    bijection:
+      over: target['unread_notification_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Message
+    collection: state.messages
+    desc: All unread inbox messages marked as read
+    bijection:
+      over: target['unread_message_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      email_messages: {eq: false}
+      email_mentions: {eq: false}
+  create:
+  - entity: Message
+    collection: state.sent_messages
+    desc: Reply 1 sent to reply1_from
+    properties:
+      to_user:
+        expr: x == target['reply1_from']
+      subject:
+        expr: 'x == ''Re: '' + target[''reply1_sub'']'
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['reply1_body']
+      parent_id:
+        expr: x == target['reply1_id']
+  - entity: Message
+    collection: state.sent_messages
+    desc: Reply 2 sent to reply2_from
+    properties:
+      to_user:
+        expr: x == target['reply2_from']
+      subject:
+        expr: 'x == ''Re: '' + target[''reply2_sub'']'
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['reply2_body']
+      parent_id:
+        expr: x == target['reply2_id']
+  - entity: Message
+    collection: state.sent_messages
+    desc: New composed message sent to new_to
+    properties:
+      to_user:
+        expr: x == target['new_to']
+      subject:
+        expr: x == target['new_subject']
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['new_body']
+      parent_id:
+        eq:
+  delete:
+  - entity: Message
+    collection: state.messages
+    desc: Spam message was deleted from inbox
+    where:
+      id:
+        expr: x == target['delete_id']
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.notifications
+    filter: 'True'
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: All unread notifications marked as read
+    ref: update[0]
+    severity: high
+  - name: All unread inbox messages marked as read
+    ref: update[1]
+    severity: high
+  - name: Reply 1 sent to reply1_from
+    ref: create[0]
+    severity: high
+  - name: Reply 2 sent to reply2_from
+    ref: create[1]
+    severity: high
+  - name: New composed message sent to new_to
+    ref: create[2]
+    severity: high
+  - name: Spam message was deleted from inbox
+    ref: delete[0]
+    severity: high
+  - name: Agent did not modify subreddit memberships
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not mutate posts
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not create or edit comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not delete other inbox messages
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not send extra outbound messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not re-read or delete already-read notifications
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not edit user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and
+      state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

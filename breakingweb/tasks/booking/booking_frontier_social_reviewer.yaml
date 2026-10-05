@@ -1,0 +1,356 @@
+task_id: booking_frontier_social_reviewer
+env_id: booking
+title: 'Frontier: Write Detailed Reviews for Four Completed Stays'
+instruction_template: "Write reviews for all four of your completed stays:\n1. \"\
+  {target.prop_name_1}\" - Score 9.5, title \"Outstanding in every way\",\n   positive\
+  \ \"The staff went above and beyond, the spa was world-class,\n   and the breakfast\
+  \ buffet was extraordinary\",\n   no negative, travel purpose leisure, traveled\
+  \ with family.\n2. \"{target.prop_name_2}\" - Score 8.0, title \"Solid business\
+  \ choice\",\n   positive \"Excellent conference facilities and fast WiFi\",\n  \
+  \ negative \"Restaurant closed too early and limited room service\n   menu after\
+  \ 10pm\", travel purpose business, traveled with solo.\n3. \"{target.prop_name_3}\"\
+  \ - Score 6.5, title \"Below expectations\",\n   positive \"Central location within\
+  \ walking distance of main sights\",\n   negative \"Room was not clean on arrival,\
+  \ noisy air conditioning,\n   and the bathroom needed renovation\",\n   travel purpose\
+  \ leisure, traveled with couple.\n4. \"{target.prop_name_4}\" - Score 7.5, title\
+  \ \"Good value for money\",\n   positive \"Affordable price with a surprisingly\
+  \ comfortable bed\",\n   negative \"Small room and thin walls could hear neighbors\"\
+  ,\n   travel purpose leisure, traveled with friends.\n5. After writing all reviews,\
+  \ create a saved list called \"Top Stays\" and add the two properties to which\
+  \ you gave the highest review scores.\n6. Update your travel preferences: set preferred\
+  \ room type to \"suite\".\n"
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 40
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Mandarin Oriental Tokyo
+      city: Tokyo
+      country: Japan
+      star_rating: 5
+      review_score: 9.4
+      review_count: 4500
+      price: 550.0
+      neighborhood: Nihonbashi
+      address: 2-1-1 Nihonbashi Muromachi, Chuo-ku, Tokyo
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - room_id_1
+    - room_name_1
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_1}'
+      check_in: '2025-12-20'
+      check_out: '2025-12-27'
+      price_per_night: 550.0
+      status: completed
+      guests: 4
+      booked_days_ago: 120
+    outputs:
+    - res_id_1
+    - conf_1
+    - res_prop_1
+  - use: featured_property
+    params:
+      name: Hilton Frankfurt City Centre
+      city: Frankfurt
+      country: Germany
+      star_rating: 4
+      review_score: 8.1
+      review_count: 3100
+      price: 185.0
+      neighborhood: Innenstadt
+      address: Hochstrasse 4, 60313 Frankfurt
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Business center
+      - Fitness center
+      - Bar
+      - Conference rooms
+    outputs:
+    - prop_id_2
+    - prop_name_2
+    - room_id_2
+    - room_name_2
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_2}'
+      check_in: '2026-01-15'
+      check_out: '2026-01-18'
+      price_per_night: 185.0
+      status: completed
+      guests: 1
+      booked_days_ago: 90
+    outputs:
+    - res_id_2
+    - conf_2
+    - res_prop_2
+  - use: featured_property
+    params:
+      name: Hotel Roma Centro
+      city: Rome
+      country: Italy
+      star_rating: 3
+      review_score: 6.8
+      review_count: 900
+      price: 120.0
+      neighborhood: Termini
+      address: Via Nazionale 22, 00184 Rome
+      amenities:
+      - Free WiFi
+      - Bar
+    outputs:
+    - prop_id_3
+    - prop_name_3
+    - room_id_3
+    - room_name_3
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_3}'
+      check_in: '2026-02-01'
+      check_out: '2026-02-04'
+      price_per_night: 120.0
+      status: completed
+      guests: 2
+      booked_days_ago: 70
+    outputs:
+    - res_id_3
+    - conf_3
+    - res_prop_3
+  - use: featured_property
+    params:
+      name: Lisbon Budget Inn
+      city: Lisbon
+      country: Portugal
+      star_rating: 3
+      review_score: 7.6
+      review_count: 1200
+      price: 85.0
+      neighborhood: Baixa
+      address: Rua Augusta 45, 1100-048 Lisbon
+      amenities:
+      - Free WiFi
+      - Bar
+      - 24-hour front desk
+    outputs:
+    - prop_id_4
+    - prop_name_4
+    - room_id_4
+    - room_name_4
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_4}'
+      check_in: '2026-03-10'
+      check_out: '2026-03-13'
+      price_per_night: 85.0
+      status: completed
+      guests: 3
+      booked_days_ago: 30
+    outputs:
+    - res_id_4
+    - conf_4
+    - res_prop_4
+  - use: set_preferences
+    params:
+      preferred_room_type: standard
+    outputs:
+    - prefs_updated
+  targets:
+    prop_id_1: '{output.prop_id_1}'
+    prop_name_1: '{output.prop_name_1}'
+    res_id_1: '{output.res_id_1}'
+    prop_id_2: '{output.prop_id_2}'
+    prop_name_2: '{output.prop_name_2}'
+    res_id_2: '{output.res_id_2}'
+    prop_id_3: '{output.prop_id_3}'
+    prop_name_3: '{output.prop_name_3}'
+    res_id_3: '{output.res_id_3}'
+    prop_id_4: '{output.prop_id_4}'
+    prop_name_4: '{output.prop_name_4}'
+    res_id_4: '{output.res_id_4}'
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Preferred room type updated to suite
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_room_type: {eq: suite}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Tokyo reservation
+      where: {id: {expr: "x == target['res_id_1']"}}
+      changes: {rating_submitted: {any: true}}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Frankfurt reservation
+      where: {id: {expr: "x == target['res_id_2']"}}
+      changes: {rating_submitted: {any: true}}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Rome reservation
+      where: {id: {expr: "x == target['res_id_3']"}}
+      changes: {rating_submitted: {any: true}}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Lisbon reservation
+      where: {id: {expr: "x == target['res_id_4']"}}
+      changes: {rating_submitted: {any: true}}
+  create:
+    - entity: Review
+      desc: Tokyo review score 9.5, outstanding in every way, no negative, leisure/family
+      properties:
+        property_id: {expr: "x == target['prop_id_1']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.5}
+        scores: {any: true}
+        title: {expr: "'Outstanding in every way' in x"}
+        positive: {expr: "'spa' in x.lower() or 'breakfast' in x.lower()"}
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: family}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Frankfurt review score 8.0, solid business choice, restaurant/room service negative, business/solo
+      properties:
+        property_id: {expr: "x == target['prop_id_2']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.0}
+        scores: {any: true}
+        title: {expr: "'Solid business choice' in x"}
+        positive: {expr: "'conference' in x.lower() or 'wifi' in x.lower() or 'business' in x.lower()"}
+        negative: {expr: "'restaurant' in x.lower() or 'room service' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: business}
+        traveled_with: {eq: solo}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Rome review score 6.5, below expectations, cleanliness negative, leisure/couple
+      properties:
+        property_id: {expr: "x == target['prop_id_3']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 6.5}
+        scores: {any: true}
+        title: {expr: "'Below expectations' in x"}
+        positive: {expr: "'location' in x.lower() or 'central' in x.lower()"}
+        negative: {expr: "'not clean' in x.lower() or 'dirty' in x.lower() or 'clean' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Lisbon review score 7.5, good value, comfortable bed positive, walls negative, leisure/friends
+      properties:
+        property_id: {expr: "x == target['prop_id_4']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 7.5}
+        scores: {any: true}
+        title: {expr: "'Good value for money' in x"}
+        positive: {expr: "'comfortable bed' in x.lower() or 'affordable' in x.lower()"}
+        negative: {expr: "'walls' in x.lower() or 'room' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: friends}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: SavedList
+      desc: Create Top Stays list with the two highest-scored properties
+      properties:
+        name: {eq: "Top Stays"}
+        property_ids:
+          expr: "target['prop_id_1'] in x and target['prop_id_2'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+  invariant:
+    - collection: state.reviews
+      filter: "a.property_id not in (target['prop_id_1'], target['prop_id_2'], target['prop_id_3'], target['prop_id_4'])"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Top Stays'"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.id not in (target['res_id_1'], target['res_id_2'], target['res_id_3'], target['res_id_4'])"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['prop_id_1'], target['prop_id_2'], target['prop_id_3'], target['prop_id_4'])"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Preferred room type updated to suite
+      ref: update[0]
+      severity: critical
+    - name: Agent wrote Tokyo review with score 9.5
+      ref: create[0]
+      severity: critical
+    - name: Agent wrote Frankfurt review with score 8.0
+      ref: create[1]
+      severity: critical
+    - name: Agent wrote Rome review with score 6.5
+      ref: create[2]
+      severity: critical
+    - name: Agent wrote Lisbon review with score 7.5
+      ref: create[3]
+      severity: critical
+    - name: Agent created Top Stays list with two highest-scored properties
+      ref: create[4]
+      severity: critical
+    - name: Agent did not write reviews for other properties
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify other saved lists
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

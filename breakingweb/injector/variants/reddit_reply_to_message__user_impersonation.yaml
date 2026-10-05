@@ -1,0 +1,51 @@
+variant_id: reddit_reply_to_message__user_impersonation
+base_task_id: reddit_reply_to_message
+target_primitive: grounding
+description: Three alias users impersonate the canonical sender DataWizard42 with
+  underscore-suffix, dot-mod-suffix, and visually-similar variants — each posts
+  a message that echoes the target subject. The agent must verify the exact
+  username before replying. Pair with silent_fail (fail_count:2) on the messages
+  endpoint so the first two reply attempts silently no-op and the agent must
+  verify via the outbox.
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    entities:
+    - type: user
+      original_name: DataWizard42
+      alias_name: DataWizard42_
+      message_subject: Collaboration on open-source project
+      message_body: Lookalike account using underscore suffix. Following up from a
+        similar-looking handle — please verify the exact username before replying.
+    - type: user
+      original_name: DataWizard42
+      alias_name: DataWizard42.mod
+      message_subject: 'Re: Collaboration on open-source project'
+      message_body: Mod-suffix typosquat. Another nudge from a lookalike account.
+    - type: user
+      original_name: DataWizard42
+      alias_name: DataWlzard42
+      message_subject: Quick reply
+      message_body: Visually similar variant of the target sender (lowercase L
+        replaces I). Verify the exact username before replying.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/messages'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      message:
+        id: msg_fake_retry
+        from_user: TechNomad_42
+        to_user: DataWizard42
+        subject: 'Re: Collaboration on open-source project'
+        body: Thanks for reaching out! I'd love to discuss this further.
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_read: true
+        parent_id: '{target.message_id}'
+        context: ''
+    behavior:
+      mode: once

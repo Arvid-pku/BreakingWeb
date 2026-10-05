@@ -1,0 +1,109 @@
+task_id: rh_live_watch_portfolio
+env_id: robinhood
+title: Watch Portfolio Value and Sell Winner
+instruction_template: Monitor your total portfolio value. When it crosses above
+  $14,700, sell your most profitable position by total return percentage to lock
+  in gains.
+difficulty: hard
+time_limit_seconds: 280
+expected_steps: 18
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - GOOGL
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      total_value_target: 14600
+    outputs:
+    - best_symbol
+    - portfolio_value
+  targets:
+    best_symbol: '{output.best_symbol}'
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      AAPL:
+        keyframes:
+        - - 0
+          - 189.0
+        - - 18
+          - 228.0
+        - - 30
+          - 222.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order placed for the most profitable position
+    properties:
+      symbol: {expr: "x == target['best_symbol']"}
+      side: {eq: sell}
+      order_type: {any: true}
+      quantity: {any: true}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: Most-profitable position sell order filled
+    expr: any(o.symbol == target['best_symbol'] and o.side == 'sell' and
+      o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders)
+    severity: critical
+  - desc: Portfolio value crossed the $14,700 trigger before selling
+    expr: sum(state.get_stock(p.symbol).price * p.quantity for p in
+      initial.positions if state.get_stock(p.symbol) is not None) >=
+      Decimal('14700')
+    severity: critical
+  - desc: Most-profitable position fully liquidated
+    expr: state.get_position(target['best_symbol']) is None
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures patience, state_tracking, planning by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor
+  account state.

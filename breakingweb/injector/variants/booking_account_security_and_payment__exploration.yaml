@@ -1,0 +1,16 @@
+variant_id: booking_account_security_and_payment__exploration_v1
+base_task_id: booking_account_security_and_payment
+target_primitive: exploration
+description: The settings page removes direct navigation links between security,
+  payment, and notification sections, requiring the agent to discover the correct
+  paths through exploration.
+injections:
+- layer: client
+  params:
+    action: hide_navigation
+    selectors:
+    - '.bk-tab'
+    - 'a[href*="settings"]'
+    behavior:
+      hide_probability: 0.5
+      note: Some navigation links are hidden, requiring URL-based navigation

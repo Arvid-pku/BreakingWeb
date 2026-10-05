@@ -1,0 +1,147 @@
+task_id: gmail_phishing_investigation
+env_id: gmail
+title: Phishing Investigation
+instruction_template: The security team flagged suspicious activity. Browse your inbox
+  and identify unread emails with attachments — look for emails marked as unread that
+  have attachment indicators.
+  Investigate each one and identify any phishing attempts. Delete the phishing emails.
+  Star the legitimate emails. Compose a new email to {target.security_team_email}
+  reporting your findings — include the subjects of any phishing emails in your report.
+  Do NOT forward the phishing emails directly. Create a 'Verified Safe' label and
+  apply it to the legitimate emails. Then create a filter to auto-archive and mark-read
+  future emails from the phishing domain.
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 50
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: phishing_investigation
+    params:
+      security_team_email: security-team@thornton.com
+      phishing_domain: secure-acme.net
+    outputs:
+    - phishing_ids
+    - legit_ids
+    - security_team_email
+    - phishing_subject_a
+    - phishing_subject_b
+    - phishing_domain
+  targets:
+    phishing_ids: '{output.phishing_ids}'
+    legit_ids: '{output.legit_ids}'
+    security_team_email: '{output.security_team_email}'
+    phishing_subject_a: '{output.phishing_subject_a}'
+    phishing_subject_b: '{output.phishing_subject_b}'
+    phishing_domain: '{output.phishing_domain}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose report email to security team with phishing subjects
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['security_team_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['phishing_subject_a'] in x and target['phishing_subject_b'] in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: labels
+      desc: Create Verified Safe label
+      count: 1
+      properties:
+        name:
+          eq: "Verified Safe"
+    - entity: filters
+      desc: Create filter to auto-archive and mark-read future emails from phishing domain
+      count: 1
+      properties:
+        from_addresses:
+          expr: "any(target['phishing_domain'] in a for a in x)"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: deleted
+      desc: First phishing email moved to trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['phishing_ids'][0]"
+    - entity: deleted
+      desc: Second phishing email moved to trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['phishing_ids'][1]"
+  delete:
+    - entity: emails
+      desc: Delete first phishing email from inbox
+      where:
+        id:
+          expr: "x == target['phishing_ids'][0]"
+    - entity: emails
+      desc: Delete second phishing email from inbox
+      where:
+        id:
+          expr: "x == target['phishing_ids'][1]"
+  update:
+    - entity: emails
+      desc: Star both legitimate emails and apply Verified Safe label
+      bijection:
+        over: "target['legit_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - "Verified Safe"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['phishing_ids'] and a.id not in target['legit_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Verified Safe'"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent phishing report to security team
+      ref: create[0]
+      severity: high
+    - name: Agent created Verified Safe label
+      ref: create[1]
+      severity: high
+    - name: Agent created phishing domain filter
+      ref: create[2]
+      severity: high
+    - name: Agent deleted phishing emails
+      ref: delete[0]
+      severity: critical
+    - name: Agent starred legit emails with Verified Safe label
+      ref: update[0]
+      severity: high

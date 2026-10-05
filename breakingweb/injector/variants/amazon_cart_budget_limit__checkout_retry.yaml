@@ -1,0 +1,32 @@
+variant_id: amazon_cart_budget_limit__checkout_retry
+base_task_id: amazon_cart_budget_limit
+target_primitive: planning
+description: >
+  The first two checkout POSTs return a fake 200 with a realistic order body
+  but never persist on the backend. The agent must verify the order via re-read
+  of orders state (not by trusting the success toast) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/checkout'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      order:
+        id: order_fake_retry
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        discount: 0.0
+        total: 0.0
+        status: confirmed
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: 'Arriving in 3 days'
+        promo_code: null
+    behavior:
+      mode: once

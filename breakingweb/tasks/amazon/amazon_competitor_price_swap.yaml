@@ -1,0 +1,221 @@
+task_id: amazon_competitor_price_swap
+env_id: amazon
+title: Swap Pending Order for the Cheapest Qualifying Alternative
+instruction_template: 'You have a confirmed (not-yet-shipped) order for "{target.original_product_name}"
+  priced at ${target.original_price}. Check for cheaper alternatives of the same product
+  type. If a lower-priced competitor exists with rating >= 4.0, cancel the original
+  order and place a new order for the cheapest qualifying alternative. Otherwise leave
+  your order as-is.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 26
+primary_primitives:
+- grounding
+secondary_primitives:
+- backtracking
+start_path: /orders
+seed:
+  distractors: 12
+  # Skip the real-products distractor pool: amazon_real_products.json injects
+  # 10+ real "headphones" entries priced below the seeded $34.99 cheapest
+  # qualifying alternative, all with rating >= 4.0. Since the grader hard-codes
+  # `target['cheapest_qualifying_id']`, an agent that correctly picks the
+  # genuinely-cheapest qualifying alternative would be graded as fail. The
+  # seed already provides the controlled comparison set (original + cheapest
+  # qualifying + cheap-but-low-rating decoy + premium decoy).
+  skip_real_products: true
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Studio Monitor Headphones Plus
+      brand: SoundCore
+      category: Electronics
+      subcategory: Headphones
+      price: 49.99
+      rating: 4.3
+      features:
+      - Over-ear padding
+      - 40mm drivers
+      - Detachable cable
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_original
+    - product_name_original
+    - product_price_original
+  - use: featured_product
+    params:
+      name: Studio Monitor Headphones Pro
+      brand: Voltrex
+      category: Electronics
+      subcategory: Headphones
+      price: 34.99
+      rating: 4.4
+      features:
+      - Over-ear design
+      - 50mm drivers
+      - Tangle-free cable
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cheapest_qualifying
+    - product_name_cheapest_qualifying
+    - product_price_cheapest_qualifying
+  - use: featured_product
+    params:
+      name: Budget Monitor Headphones
+      brand: TechNova
+      category: Electronics
+      subcategory: Headphones
+      price: 29.99
+      rating: 3.6
+      features:
+      - Foldable design
+      - 30mm drivers
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cheap_decoy
+    - product_name_cheap_decoy
+    - product_price_cheap_decoy
+  - use: featured_product
+    params:
+      name: Premium Monitor Headphones Reference
+      brand: NexGen Audio
+      category: Electronics
+      subcategory: Headphones
+      price: 74.99
+      rating: 4.6
+      features:
+      - Planar magnetic drivers
+      - Studio grade tuning
+      - Replaceable earpads
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_expensive_decoy
+    - product_name_expensive_decoy
+    - product_price_expensive_decoy
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_original}'
+      status: confirmed
+      days_ago: 1
+    outputs:
+    - order_id
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 20.0
+      - 100.0
+    outputs:
+    - catalog_electronics
+  targets:
+    original_product_name: '{output.product_name_original}'
+    original_price: '{output.product_price_original}'
+    original_order_id: '{output.order_id}'
+    cheapest_qualifying_id: '{output.product_id_cheapest_qualifying}'
+    cheapest_qualifying_name: '{output.product_name_cheapest_qualifying}'
+    cheap_decoy_id: '{output.product_id_cheap_decoy}'
+    expensive_decoy_id: '{output.product_id_expensive_decoy}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New confirmed order for the cheapest qualifying alternative
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['cheapest_qualifying_id']
+          and x[0]['quantity'] == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  update:
+  - entity: Order
+    desc: Original pending order cancelled
+    where:
+      id: {expr: "x == target['original_order_id']"}
+    changes:
+      status: {eq: cancelled}
+  invariant:
+  - collection: state.orders
+    filter: "a.id != target['original_order_id'] and not any(it.get('product_id')
+      == target['cheapest_qualifying_id'] for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify unrelated orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

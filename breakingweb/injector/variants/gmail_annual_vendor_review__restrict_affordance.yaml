@@ -1,0 +1,15 @@
+variant_id: gmail_annual_vendor_review__restrict_affordance
+base_task_id: gmail_annual_vendor_review
+target_primitive: exploration
+description: >
+  Email rows: only the sender image opens the email. Clicking the subject
+  or the row body does nothing. Agent that habitually clicks titles must
+  explore for the working affordance.
+injections:
+  - layer: client
+    params:
+      action: restrict_affordance_set
+      target: "[data-wab-row], article, .email-row, .list-row"
+      keep: image
+      disable_style: no_op
+      behavior: { mode: persistent }

@@ -1,0 +1,131 @@
+task_id: reddit_full_profile_engagement
+env_id: reddit
+title: Full Profile-Driven Engagement
+instruction_template: 'Visit u/{target.target_user}''s profile. Find their post titled "{target.user_post_title}" in r/{target.user_post_sub}.
+
+
+  1. Upvote that post.
+
+  2. Add a comment with exactly: "{target.comment_text}"
+
+  3. Save the post.
+
+  4. Send a message to u/{target.target_user} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+
+  Do not interact with any other user''s content.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: photography
+      title: I spent 3 years photographing every species of bird in Central Park
+      body: 'Final count: 284 species. Full gallery in comments.'
+      author: PhotonWave
+      score: 67000
+      flair_text: OC
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    target_user: PhotonWave
+    user_post_title: '{output.post_title}'
+    user_post_sub: '{output.subreddit_name}'
+    post_id: '{output.post_id}'
+    comment_text: This is an incredible achievement. 284 species in a single urban park is remarkable. How did you handle the seasonal migrants?
+    msg_subject: Your Central Park bird photography
+    msg_body: Stunning work! Would you consider licensing some images for a nature conservation newsletter I edit?
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Target post upvoted
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  create:
+  - entity: Comment
+    desc: Exact comment posted on target post
+    properties:
+      post_id:
+        expr: "x == target['post_id']"
+      body:
+        expr: "x == target['comment_text']"
+      parent_id:
+        eq:
+      author_name:
+        expr: "x == state.owner_username"
+  - entity: Message
+    collection: state.sent_messages
+    desc: Private message sent to target user with exact body
+    properties:
+      to_user:
+        expr: "x == target['target_user']"
+      subject:
+        expr: "x == target['msg_subject']"
+      from_user:
+        expr: "x == state.owner_username"
+      body:
+        expr: "x == target['msg_body']"
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.comments
+    filter: "True"
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: "True"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent upvoted and saved the target post
+    ref: update[0]
+    severity: high
+  - name: Agent posted the exact comment on the target post
+    ref: create[0]
+    severity: high
+  - name: Agent sent the exact private message to the target user
+    ref: create[1]
+    severity: high
+  - name: Agent did not vote on, save, or modify any other post
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify inbox messages
+    ref: invariant[2]
+    severity: medium
+  constraints:
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

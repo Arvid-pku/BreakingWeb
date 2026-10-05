@@ -1,0 +1,23 @@
+variant_id: amazon_full_order_lifecycle__backtracking_v1
+base_task_id: amazon_full_order_lifecycle
+target_primitive: backtracking
+description: >
+  The cancel API returns a 503 error on the first attempt, and the
+  checkout API returns a 503 error on the first attempt for the second
+  order. The agent must handle transient server errors by retrying
+  failed operations.
+injections:
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/orders/*/cancel"
+      action: error_then_success
+      methods: ["POST"]
+      error_status: 503
+      error_count: 1
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/checkout"
+      action: error_then_success
+      methods: ["POST"]
+      error_status: 503
+      error_count: 1

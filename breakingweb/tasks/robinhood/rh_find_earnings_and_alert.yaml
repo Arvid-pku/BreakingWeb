@@ -1,0 +1,56 @@
+task_id: rh_find_earnings_and_alert
+env_id: robinhood
+title: Find Earnings Stocks and Set Price Alerts
+instruction_template: Find which stocks in your portfolio have earnings in the next
+  7 days. For each, create a price alert set at 5% below their current price.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 8
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - META
+      - NVDA
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      count: 6
+    outputs: []
+  - use: earnings_calendar
+    params:
+      days_ahead: 7
+      from_portfolio: true
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: price_alerts
+    desc: One below-5%-current-price alert per portfolio stock with upcoming earnings
+    bijection:
+      over: "state.portfolio_symbols_with_earnings_within(7)"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      condition: {eq: below}
+      target_price: {expr: "abs(float(x) - float(state.get_stock(v).price) * 0.95) <= 0.5"}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+secondary_primitives: []

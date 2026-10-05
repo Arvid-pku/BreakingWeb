@@ -1,0 +1,142 @@
+task_id: pp_medication_conflict
+env_id: patient_portal
+title: Medication Conflict Resolution
+instruction_template: A new prescription has been added to your medication list. Check
+  your active prescriptions for any listed drug interactions. Identify the conflicting
+  pair, then schedule exactly one follow-up appointment with the prescribing provider
+  of the newer medication using that provider's next available slot. Use the appointment
+  reason exactly "Interaction review". Do not discontinue any medication and do not
+  send any messages.
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 30
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Atrial Fibrillation
+      allergies:
+      - Penicillin
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+    - interacting_rx_ids
+    - interacting_medications
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    interacting_rx_ids: '{output.interacting_rx_ids}'
+    interacting_medications: '{output.interacting_medications}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one appointment with the prescribing provider of the newer interacting rx at that provider's next available slot"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Interaction review"}
+        provider_id:
+          expr: >-
+            x == initial.get_prescription(
+              max(target['interacting_rx_ids'],
+                  key=lambda rid: (initial.get_prescription(rid).last_filled, rid))
+            ).provider_id
+        datetime:
+          expr: >-
+            x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id == initial.get_prescription(
+                max(target['interacting_rx_ids'],
+                    key=lambda rid: (initial.get_prescription(rid).last_filled, rid))
+              ).provider_id
+              for s in p.available_slots
+            )
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not discontinue or modify prescriptions"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

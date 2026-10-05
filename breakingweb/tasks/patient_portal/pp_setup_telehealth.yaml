@@ -1,0 +1,111 @@
+task_id: pp_setup_telehealth
+env_id: patient_portal
+title: Convert to Telehealth
+instruction_template: Your next upcoming in-person appointment needs to be converted
+  to telehealth. Use the Reschedule option on that appointment to change its type to
+  telehealth and move it to the provider's earliest available slot. Keep the same provider.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /appointments
+seed:
+  distractors: 6
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+    - next_appointment_id
+  targets:
+    pcp_id: '{output.pcp_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    next_appointment_id: '{output.next_appointment_id}'
+canonical_diff:
+  update:
+    - entity: Appointment
+      desc: "Reschedule the target upcoming appointment in-place to telehealth at the provider's earliest available slot"
+      where:
+        id: {expr: "x == target['next_appointment_id']"}
+      changes:
+        type: {eq: "telehealth"}
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == initial.get_appointment(target['next_appointment_id']).provider_id"
+        datetime:
+          expr: >
+            x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id == initial.get_appointment(target['next_appointment_id']).provider_id
+              for s in p.available_slots
+            )
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments} and a.id != target['next_appointment_id']"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify other upcoming appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

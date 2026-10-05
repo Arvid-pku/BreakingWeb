@@ -1,0 +1,196 @@
+task_id: gmail_misrouted_correction
+env_id: gmail
+title: Correct a misrouted forward and complete remaining deliveries
+instruction_template: 'Forward these 3 emails to the specified recipients:
+
+  - Email A (subject "{target.email_a_subject}") -> forward to {target.alice_email}
+
+  - Email B (subject "{target.email_b_subject}") -> forward to {target.bob_email}
+
+  - Email C (subject "{target.email_c_subject}") -> forward to {target.carol_email}
+
+
+  After forwarding Email A, check Email A''s thread — a reply from {target.hr_contact}
+  states that {target.alice_name} is on leave until {target.return_date} and her backup
+  is {target.dana_name} at {target.dana_email}.
+
+
+  You must then:
+
+  1. Send a new email to {target.dana_email} with subject "Forwarded on behalf of
+  {target.alice_name} (on leave)" explaining that you initially forwarded Email A
+  to {target.alice_name} but she is on leave, and that {target.dana_name} should handle
+  it as {target.alice_name}''s backup.
+
+  2. Forward Email A again to {target.dana_email}.
+
+  3. Continue forwarding Email B to {target.bob_email} and Email C to {target.carol_email}
+  as originally planned.
+
+
+  NOTE: Be careful with contact names — the correct backup is {target.dana_name} ({target.dana_email}),
+  not anyone with a similar name.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 30
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 30
+  actors:
+    alice:
+      domain: thornton.com
+      is_vip: false
+    bob:
+      domain: thornton.com
+      is_vip: false
+    carol:
+      domain: thornton.com
+      is_vip: false
+    dana:
+      domain: thornton.com
+      is_vip: false
+    donna:
+      domain: thornton.com
+      is_vip: false
+    hr_contact:
+      domain: thornton.com
+      is_vip: false
+    red_herring_person:
+      domain: thornton.com
+      is_vip: false
+  steps:
+  - use: misrouted_correction
+    params: {}
+    outputs:
+    - alice_name
+    - alice_email
+    - bob_email
+    - carol_email
+    - dana_name
+    - dana_email
+    - donna_name
+    - donna_email
+    - hr_contact
+    - return_date
+    - email_a_subject
+    - email_b_subject
+    - email_c_subject
+    - email_a_id
+    - email_b_id
+    - email_c_id
+    - red_herring_name
+  targets:
+    alice_name: '{output.alice_name}'
+    alice_email: '{output.alice_email}'
+    bob_email: '{output.bob_email}'
+    carol_email: '{output.carol_email}'
+    dana_name: '{output.dana_name}'
+    dana_email: '{output.dana_email}'
+    donna_name: '{output.donna_name}'
+    donna_email: '{output.donna_email}'
+    hr_contact: '{output.hr_contact}'
+    return_date: '{output.return_date}'
+    email_a_subject: '{output.email_a_subject}'
+    email_b_subject: '{output.email_b_subject}'
+    email_c_subject: '{output.email_c_subject}'
+    email_a_id: '{output.email_a_id}'
+    email_b_id: '{output.email_b_id}'
+    email_c_id: '{output.email_c_id}'
+    red_herring_name: '{output.red_herring_name}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward Email A to Alice (initial forward)
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['email_a_id']"
+        to:
+          expr: "x == [target['alice_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Email A to Dana (correction after learning Alice is on leave)
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['email_a_id']"
+        to:
+          expr: "x == [target['dana_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Send correction email to Dana explaining Alice is on leave
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['dana_email']]"
+        body:
+          expr: "target['alice_name'] in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Forward Email B to Bob
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['email_b_id']"
+        to:
+          expr: "x == [target['bob_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Email C to Carol
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['email_c_id']"
+        to:
+          expr: "x == [target['carol_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded Email A to Alice
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded Email A to Dana as correction
+      ref: create[1]
+      severity: high
+    - name: Agent sent correction notice to Dana
+      ref: create[2]
+      severity: high
+    - name: Agent forwarded Email B to Bob
+      ref: create[3]
+      severity: high
+    - name: Agent forwarded Email C to Carol
+      ref: create[4]
+      severity: high

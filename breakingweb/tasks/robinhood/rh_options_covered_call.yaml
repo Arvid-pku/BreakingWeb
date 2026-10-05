@@ -1,0 +1,69 @@
+task_id: rh_options_covered_call
+env_id: robinhood
+title: Sell a Covered Call on an Existing Position
+instruction_template: 'You own 100+ shares of {target.underlying}. Sell a covered
+  call: pick the nearest monthly expiration, choose a strike price at least 10% above
+  the current price ({target.current_price}), and sell 1 contract.'
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 28
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 15
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - TSLA
+      - AMZN
+    outputs:
+    - stock_price_AAPL
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - TSLA
+      quantities:
+      - '150'
+      - '50'
+      - '30'
+      cost_bases:
+      - '165.00'
+      - '370.00'
+      - '220.00'
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: AAPL
+      expirations_count: 6
+      strikes_per_expiration: 12
+    outputs: []
+  targets:
+    underlying: AAPL
+    current_price: '{output.stock_price_AAPL}'
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Single-leg covered call sell on AAPL (1 contract, ≥10% OTM, 14-60d)
+    properties:
+      status: {in: [pending, filled]}
+      legs: {expr: "all(leg['underlying_symbol'] == 'AAPL' and leg['side'] == 'sell' and leg['option_type'] == 'call' and leg['quantity'] == 1 and leg['strike'] >= state.get_stock('AAPL').price * Decimal('1.10') and state.days_until(leg['expiration']) >= 14 and state.days_until(leg['expiration']) <= 60 for leg in x)"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    filter: "a.side == 'sell' and a.symbol == 'AAPL'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+secondary_primitives: []

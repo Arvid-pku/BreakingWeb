@@ -1,0 +1,38 @@
+variant_id: lms_discussion_participation_verify__discussion_verify_v1
+base_task_id: lms_discussion_participation_verify
+target_primitive: verification
+description: A key LMS read or write initially returns a misleading success or stale
+  snapshot. The agent must verify the real persisted outcome.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/lms/discussions/*/posts'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      post:
+        id: post_fake
+        discussion_id: discussion_fake
+        author_id: student_fake
+        author_name: Student
+        body: Looks posted, but the server did not persist it.
+        parent_post_id: null
+        timestamp: '2026-01-15T12:00:00+00:00'
+        updated_at: null
+        is_anonymous: false
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: discussion
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Week 4 discussion archive
+      prompt: Archived discussion shell from a previous cohort.
+      posts:
+      - body: This older thread stays visible for reference only.
+        author_name: Dr. Morgan Hale

@@ -1,0 +1,199 @@
+task_id: gmail_thread_deadline_cascade
+env_id: gmail
+title: Reconstruct a deadline dependency chain and notify the project sponsor
+instruction_template: 'Four project threads describe deliverables for the Helios product
+  launch:
+
+  (1) "Helios - API Integration" owned by Farah Nasir, due 2026-03-10,
+
+  (2) "Helios - QA Sign-off" owned by Dmitri Volkov, due 2026-03-14, depends on API
+  Integration,
+
+  (3) "Helios - Staging Deploy" owned by Keiko Tanaka, due 2026-03-18, depends on
+  QA Sign-off,
+
+  (4) "Helios - Launch Readiness" owned by Owen Byrne, due 2026-03-22, depends on
+  Staging Deploy.
+
+  A slip notification email from Farah Nasir states that API Integration is delayed
+  to 2026-03-17
+
+  (7 days late). Determine which downstream deadlines are now at risk (all three:
+  QA, Staging,
+
+  Launch). Star all three affected threads (QA Sign-off, Staging Deploy, Launch Readiness).
+
+  Archive the slip notification email. Find the project sponsor''s email address from
+  the CC
+
+  field of Farah''s slip notification (it is {target.sponsor_email}, not mentioned
+  in the body).
+
+  Compose a SINGLE notification email to {target.sponsor_email} with subject
+
+  "Helios deadline cascade" and body listing all three at-risk deliverables with their
+
+  original due dates. Do NOT email Farah Nasir (she already knows). Do NOT email about
+  the
+
+  unrelated "Helios - Marketing Assets" thread. Ignore the email from {target.suki_park_email}
+  that
+
+  says "I spoke to Farah, the API delay is only 2 days, not 7 — don''t worry about
+  downstream
+
+  impact" (this is incorrect; the official slip notification says 7 days).'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 40
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    farah_nasir:
+      name: Farah Nasir
+      domain: helios.dev
+      is_vip: false
+    dmitri_volkov:
+      name: Dmitri Volkov
+      domain: helios.dev
+      is_vip: false
+    keiko_tanaka:
+      name: Keiko Tanaka
+      domain: helios.dev
+      is_vip: false
+    owen_byrne:
+      name: Owen Byrne
+      domain: helios.dev
+      is_vip: false
+    suki_park:
+      name: Suki Park
+      domain: helios.dev
+      is_vip: false
+    nadia_orozco:
+      name: Nadia Orozco
+      domain: helios.dev
+      is_vip: true
+  steps:
+  - use: thread_deadline_cascade
+    params: {}
+    outputs:
+    - sponsor_email
+    - suki_park_email
+    - farah_nasir_email
+    - slip_notification_id
+    - qa_thread_id
+    - staging_thread_id
+    - launch_thread_id
+    - api_thread_id
+    - marketing_thread_id
+  targets:
+    sponsor_email: '{output.sponsor_email}'
+    suki_park_email: '{output.suki_park_email}'
+    farah_nasir_email: '{output.farah_nasir_email}'
+    slip_notification_id: '{output.slip_notification_id}'
+    qa_thread_id: '{output.qa_thread_id}'
+    staging_thread_id: '{output.staging_thread_id}'
+    launch_thread_id: '{output.launch_thread_id}'
+    api_thread_id: '{output.api_thread_id}'
+    marketing_thread_id: '{output.marketing_thread_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose notification email to project sponsor about deadline cascade
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['sponsor_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Helios deadline cascade"
+        body:
+          substring_all:
+            - "QA Sign-off"
+            - "2026-03-14"
+            - "Staging Deploy"
+            - "2026-03-18"
+            - "Launch Readiness"
+            - "2026-03-22"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star at least one email in QA Sign-off thread
+      where:
+        thread_id:
+          expr: "x == target['qa_thread_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Star at least one email in Staging Deploy thread
+      where:
+        thread_id:
+          expr: "x == target['staging_thread_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Star at least one email in Launch Readiness thread
+      where:
+        thread_id:
+          expr: "x == target['launch_thread_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive slip notification email
+      where:
+        id:
+          expr: "x == target['slip_notification_id']"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.thread_id not in [target['qa_thread_id'], target['staging_thread_id'],
+        target['launch_thread_id']] and a.id != target['slip_notification_id']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent deadline cascade notification to sponsor
+      ref: create[0]
+      severity: high
+    - name: Agent starred QA Sign-off thread
+      ref: update[0]
+      severity: high
+    - name: Agent starred Staging Deploy thread
+      ref: update[1]
+      severity: high
+    - name: Agent starred Launch Readiness thread
+      ref: update[2]
+      severity: high
+    - name: Agent archived slip notification
+      ref: update[3]
+      severity: medium
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

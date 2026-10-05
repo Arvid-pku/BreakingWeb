@@ -1,0 +1,28 @@
+{
+  "name": "@breakingweb/environments",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "pnpm": {
+    "overrides": {
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0",
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0"
+    }
+  },
+  "scripts": {
+    "build": "pnpm -r --filter '!@breakingweb/demo-site' build",
+    "dev:amazon": "pnpm --filter @breakingweb/amazon dev",
+    "dev:booking": "pnpm --filter @breakingweb/booking dev",
+    "dev:gmail": "pnpm --filter @breakingweb/gmail dev",
+    "dev:reddit": "pnpm --filter @breakingweb/reddit dev",
+    "dev:robinhood": "pnpm --filter @breakingweb/robinhood dev",
+    "dev:lms": "pnpm --filter @breakingweb/lms dev",
+    "dev:patient_portal": "pnpm --filter @breakingweb/patient_portal dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @breakingweb/gmail test:run",
+    "test:gmail": "pnpm --filter @breakingweb/gmail test:run",
+    "start:amazon": "bash ../../scripts/breakingweb.sh dev --env amazon",
+    "start:gmail": "bash ../../scripts/breakingweb.sh dev --env gmail"
+  }
+}

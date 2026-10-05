@@ -1,0 +1,164 @@
+task_id: lms_multi_course_thresholds
+env_id: lms
+title: Multi-Course Grade Threshold Planning
+instruction_template: 'Determine the minimum average score needed on remaining assignments
+  to achieve: B (80%) in {target.course_code_1}, A (90%) in {target.course_code_2},
+  C (70%) in {target.course_code_3}. For any course where the target is impossible
+  (requires more than 100% on remaining assignments), drop that course. For each achievable
+  course among those three listed courses, submit ''priority_plan.pdf'' for the next
+  unsubmitted assignment of any type (homework, quiz, exam, or project).'
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 25
+primary_primitives:
+- state_tracking
+start_path: /dashboard
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params:
+      gpa: '2.90'
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.5
+      late_count: 1
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - minimum_final_score_for_b
+    - impossible_course_ids
+    - achievable_course_ids
+    - next_unsubmitted_ids
+  targets:
+    course_code_1: CS101
+    course_code_2: MATH201
+    course_code_3: ENG102
+    impossible_course_ids: '{output.impossible_course_ids}'
+    achievable_course_ids: '{output.achievable_course_ids}'
+    next_unsubmitted_ids: '{output.next_unsubmitted_ids}'
+canonical_diff:
+  update:
+  - entity: Enrollment
+    desc: Drop every impossible course enrollment
+    bijection:
+      over: "target['impossible_course_ids'].split(',') if target['impossible_course_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == initial.get_enrollment_for_course(v).id"
+    changes:
+      status:
+        eq: dropped
+  - entity: Assignment
+    desc: Submit priority_plan.pdf for the next unsubmitted assignment in each achievable course
+    bijection:
+      over: "target['next_unsubmitted_ids'].split(',') if target['next_unsubmitted_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: priority_plan.pdf
+      attempt_count:
+        expr: "x >= initial.get_assignment(v).attempt_count + 1"
+      submitted_at:
+        expr: "x is not None"
+  invariant:
+  - collection: state.enrollments
+    filter: "a.course_id not in (target['impossible_course_ids'].split(',') if target['impossible_course_ids'] else [])"
+    preserve: ALL
+  - collection: state.assignments
+    filter: "a.id not in (target['next_unsubmitted_ids'].split(',') if target['next_unsubmitted_ids'] else [])"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent dropped every impossible course enrollment
+    ref: update[0]
+    severity: high
+  - name: Agent submitted priority_plan.pdf for every achievable course
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other enrollments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other assignments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

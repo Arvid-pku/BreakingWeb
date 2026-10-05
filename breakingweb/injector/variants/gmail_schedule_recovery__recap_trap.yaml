@@ -1,0 +1,16 @@
+variant_id: gmail_schedule_recovery__recap_trap
+base_task_id: gmail_schedule_recovery
+target_primitive: backtracking
+description: A prominent recap email confidently summarizes an outdated meeting time. The agent must verify
+  the real thread rather than trusting the shortcut recap.
+injections:
+- layer: seed
+  params:
+    action: plant_wrong_answer
+    from_name: Ops Recap Bot
+    subject: Scheduling recap
+    body: 'Quick recap: Wednesday 10:00 AM still looks confirmed. No need to review the full thread unless
+      something changed.'
+    labels:
+    - inbox
+    from: ops-bot@thornton.com

@@ -1,0 +1,36 @@
+variant_id: reddit_update_settings__settings_retry
+base_task_id: reddit_update_settings
+target_primitive: verification
+description: First two writes return a fake 200 with a realistic body but never persist. Frontier agents that only retry on visible errors need to verify state via re-read; otherwise the canonical_diff predicate fails.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/settings'
+    methods:
+    - PUT
+    fail_count: 2
+    response_body:
+      settings:
+        id: settings_reddit
+        default_feed_sort: new
+        default_comment_sort: best
+        show_nsfw: false
+        blur_nsfw: true
+        open_links_in_new_tab: true
+        theme: dark
+        compact_view: true
+        email_comment_reply: true
+        email_post_reply: true
+        email_mentions: true
+        email_messages: true
+        email_digest: false
+        show_online_status: false
+        allow_followers: true
+        show_active_communities: true
+        country: US
+        language: en
+        auto_play_media: true
+        reduce_animations: false
+    behavior:
+      mode: once

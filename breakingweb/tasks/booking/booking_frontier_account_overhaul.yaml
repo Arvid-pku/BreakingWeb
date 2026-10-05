@@ -1,0 +1,281 @@
+task_id: booking_frontier_account_overhaul
+env_id: booking
+title: 'Frontier: Complete Account Overhaul with Profile, Settings, Payments, and
+  Booking'
+instruction_template: "Perform a complete account overhaul with these exact steps:\n\
+  1. Update your profile: change display name to \"Jordan A. Parker\",\n   phone to\
+  \ \"+1-312-555-0198\", and nationality to \"GB\".\n2. Update all account settings:\
+  \ change currency to \"EUR\",\n   language to \"French\", enable two-factor authentication,\n\
+  \   disable deal alerts, enable newsletter, and enable SMS notifications.\n3. Update\
+  \ travel preferences: set preferred bed type to \"queen\",\n   floor preference\
+  \ to \"high\", smoking to false,\n   and add \"halal\" to dietary restrictions.\n\
+  4. Add two new payment methods:\n   - A Visa ending in 3333, expiry 06/30, holder\
+  \ \"Jordan A. Parker\"\n   - A Mastercard ending in 7777, expiry 09/29, holder \"\
+  Jordan A. Parker\"\n5. Remove the Mastercard ending in {target.remove_last_four}\n\
+  \   (held by \"{target.remove_holder}\").\n6. Set the new Visa (ending 3333) as\
+  \ your default payment method.\n7. Search for \"{target.property_name}\" in {target.city}\
+  \ and book its\n   \"Deluxe Room\" for 2 guests, checking in 2026-08-01,\n   checking\
+  \ out 2026-08-05, using your new default (Visa 3333).\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 48
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Connaught London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.4
+      review_count: 3200
+      price: 650.0
+      neighborhood: Mayfair
+      address: Carlos Place, London W1K 2AL
+      distance_km: 0.4
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+      - Butler service
+      rooms:
+      - name: Classic Room
+        price: 650.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Deluxe Room
+        price: 850.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: garden
+        room_size_sqm: 40.0
+      - name: Apartment Suite
+        price: 1500.0
+        bed_type: king
+        max_occupancy: 4
+        cancel_type: free_cancellation
+    outputs:
+    - prop_id
+    - prop_name
+    - cheap_room_id
+    - cheap_room_name
+  - use: add_payment_method
+    params:
+      card_type: Mastercard
+      last_four: '5555'
+      expiry: 03/27
+      holder_name: Alex Parker
+      is_default: false
+    outputs:
+    - remove_pm_id
+    - remove_last_four
+  - use: set_profile
+    params:
+      owner_name: Jordan Parker
+      owner_phone: +1-217-555-0142
+      owner_nationality: US
+    outputs:
+    - original_name
+  - use: set_settings
+    params:
+      currency: USD
+      language: English
+      two_factor_enabled: false
+      deal_alerts: true
+      newsletter: false
+      sms_notifications: false
+    outputs:
+    - settings_updated
+  - use: set_preferences
+    params:
+      preferred_bed_type: double
+      floor_preference: low
+      smoking: true
+      dietary_restrictions:
+      - vegetarian
+    outputs:
+    - prefs_updated
+  targets:
+    prop_id: '{output.prop_id}'
+    property_name: '{output.prop_name}'
+    city: London
+    remove_pm_id: '{output.remove_pm_id}'
+    remove_last_four: '5555'
+    remove_holder: Alex Parker
+    prev_default_pm_id: 'pm_1'
+canonical_diff:
+  delete:
+    - entity: PaymentMethod
+      desc: Remove Mastercard 5555
+      where:
+        id: {expr: "x == target['remove_pm_id']"}
+  update:
+    - entity: PaymentMethod
+      desc: Previously-default card demoted when new Visa 3333 is set as default
+      where:
+        id: {expr: "x == target['prev_default_pm_id']"}
+      changes:
+        is_default: {eq: false}
+    - entity: owner_name
+      desc: Display name updated to Jordan A. Parker
+      where: {id: {eq: "__singleton_owner_name__"}}
+      changes:
+        value: {eq: "Jordan A. Parker"}
+    - entity: owner_phone
+      desc: Phone updated to +1-312-555-0198
+      where: {id: {eq: "__singleton_owner_phone__"}}
+      changes:
+        value: {eq: "+1-312-555-0198"}
+    - entity: owner_nationality
+      desc: Nationality updated to GB
+      where: {id: {eq: "__singleton_owner_nationality__"}}
+      changes:
+        value: {eq: "GB"}
+    - entity: settings
+      desc: Settings — EUR, French, 2FA on, deal alerts off, newsletter on, SMS on
+      where: {id: {any: true}}
+      changes:
+        default_payment_id:
+          expr: >-
+            x == next(
+              (pm.id for pm in state.payment_methods
+               if pm.card_type == 'Visa' and pm.last_four == '3333' and pm.is_default),
+              ''
+            )
+        currency: {eq: EUR}
+        language: {eq: French}
+        two_factor_enabled: {eq: true}
+        deal_alerts: {eq: false}
+        newsletter: {eq: true}
+        sms_notifications: {eq: true}
+    - entity: travel_preferences
+      desc: Travel preferences — queen bed, high floor, no smoking, halal
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_bed_type: {eq: queen}
+        floor_preference: {eq: high}
+        smoking: {eq: false}
+        dietary_restrictions: {expr: "'halal' in x"}
+  create:
+    - entity: PaymentMethod
+      desc: Add new Visa ending 3333 as default
+      properties:
+        card_type: {eq: "Visa"}
+        last_four: {eq: "3333"}
+        is_default: {eq: true}
+        holder_name: {any: true}
+        expiry: {any: true}
+    - entity: PaymentMethod
+      desc: Add new Mastercard ending 7777
+      properties:
+        card_type: {eq: "Mastercard"}
+        last_four: {eq: "7777"}
+        holder_name: {any: true}
+        expiry: {any: true}
+    - entity: Reservation
+      desc: Book the London Connaught Deluxe Room for 2 guests
+      properties:
+        property_id: {expr: "x == target['prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe Room"}
+        check_in: {eq: "2026-08-01"}
+        check_out: {eq: "2026-08-05"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '3333' and pm.is_default for pm in state.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['prop_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      filter: "a.id not in (target['remove_pm_id'], target['prev_default_pm_id']) and a.last_four not in ('3333', '7777')"
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent removed old Mastercard 5555
+      ref: delete[0]
+      severity: high
+    - name: Agent added new Visa 3333 as default
+      ref: create[0]
+      severity: high
+    - name: Agent added new Mastercard 7777
+      ref: create[1]
+      severity: medium
+    - name: Agent booked the London hotel Deluxe Room with correct dates
+      ref: create[2]
+      severity: critical
+    - name: Display name updated
+      ref: update[1]
+      severity: high
+    - name: Phone updated
+      ref: update[2]
+      severity: medium
+    - name: Nationality updated
+      ref: update[3]
+      severity: medium
+    - name: Settings updated
+      ref: update[4]
+      severity: critical
+    - name: Travel preferences updated
+      ref: update[5]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not tamper with other payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

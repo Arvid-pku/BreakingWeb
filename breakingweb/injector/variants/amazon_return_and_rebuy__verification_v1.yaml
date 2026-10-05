@@ -1,0 +1,41 @@
+variant_id: amazon_return_and_rebuy__verification_v1
+base_task_id: amazon_return_and_rebuy
+target_primitive: verification
+description: >
+  The first return request and the first cart add each silently fail.
+  The agent must verify both the return initiation and the new purchase
+  were actually processed.
+injections:
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/returns"
+      action: silent_fail
+      fail_count: 1
+      methods: ["POST"]
+      response_body:
+        return:
+          id: return_fake_retry
+          order_id: order_fake_retry
+          order_item_index: 0
+          product_id: prod_fake_retry
+          product_name: Pending return
+          reason: Quality below expectations
+          status: pending
+          refund_amount: 0.0
+          created_at: "2026-04-26T08:00:00+00:00"
+          resolution_note: ""
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/cart/add"
+      action: silent_fail
+      fail_count: 1
+      methods: ["POST"]
+      response_body:
+        cart_item:
+          id: cart_fake_retry
+          product_id: prod_fake_retry
+          product_name: Pending cart add
+          quantity: 1
+          unit_price: 0.0
+          variant_selections: {}
+          added_at: "2026-04-26T08:00:00+00:00"

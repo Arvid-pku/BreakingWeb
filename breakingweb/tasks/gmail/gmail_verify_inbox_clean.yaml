@@ -1,0 +1,77 @@
+task_id: gmail_verify_inbox_clean
+env_id: gmail
+title: Reply to Unreplied VIP Emails
+instruction_template: Check your inbox for any unread emails from {target.vip_name}
+  ({target.vip_email}) that haven't been replied to. Reply to each unreplied email
+  acknowledging receipt.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 12
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: verify_inbox_clean
+    params:
+      unreplied_count: 2
+    outputs:
+    - vip_name
+    - vip_email
+    - total_vip_count
+    - vip_email_ids
+    - unreplied_email_ids
+    - decoy_email_ids
+    - initial_sent_count
+    - unreplied_count
+  targets:
+    vip_name: '{output.vip_name}'
+    vip_email: '{output.vip_email}'
+    total_vip_count: '{output.total_vip_count}'
+    vip_email_ids: '{output.vip_email_ids}'
+    unreplied_email_ids: '{output.unreplied_email_ids}'
+    decoy_email_ids: '{output.decoy_email_ids}'
+    initial_sent_count: '{output.initial_sent_count}'
+    unreplied_count: '{output.unreplied_count}'
+canonical_diff:
+  create:
+  - entity: sent
+    desc: Agent sent a reply to each unreplied VIP email
+    bijection:
+      over: "target['unreplied_email_ids']"
+      variable: eid
+    properties:
+      to: {expr: "target['vip_email'] in x"}
+      in_reply_to: {expr: "x == v"}
+      subject: {expr: "x is not None and len(x) > 0"}
+      body: {expr: "x is not None and len(x) > 5"}
+  invariant:
+  - collection: state.emails
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    preserve: ALL
+  - collection: state.labels
+    preserve: ALL
+  - collection: state.filters
+    preserve: ALL
+  constraints:
+  - desc: Exactly the unreplied VIP emails received a reply (correct count)
+    severity: high
+    expr: "len(state.sent) == target['initial_sent_count'] + target['unreplied_count']"
+  - desc: Decoy emails from other senders were not replied to
+    severity: medium
+    expr: "not any(s.in_reply_to in target['decoy_email_ids'] for s in state.sent)"
+  named_invariants:
+  - name: Agent did not delete any emails
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify inbox emails
+    ref: invariant[0]
+    severity: high

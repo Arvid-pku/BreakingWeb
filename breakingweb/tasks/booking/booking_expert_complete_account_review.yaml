@@ -1,0 +1,297 @@
+task_id: booking_expert_complete_account_review
+env_id: booking
+title: Complete Account Review with Profile, Settings, Payment, Booking, and Review
+instruction_template: "Perform a comprehensive account review and updates:\n1. Update\
+  \ your profile:\n   - Phone number to \"+1-415-555-0234\"\n   - Address to \"500\
+  \ Market Street, {target.city}, CA 94105\"\n   - Nationality to \"US\" (confirm)\n\
+  2. Update your account settings:\n   - Currency to \"EUR\"\n   - Enable newsletter\n\
+  \   - Disable deal alerts\n3. Update travel preferences:\n   - Preferred bed type\
+  \ to \"queen\"\n   - Floor preference to \"high\"\n   - Add \"vegan\" to dietary\
+  \ restrictions\n4. Add a new payment method: Mastercard ending in 2222, expiry 05/30,\
+  \ holder \"Jordan Parker\".\n5. Search for \"{target.property_name}\" in {target.city}\
+  \ and book its \"Deluxe Room\" for 2 guests checking in 2026-10-20 and checking\
+  \ out 2026-10-24 (4 nights). Use the new Mastercard (ending in 2222).\n6. You have\
+  \ a completed stay at \"{target.review_name}\" in {target.review_city}. Write a\
+  \ review: score 9.0, title \"Outstanding hospitality\", positive \"The staff went\
+  \ above and beyond with personalized service and the rooftop bar had stunning city\
+  \ views\", negative \"Parking was limited and expensive\", leisure, couple.\n"
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: set_profile
+    params:
+      owner_phone: +1-217-555-0142
+      owner_address: 456 Oak Avenue, Springfield, IL 62704
+      owner_nationality: US
+    outputs:
+    - owner_name
+  - use: set_settings
+    params:
+      currency: USD
+      newsletter: false
+      deal_alerts: true
+    outputs:
+    - updated
+  - use: set_preferences
+    params:
+      preferred_bed_type: king
+      floor_preference: low
+      dietary_restrictions:
+      - vegetarian
+    outputs:
+    - updated
+  - use: featured_property
+    params:
+      name: Hotel Nikko San Francisco
+      city: San Francisco
+      country: United States
+      star_rating: 4
+      review_score: 8.7
+      review_count: 5670
+      price: 265.0
+      neighborhood: Union Square
+      address: 222 Mason Street, San Francisco, CA 94102
+      amenities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Spa
+      - Room service
+      popular_facilities:
+      - Pool
+      - Spa
+      - Restaurant
+      rooms:
+      - name: Classic Room
+        price: 265.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Deluxe Room
+        price: 340.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: city
+      - name: Imperial Suite
+        price: 580.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+    outputs:
+    - prop_id
+    - prop_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: featured_property
+    params:
+      name: The Fairmont Chicago
+      city: Chicago
+      country: United States
+      star_rating: 4
+      review_score: 8.9
+      review_count: 4320
+      price: 280.0
+      neighborhood: Millennium Park
+      address: 200 N Columbus Dr, Chicago, IL 60601
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+    outputs:
+    - review_id
+    - review_name
+    - review_room_id
+    - review_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_id}'
+      check_in: '2026-01-15'
+      check_out: '2026-01-19'
+      price_per_night: 280.0
+      status: completed
+      guests: 2
+      booked_days_ago: 85
+    outputs:
+    - review_res_id
+    - review_conf
+    - review_res_prop
+  targets:
+    prop_id: '{output.prop_id}'
+    property_name: '{output.prop_name}'
+    city: San Francisco
+    review_id: '{output.review_id}'
+    review_name: '{output.review_name}'
+    review_city: Chicago
+    review_res_id: '{output.review_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Fairmont Chicago reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: owner_phone
+      desc: Phone updated to new number
+      where: {id: {eq: "__singleton_owner_phone__"}}
+      changes:
+        value: {eq: "+1-415-555-0234"}
+    - entity: owner_address
+      desc: Address updated to Market Street
+      where: {id: {eq: "__singleton_owner_address__"}}
+      changes:
+        value: {expr: "'500 Market Street' in x"}
+    - entity: settings
+      desc: Currency EUR, newsletter on, deal alerts off
+      where: {id: {any: true}}
+      changes:
+        currency: {eq: EUR}
+        newsletter: {eq: true}
+        deal_alerts: {eq: false}
+    - entity: travel_preferences
+      desc: Bed queen, floor high, vegan dietary
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_bed_type: {eq: queen}
+        floor_preference: {eq: high}
+        dietary_restrictions: {expr: "'vegan' in x"}
+  create:
+    - entity: PaymentMethod
+      desc: Add new Mastercard ending in 2222
+      properties:
+        card_type: {eq: Mastercard}
+        last_four: {eq: "2222"}
+        expiry: {eq: "05/30"}
+        holder_name: {eq: "Jordan Parker"}
+        is_default: {eq: false}
+    - entity: Reservation
+      desc: Book Deluxe Room at Hotel Nikko San Francisco using new Mastercard
+      properties:
+        property_id: {expr: "x == target['prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe Room"}
+        check_in: {eq: "2026-10-20"}
+        check_out: {eq: "2026-10-24"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Mastercard' and pm.last_four == '2222' for pm in state.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Review
+      desc: Write review for completed stay at The Fairmont Chicago
+      properties:
+        property_id: {expr: "x == target['review_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.0}
+        scores: {any: true}
+        title: {eq: "Outstanding hospitality"}
+        positive: {expr: "'rooftop bar' in x.lower()"}
+        negative: {expr: "'parking' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.payment_methods
+      filter: "a.last_four != '2222' or a.card_type != 'Mastercard'"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "(a.property_id != target['prop_id'] or a.check_in != '2026-10-20') and a.id != target['review_res_id']"
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_id']"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    - collection: state.owner_email
+      preserve: ALL
+  named_invariants:
+    - name: Agent added the new Mastercard ending in 2222
+      ref: create[0]
+      severity: high
+    - name: Agent booked Deluxe Room at Hotel Nikko San Francisco
+      ref: create[1]
+      severity: critical
+    - name: Agent wrote review for The Fairmont Chicago with correct score
+      ref: create[2]
+      severity: high
+    - name: Phone updated
+      ref: update[1]
+      severity: high
+    - name: Address updated
+      ref: update[2]
+      severity: high
+    - name: Settings updated (EUR, newsletter, no deal alerts)
+      ref: update[3]
+      severity: high
+    - name: Travel preferences updated (queen bed, high floor, vegan)
+      ref: update[4]
+      severity: medium
+    - name: Agent did not remove or modify existing payment methods
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not create reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+    - name: Email was not changed
+      ref: invariant[7]
+      severity: medium

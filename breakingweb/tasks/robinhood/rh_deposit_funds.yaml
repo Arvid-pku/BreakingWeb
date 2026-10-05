@@ -1,0 +1,56 @@
+task_id: rh_deposit_funds
+env_id: robinhood
+title: Deposit Funds from Bank Account
+instruction_template: Deposit $500 from your default bank account.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: linked_banks
+    params:
+      banks:
+      - name: Chase Checking
+        type: checking
+        last_four: '4521'
+    outputs:
+    - bank_ids
+  targets:
+    bank_ids: '{output.bank_ids}'
+canonical_diff:
+  create:
+  - entity: transfers
+    desc: $500 deposit from linked bank
+    properties:
+      direction: {eq: deposit}
+      amount: {eq: 500}
+      status: {in: [pending, completed]}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  - entity: transactions
+    desc: Deposit transaction record
+    properties:
+      type: {eq: deposit}
+      amount: {eq: 500}
+      symbol: {any: true}
+      quantity: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  invariant:
+  - collection: state.transfers
+    filter: "a.direction == 'withdrawal'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+secondary_primitives: []

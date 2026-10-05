@@ -1,0 +1,74 @@
+task_id: gmail_meeting_negotiation
+env_id: gmail
+title: Meeting Negotiation
+instruction_template: Five people have sent you their availability for the {target.meeting_name}
+  meeting. Find all five emails and note each person's available times. Then check
+  the venue confirmation email (it may not be in your Primary tab) to see which room
+  is available and when. Compose a new email to {target.organizer_email} confirming
+  the one time slot that works for all five attendees AND the venue. CC all five attendees.
+  Your email body must mention the confirmed time and the room name.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 50
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: meeting_negotiation
+    params: {}
+    outputs:
+    - meeting_name
+    - organizer_email
+    - attendee_emails
+    - correct_time
+    - room_name
+  targets:
+    meeting_name: '{output.meeting_name}'
+    organizer_email: '{output.organizer_email}'
+    attendee_emails: '{output.attendee_emails}'
+    correct_time: '{output.correct_time}'
+    room_name: '{output.room_name}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose confirmation email to organizer with correct time, room and all attendees CC'd
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['organizer_email']]"
+        cc:
+          expr: "sorted(x) == sorted(target['attendee_emails']) and len(x) == len(target['attendee_emails'])"
+        bcc:
+          eq: []
+        body:
+          expr: "target['correct_time'] in x and target['room_name'] in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed confirmation email to organizer
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox
+      ref: invariant[0]
+      severity: high

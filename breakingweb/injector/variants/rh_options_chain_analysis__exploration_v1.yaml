@@ -1,0 +1,34 @@
+variant_id: rh_options_chain_analysis__exploration_v1
+base_task_id: rh_options_chain_analysis
+target_primitive: exploration
+description: >
+  Confusing existing TSLA put positions with strikes and expirations near
+  the highest-open-interest contract force the agent to explore the full
+  chain rather than relying on existing holdings to identify the right contract.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: TSLA
+      option_type: put
+      side: buy
+      strike: "240.00"
+      expiration_days: 17
+      quantity: 2
+      average_cost: "7.80"
+    - symbol: TSLA
+      option_type: put
+      side: buy
+      strike: "235.00"
+      expiration_days: 24
+      quantity: 1
+      average_cost: "5.40"
+    - symbol: TSLA
+      option_type: put
+      side: sell
+      strike: "245.00"
+      expiration_days: 17
+      quantity: 3
+      average_cost: "9.10"

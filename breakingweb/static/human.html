@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BreakingWeb — Human Recording</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #171a21;
+    --surface-hi: #1f2430;
+    --border: #2a3040;
+    --fg: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #7c9cff;
+    --accent-hi: #9db1ff;
+    --good: #5bd9a6;
+    --warn: #ffb86b;
+    --bad: #ff7a7a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -200px, rgba(124,156,255,0.18), transparent 60%),
+                radial-gradient(800px 500px at -10% 120%, rgba(91,217,166,0.10), transparent 60%),
+                var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+  button {
+    font: inherit;
+    background: var(--accent);
+    color: #0b0d12;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .06s ease, background .15s ease;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hi); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary {
+    background: var(--surface-hi);
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover:not(:disabled) { background: var(--border); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  input, select {
+    font: inherit;
+    background: var(--surface-hi);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(23,26,33,0.72);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; letter-spacing: 0.2px; }
+  .brand .logo {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent), var(--good));
+    display: grid; place-items: center;
+    font-size: 14px; color: #0b0d12; font-weight: 800;
+  }
+  .topbar .right { display: flex; gap: 16px; align-items: center; }
+  .annotator-chip {
+    display: flex; gap: 8px; align-items: center;
+    padding: 6px 12px;
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 13px;
+  }
+  .annotator-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+
+  main { padding: 28px 24px; max-width: 1180px; margin: 0 auto; width: 100%; flex: 1; }
+  h1 { font-size: 26px; margin: 0 0 4px 0; letter-spacing: -0.3px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px 0; }
+
+  .name-card {
+    max-width: 460px; margin: 80px auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: var(--shadow);
+  }
+  .name-card h2 { margin: 0 0 6px 0; font-size: 22px; }
+  .name-card p { margin: 0 0 20px 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+  .name-card .row { display: flex; gap: 10px; }
+  .name-card input { flex: 1; }
+  .name-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .name-suggestions button {
+    padding: 5px 10px; font-size: 12px;
+    background: var(--surface-hi); color: var(--fg);
+    border: 1px solid var(--border); font-weight: 500;
+  }
+
+  .progress-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center; gap: 20px;
+  }
+  .progress-card .labels { display: flex; flex-direction: column; gap: 4px; }
+  .progress-card .big { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
+  .progress-card .small { color: var(--muted); font-size: 13px; }
+  .bar {
+    flex: 1; height: 10px; background: var(--surface-hi); border-radius: 999px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--good));
+    transition: width .3s ease;
+  }
+
+  .filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  .group-header {
+    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); margin: 18px 0 10px 4px;
+  }
+  .task-list { display: grid; gap: 10px; }
+  .task-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 18px;
+    display: grid; grid-template-columns: 1fr auto; gap: 12px;
+    align-items: center;
+    transition: border-color .15s ease;
+  }
+  .task-card:hover { border-color: #3c4663; }
+  .task-card.completed { opacity: 0.55; }
+  .task-card .meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .task-card .title { font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+  .badge.clean { background: rgba(91,217,166,0.15); color: var(--good); border: 1px solid rgba(91,217,166,0.3); }
+  .badge.intervention { background: rgba(255,184,107,0.15); color: var(--warn); border: 1px solid rgba(255,184,107,0.3); }
+  .badge.diff { background: var(--surface-hi); color: var(--muted); border: 1px solid var(--border); }
+  .badge.role-duplicate { background: rgba(124,156,255,0.1); color: var(--accent); border: 1px solid rgba(124,156,255,0.3); }
+  .task-card .actions { display: flex; gap: 8px; align-items: center; }
+  .task-card .actions button { white-space: nowrap; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 12px 18px; border-radius: 10px;
+    box-shadow: var(--shadow); z-index: 300; font-size: 13px;
+    opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.error { border-color: var(--bad); color: var(--bad); }
+  .toast.good { border-color: var(--good); color: var(--good); }
+
+  .info-bar {
+    background: rgba(124,156,255,0.1); border: 1px solid rgba(124,156,255,0.3);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+    font-size: 13px; color: var(--fg); line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const KNOWN_ANNOTATORS = ["P1", "P2", "P3", "P4", "D1", "D2", "D3", "D4"];
+const ENV_PORTS = { gmail: 1, robinhood: 2, amazon: 3, booking: 4, reddit: 5, lms: 6, patient_portal: 7 };
+
+const state = {
+  annotator: null,
+  assignments: [],
+  total: 0,
+  completed: 0,
+  envFilter: "all",
+  statusFilter: "pending",
+  diffFilter: "all",
+};
+
+function readQueryAnnotator() {
+  const p = new URLSearchParams(location.search);
+  return p.get("annotator") || localStorage.getItem("wab:human:annotator") || "";
+}
+
+function saveAnnotator(name) {
+  localStorage.setItem("wab:human:annotator", name);
+  const url = new URL(location.href);
+  url.searchParams.set("annotator", name);
+  history.replaceState(null, "", url);
+}
+
+function envBaseUrl(env) {
+  const backendPort = Number(location.port || 8080);
+  const envPort = backendPort + (ENV_PORTS[env] || 0);
+  return `${location.protocol}//${location.hostname}:${envPort}/env/${env}`;
+}
+
+function toast(msg, kind = "") {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.className = `toast show ${kind}`;
+  el.textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 3500);
+}
+
+async function api(path, options = {}) {
+  const r = await fetch(path, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  if (!r.ok) {
+    const txt = await r.text().catch(() => "");
+    throw new Error(`${r.status} ${r.statusText}: ${txt}`);
+  }
+  return r.json();
+}
+
+async function loadAssignments(annotator) {
+  const data = await api(`/api/human/assignments?annotator=${encodeURIComponent(annotator)}`);
+  state.annotator = data.annotator;
+  state.assignments = data.assignments;
+  state.total = data.total;
+  state.completed = data.completed;
+}
+
+async function createEnvSession(env, taskId, variantFilename) {
+  const body = { task_id: taskId, seed: 42 };
+  if (variantFilename) body.variant_filename = variantFilename;
+  return api(`/api/env/${env}/session`, { method: "POST", body: JSON.stringify(body) });
+}
+
+const root = document.getElementById("app");
+
+function render() {
+  if (!state.annotator) {
+    root.innerHTML = renderNameEntry();
+    bindNameEntry();
+    return;
+  }
+  root.innerHTML = renderDashboard();
+  bindDashboard();
+}
+
+function renderNameEntry() {
+  return `
+    <div class="topbar">
+      <div class="brand"><div class="logo">W</div><span>BreakingWeb · Human Recording</span></div>
+    </div>
+    <main>
+      <div class="name-card">
+        <h2>Who are you?</h2>
+        <p>
+          Type your name below to load your task list. Traces save locally under
+          <code>breakingweb/human/traces/&lt;your-name&gt;/</code>; you commit that subtree when you finish.
+        </p>
+        <div class="row">
+          <input id="name-input" placeholder="e.g. P1" autocomplete="off" autofocus />
+          <button id="name-submit">Start →</button>
+        </div>
+        <div class="name-suggestions">
+          ${KNOWN_ANNOTATORS.map((n) => `<button data-name="${n}">${n}</button>`).join("")}
+        </div>
+      </div>
+    </main>
+  `;
+}
+
+function bindNameEntry() {
+  const input = document.getElementById("name-input");
+  input.value = readQueryAnnotator();
+  const submit = async () => {
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      saveAnnotator(name);
+      await loadAssignments(name);
+      render();
+    } catch (err) {
+      toast(`Could not load: ${err.message}`, "error");
+    }
+  };
+  document.getElementById("name-submit").addEventListener("click", submit);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  document.querySelectorAll(".name-suggestions button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      input.value = btn.dataset.name;
+      submit();
+    });
+  });
+}
+
+function renderDashboard() {
+  const envs = [...new Set(state.assignments.map((a) => a.env))].sort();
+  const pct = state.total ? Math.round((state.completed / state.total) * 100) : 0;
+
+  const filtered = state.assignments.filter((a) => {
+    if (state.envFilter !== "all" && a.env !== state.envFilter) return false;
+    if (state.diffFilter !== "all" && a.difficulty !== state.diffFilter) return false;
+    if (state.statusFilter === "pending" && a.completed) return false;
+    if (state.statusFilter === "done" && !a.completed) return false;
+    return true;
+  });
+
+  const byEnv = {};
+  for (const a of filtered) {
+    (byEnv[a.env] ||= []).push(a);
+  }
+
+  let groups = "";
+  for (const env of Object.keys(byEnv).sort()) {
+    groups += `<div class="group-header">${env} · ${byEnv[env].length} assignments</div><div class="task-list">`;
+    for (const a of byEnv[env]) {
+      groups += renderTaskCard(a);
+    }
+    groups += `</div>`;
+  }
+  if (!filtered.length) {
+    groups = `<div class="empty-state">Nothing matches these filters.</div>`;
+  }
+
+  return `
+    <div class="topbar">
+      <div class="brand"><div class="logo">W</div><span>BreakingWeb · Human Recording</span></div>
+      <div class="right">
+        <span class="annotator-chip"><span class="dot"></span>${state.annotator}</span>
+        <button class="ghost" id="switch-user">Switch</button>
+      </div>
+    </div>
+    <main>
+      <h1>Your assignments</h1>
+      <p class="sub">
+        Click <b>Start</b> on any task. Two new windows open: a pristine env tab where you do the task,
+        and a control tab where you see the instruction and manage recording. Cold → warm happens in the
+        same control tab without returning here.
+      </p>
+
+      <div class="progress-card">
+        <div class="labels">
+          <div class="big">${state.completed} / ${state.total}</div>
+          <div class="small">task-conditions fully saved (cold + warm + form)</div>
+        </div>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="labels" style="text-align:right">
+          <div class="big">${pct}%</div>
+          <div class="small">done</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <select id="env-filter">
+          <option value="all">All envs</option>
+          ${envs.map((e) => `<option value="${e}" ${state.envFilter === e ? "selected" : ""}>${e}</option>`).join("")}
+        </select>
+        <select id="diff-filter">
+          <option value="all">All difficulties</option>
+          ${["easy","medium","hard","expert","frontier"].map((d) => `<option value="${d}" ${state.diffFilter === d ? "selected" : ""}>${d}</option>`).join("")}
+        </select>
+        <select id="status-filter">
+          <option value="pending" ${state.statusFilter === "pending" ? "selected" : ""}>Pending</option>
+          <option value="done" ${state.statusFilter === "done" ? "selected" : ""}>Completed</option>
+          <option value="all" ${state.statusFilter === "all" ? "selected" : ""}>All</option>
+        </select>
+        <button class="ghost" id="refresh">Refresh</button>
+      </div>
+
+      ${groups}
+    </main>
+  `;
+}
+
+function renderTaskCard(a) {
+  const condBadge = `<span class="badge ${a.condition}">${a.condition}</span>`;
+  const diffBadge = `<span class="badge diff">${a.difficulty}</span>`;
+  const roleBadge = a.role === "duplicate" ? `<span class="badge role-duplicate">2nd-human</span>` : "";
+
+  const actionBtn = a.completed
+    ? `<button class="ghost" disabled>✓ Done</button>`
+    : `<button data-action="start" data-aid="${a.aid}">Start →</button>`;
+
+  return `
+    <div class="task-card ${a.completed ? "completed" : ""}">
+      <div>
+        <div class="meta">${diffBadge} ${condBadge} ${roleBadge} <span>${a.base_task_id}</span></div>
+        <div class="title">${a.title}</div>
+      </div>
+      <div class="actions">${actionBtn}</div>
+    </div>
+  `;
+}
+
+function bindDashboard() {
+  document.getElementById("switch-user").addEventListener("click", () => {
+    state.annotator = null;
+    state.assignments = [];
+    localStorage.removeItem("wab:human:annotator");
+    const url = new URL(location.href);
+    url.searchParams.delete("annotator");
+    history.replaceState(null, "", url);
+    render();
+  });
+
+  for (const id of ["env-filter", "diff-filter", "status-filter"]) {
+    document.getElementById(id).addEventListener("change", (e) => {
+      state[id.replace("-filter", "Filter")] = e.target.value;
+      render();
+    });
+  }
+
+  document.getElementById("refresh").addEventListener("click", async () => {
+    await loadAssignments(state.annotator);
+    render();
+  });
+
+  document.querySelectorAll("button[data-action=start]").forEach((btn) =>
+    btn.addEventListener("click", () => startAssignment(btn.dataset.aid))
+  );
+}
+
+async function startAssignment(aid) {
+  const a = state.assignments.find((x) => x.aid === aid);
+  if (!a) return toast("Unknown assignment", "error");
+
+  // Wipe any stale partial progress for this aid server-side before we start.
+  // Non-fatal: cold's /attempt/save also resets the progress slot (belt +
+  // suspenders). If the endpoint is missing (old backend still loaded) or
+  // errors for any reason, we proceed and rely on cold to reset the slot.
+  try {
+    await api(`/api/human/attempt/reset`, {
+      method: "POST",
+      body: JSON.stringify({ annotator: state.annotator, aid }),
+    });
+  } catch (err) {
+    console.warn("prior-reset best-effort failed (continuing):", err);
+  }
+
+  let sess;
+  try {
+    sess = await createEnvSession(a.env, a.base_task_id, a.variant_filename);
+  } catch (err) {
+    return toast(`Env session create failed: ${err.message}`, "error");
+  }
+
+  const startPath = sess.start_path || "/";
+  const sep = startPath.includes("?") ? "&" : "?";
+  const envTabUrl = `${envBaseUrl(a.env)}${startPath}${sep}session=${encodeURIComponent(sess.session_id)}&control=on&hide_toolbar=1&human_mode=1`;
+
+  const controlParams = new URLSearchParams({
+    session_id: sess.session_id,
+    env: a.env,
+    aid,
+    annotator: state.annotator,
+    attempt: "cold",
+    role: a.role,
+    base: a.base_task_id,
+    title: a.title,
+    difficulty: a.difficulty,
+    condition: a.condition,
+    variant_filename: a.variant_filename || "",
+  });
+  const controlTabUrl = `/static/human_control.html?${controlParams}`;
+
+  // Open env tab first (pristine), then control tab (annotator interacts here).
+  const envWin = window.open(envTabUrl, `wab-env-${a.env}`, "noopener=no");
+  if (!envWin) {
+    return toast("Popup blocked — allow popups for localhost, then retry.", "error");
+  }
+  const controlWin = window.open(controlTabUrl, `wab-control-${aid}`, "noopener=no");
+  if (!controlWin) {
+    envWin.close();
+    return toast("Popup blocked — allow popups for localhost, then retry.", "error");
+  }
+
+  toast("Two windows opened — switch to Control tab to see instructions.", "good");
+}
+
+async function boot() {
+  const q = readQueryAnnotator();
+  if (q) {
+    try {
+      await loadAssignments(q);
+      state.annotator = q;
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+  render();
+
+  // Poll every 10s in the background to pick up completions from open
+  // control tabs. This keeps cards in sync without the annotator needing to
+  // click Refresh.
+  setInterval(async () => {
+    if (!state.annotator) return;
+    try {
+      const before = state.completed;
+      await loadAssignments(state.annotator);
+      if (state.completed !== before) render();
+    } catch {}
+  }, 10000);
+}
+
+boot();
+</script>
+</body>
+</html>

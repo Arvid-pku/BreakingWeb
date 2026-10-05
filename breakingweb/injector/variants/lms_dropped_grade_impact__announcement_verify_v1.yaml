@@ -1,0 +1,40 @@
+variant_id: lms_dropped_grade_impact__announcement_verify_v1
+base_task_id: lms_dropped_grade_impact
+target_primitive: verification
+description: A key LMS read or write initially returns a misleading success or stale
+  snapshot. The agent must verify the real persisted outcome.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/lms/announcements/*/read'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      announcement:
+        id: ann_fake
+        course_id: '{target.target_course_id}'
+        title: Announcement copy
+        body: Archived message that should not be trusted without verification.
+        posted_at: '2026-01-15T12:00:00+00:00'
+        is_read: true
+        priority: normal
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update follow-up
+      body: Archived clarification that does not replace the active announcement.
+      priority: normal
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update correction
+      body: Earlier logistics note for a prior announcement batch.
+      priority: urgent

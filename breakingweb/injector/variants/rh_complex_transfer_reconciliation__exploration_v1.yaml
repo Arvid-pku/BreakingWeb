@@ -1,0 +1,37 @@
+variant_id: rh_complex_transfer_reconciliation__exploration_v1
+base_task_id: rh_complex_transfer_reconciliation
+target_primitive: exploration
+description: >
+  The deposit/transfer affordance is hidden behind a context-menu trigger, and
+  misleading price alerts suggest urgent action on unowned stocks, distracting
+  from the cleanup workflow. The agent must explore alternative navigation to
+  find the transfer page.
+injections:
+- layer: client
+  params:
+    action: hide_affordance
+    selector: '[aria-label="Deposit"]'
+    trigger: contextmenu
+    behavior:
+      mode: persistent
+- layer: seed
+  params:
+    action: add_misleading_alert
+    symbol: NFLX
+    condition: below
+    target_price: 420.00
+    status: triggered
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+      - type: price_alert
+        title: "NFLX Price Alert Triggered"
+        message: "NFLX has fallen below $420.00. Consider reviewing your position."
+      - type: transfer_complete
+        title: "Withdrawal Processed"
+        message: "Your $1,000.00 withdrawal has been sent to Chase Checking ***4521."
+      - type: recurring_investment
+        title: "Recurring Investment Skipped"
+        message: "Your weekly $25 AAPL investment was skipped due to insufficient funds."

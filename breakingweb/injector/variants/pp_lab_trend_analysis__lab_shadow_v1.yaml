@@ -1,0 +1,32 @@
+variant_id: pp_lab_trend_analysis__lab_shadow_v1
+base_task_id: pp_lab_trend_analysis
+target_primitive: grounding
+description: Older abnormal lab results and a similar results note are injected into the portal. The agent must ground its action in the seeded current lab signal, not the lookalikes.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: lab_result
+      test_name: HbA1c
+      test_code: 4548-4
+      collected_at: '2025-01-15T08:00:00+00:00'
+      value: '6.8'
+      unit: '%'
+      reference_range: 4.0-5.6
+      flag: abnormal
+      status: resulted
+    - type: lab_result
+      test_name: LDL Cholesterol
+      test_code: 2089-1
+      collected_at: '2025-01-20T08:00:00+00:00'
+      value: '146'
+      unit: mg/dL
+      reference_range: 0-130
+      flag: abnormal
+      status: resulted
+    - type: message
+      category: clinical
+      subject: Older results clarification
+      body: This archived note references prior lab work and is not the newest result requiring action.
+      timestamp: '2025-01-21T12:00:00+00:00'

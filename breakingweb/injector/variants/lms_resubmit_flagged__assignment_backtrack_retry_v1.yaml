@@ -1,0 +1,62 @@
+variant_id: lms_resubmit_flagged__assignment_backtrack_retry_v1
+base_task_id: lms_resubmit_flagged
+target_primitive: backtracking
+description: >
+  Stacked backtracking-family stressors on the load-bearing resubmit flow. The
+  resubmit POST intermittently fails (503) so the agent must sustain retries
+  across multiple flagged rows; assignment reloads return a 409 conflict whose
+  latest snapshot shows an already-resubmitted row reverted to
+  "resubmit_requested", forcing reload-and-reconcile; and the resubmit endpoint
+  expires the session mid-run (401) until the agent re-reads an assignment to
+  re-authenticate. All three are discoverable and recoverable, target the
+  resubmit action, and compound to roughly halve the clean pass rate. Two passive
+  graded/not_submitted decoys remain.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/lms/assignments/*/resubmit'
+    methods:
+    - POST
+    error_count: 3
+    error_status: 503
+    error_message: Service temporarily unavailable. The grading service is under heavy load. Please retry your request. (HTTP 503)
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/lms/assignments/*'
+    methods:
+    - GET
+    conflict_count: 2
+    conflict_message: This assignment was updated by the grading service while you were working. Reload and reconcile before resubmitting.
+    latest_snapshot:
+      id: '{target.first_resubmit_assignment_id}'
+      submission_status: resubmit_requested
+      note: Your prior resubmission was rolled back by a concurrent grading update; verify and resubmit again.
+- layer: network
+  params:
+    action: session_expiry
+    url_pattern: '**/api/env/lms/assignments/*/resubmit'
+    methods:
+    - POST
+    expire_after_calls: 4
+    reauth_path: '**/api/env/lms/assignments/*'
+    error_message: Your session expired mid-task. Re-open an assignment to re-authenticate before continuing.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      title: Weekly submission practice copy
+      assignment_type: homework
+      submission_status: not_submitted
+    - type: assignment
+      title: Weekly submission archived version
+      assignment_type: homework
+      submission_status: graded
+      score: '88'
+      feedback: This is an older graded copy.

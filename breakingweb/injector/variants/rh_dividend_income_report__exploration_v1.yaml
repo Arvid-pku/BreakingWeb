@@ -1,0 +1,33 @@
+variant_id: rh_dividend_income_report__exploration_v1
+base_task_id: rh_dividend_income_report
+target_primitive: exploration
+description: >
+  Portfolio positions are shuffled so the default sort order is misleading,
+  and confusing extra positions with similar dividend profiles are added.
+  The "Income Ideas" watchlist must be actively discovered rather than
+  found at the expected location.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 37
+- layer: server
+  params:
+    action: hide_watchlist
+    prerequisites:
+    - kind: watchlist
+      name: "My First List"
+    - kind: setting
+      key: position_threshold_alert_pct
+      default: null
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+      - symbol: "PEP"
+        quantity: "15"
+        cost_basis: "172.00"
+      - symbol: "ABBV"
+        quantity: "20"
+        cost_basis: "155.00"

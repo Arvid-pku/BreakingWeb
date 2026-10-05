@@ -1,0 +1,69 @@
+task_id: booking_change_bed_preference
+env_id: booking
+title: Change Preferred Bed Type to Queen
+instruction_template: 'Go to settings, change your preferred bed type to "Queen" in
+  the travel preferences section, and save.
+
+  '
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 3
+primary_primitives:
+- verification
+start_path: /settings
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: set_preferences
+    params:
+      preferred_bed_type: double
+    outputs:
+    - updated
+  targets: {}
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Preferred bed type set to queen
+      where: { id: { eq: "__singleton_travel_preferences__" } }
+      changes:
+        preferred_bed_type: { eq: queen }
+        smoking: { expr: "x == initial.travel_preferences.smoking" }
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

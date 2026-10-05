@@ -1,0 +1,148 @@
+task_id: gmail_inbox_triage_protocol
+env_id: gmail
+title: Inbox Triage Protocol
+instruction_template: Process five inbox items exactly once. Star and label 'Finance
+  Review' on the invoice that requires approval (not the cover sheet or remittance
+  note). Archive the promotional offer. Forward the original security alert (not the
+  follow-up saying it was already resolved) to {target.escalation_email}. Label the
+  travel request about the leadership offsite (not the dinner invitation) with 'Travel
+  Follow-up'. Reply to the onboarding checklist email with the exact phrase '{target.confirmation_phrase}'.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 40
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: inbox_triage_protocol
+    params: {}
+    outputs:
+    - escalation_email
+    - confirmation_phrase
+    - invoice_email_id
+    - promo_email_id
+    - security_email_id
+    - travel_email_id
+    - onboarding_email_id
+    - invoice_decoy_email_id
+    - security_followup_email_id
+    - travel_decoy_email_id
+  targets:
+    escalation_email: '{output.escalation_email}'
+    confirmation_phrase: '{output.confirmation_phrase}'
+    invoice_email_id: '{output.invoice_email_id}'
+    promo_email_id: '{output.promo_email_id}'
+    security_email_id: '{output.security_email_id}'
+    travel_email_id: '{output.travel_email_id}'
+    onboarding_email_id: '{output.onboarding_email_id}'
+    invoice_decoy_email_id: '{output.invoice_decoy_email_id}'
+    security_followup_email_id: '{output.security_followup_email_id}'
+    travel_decoy_email_id: '{output.travel_decoy_email_id}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create Finance Review label
+      count: 1
+      properties:
+        name:
+          eq: "Finance Review"
+    - entity: labels
+      desc: Create Travel Follow-up label
+      count: 1
+      properties:
+        name:
+          eq: "Travel Follow-up"
+    - entity: sent
+      desc: Forward security alert to escalation email
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['security_email_id']"
+        to:
+          expr: "x == [target['escalation_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Reply to onboarding email with confirmation phrase
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['onboarding_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['onboarding_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['confirmation_phrase'] in x"
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star and label Finance Review on the invoice email
+      where:
+        id:
+          expr: "x == target['invoice_email_id']"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - "Finance Review"
+    - entity: emails
+      desc: Archive the promotional offer email
+      where:
+        id:
+          expr: "x == target['promo_email_id']"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Apply Travel Follow-up label to travel request email
+      where:
+        id:
+          expr: "x == target['travel_email_id']"
+      changes:
+        labels:
+          superset:
+            - "Travel Follow-up"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in [target['invoice_email_id'], target['promo_email_id'], target['travel_email_id']]"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Finance Review', 'Travel Follow-up']"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded security alert
+      ref: create[2]
+      severity: high
+    - name: Agent replied to onboarding email
+      ref: create[3]
+      severity: high
+    - name: Agent starred and labeled invoice email
+      ref: update[0]
+      severity: high
+    - name: Agent archived promo email
+      ref: update[1]
+      severity: high
+    - name: Agent labeled travel request
+      ref: update[2]
+      severity: high

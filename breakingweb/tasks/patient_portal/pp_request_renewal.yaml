@@ -1,0 +1,222 @@
+task_id: pp_request_renewal
+env_id: patient_portal
+title: Request Prescription Renewals and a Refill
+instruction_template: >-
+  Review the prescriptions in your medication cabinet. Every prescription that
+  has 0 refills remaining must be sent for renewal so it does not lapse — this
+  includes the active prescriptions that are out of refills, the ones that are
+  expiring soon with no refills left, AND the prescription that has already
+  expired (renewal is the only way to restore an expired prescription; a refill
+  will be rejected). Separately, your {target.refill_medication} prescription is
+  running low but still has refills available, so request a standard refill for
+  it instead of a renewal. Renew exactly the prescriptions with no refills left
+  (active, expiring, and expired), refill exactly the {target.refill_medication}
+  prescription, and do not change any other prescription, message, or record.
+  Some prescriptions are expiring soon but still have refills remaining — leave
+  those alone.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- backtracking
+start_path: /medications
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Hyperlipidemia
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      - admin
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      expired_count: 1
+      zero_refill_count: 1
+      expiring_soon_count: 3
+      expiring_zero_refill_count: 2
+      renew_expired: true
+      target_medication_name: Metformin
+    outputs:
+    - active_rx_ids
+    - zero_refill_rx_id
+    - zero_refill_medication
+    - zero_refill_rx_ids
+    - zero_refill_medications
+    - target_rx_id
+    - expiring_rx_ids
+    - expiring_zero_refill_rx_ids
+    - expiring_with_refills_rx_ids
+    - expired_rx_ids
+    - expired_renewable_rx_ids
+    - expired_renewable_rx_id
+    - renewable_rx_ids
+  - use: message_threads
+    params:
+      thread_count: 2
+      unread_count: 1
+      categories:
+      - clinical
+    outputs:
+    - all_msg_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    zero_refill_rx_id: '{output.zero_refill_rx_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    zero_refill_medication: '{output.zero_refill_medication}'
+    zero_refill_rx_ids: '{output.zero_refill_rx_ids}'
+    zero_refill_medications: '{output.zero_refill_medications}'
+    refill_rx_id: '{output.target_rx_id}'
+    refill_medication: Metformin
+    expiring_rx_ids: '{output.expiring_rx_ids}'
+    expiring_zero_refill_rx_ids: '{output.expiring_zero_refill_rx_ids}'
+    expiring_with_refills_rx_ids: '{output.expiring_with_refills_rx_ids}'
+    expired_rx_ids: '{output.expired_rx_ids}'
+    expired_renewable_rx_ids: '{output.expired_renewable_rx_ids}'
+    expired_renewable_rx_id: '{output.expired_renewable_rx_id}'
+    renewable_rx_ids: '{output.renewable_rx_ids}'
+    all_msg_ids: '{output.all_msg_ids}'
+canonical_diff:
+  update:
+  - entity: Prescription
+    desc: >-
+      Flip every renewable zero-refill prescription to pending_renewal. The
+      renewal set spans three sub-categories — active-zero-refill,
+      expiring-zero-refill, and the already-expired prescription — so the agent
+      must renew the expired rx via the renewal endpoint after a refill is
+      rejected, and must NOT renew the expiring-with-refills decoys.
+    bijection:
+      over: target['renewable_rx_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      status:
+        eq: pending_renewal
+  - entity: Prescription
+    desc: >-
+      Refill exactly the named refillable prescription (refills decremented by
+      one, last_filled freshened THIS session, status stays active).
+    where:
+      id:
+        expr: x == target['refill_rx_id']
+    changes:
+      refills_remaining:
+        expr: >-
+          int(x) == int([r.refills_remaining for r in initial.prescriptions
+            if r.id == target['refill_rx_id']][0]) - 1
+      last_filled:
+        expr: >-
+          x > session_start and x > [r.last_filled for r in initial.prescriptions
+            if r.id == target['refill_rx_id']][0]
+      status:
+        eq: active
+  create:
+  - entity: ClinicalMessage
+    desc: Submit one structured renewal request per renewable prescription (category=rx_renewal, linked to that prescription)
+    bijection:
+      over: target['renewable_rx_ids']
+      variable: v
+    properties:
+      from_type:
+        eq: patient
+      category:
+        eq: rx_renewal
+      linked_entity_id:
+        expr: x == v
+      linked_entity_type:
+        eq: prescription
+      is_read:
+        eq: true
+      provider_id:
+        expr: x in [r.provider_id for r in initial.prescriptions if r.id == v]
+      subject:
+        any: true
+      body:
+        any: true
+      thread_id:
+        any: true
+      is_urgent:
+        any: true
+  invariant:
+  - collection: state.prescriptions
+    filter: a.id not in target['renewable_rx_ids'] and a.id != target['refill_rx_id']
+    preserve: ALL
+  - collection: state.messages
+    filter: a.id in target['all_msg_ids']
+    preserve: ALL
+  - collection: state.appointments
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not renew, refill, discontinue, or otherwise modify any prescription other than the renewable zero-refill set and the named refill prescription
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify, delete, or alter pre-existing messages
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not create, cancel, or modify appointments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[5]
+    severity: critical
+  - name: Agent did not create or modify referrals
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not modify pharmacies
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify provider records
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not alter patient demographics or insurance
+    ref: invariant[9]
+    severity: high
+  - name: Agent did not submit more renewal messages than there are renewable prescriptions
+    ref: create[0]
+    severity: high
+secondary_primitives: []

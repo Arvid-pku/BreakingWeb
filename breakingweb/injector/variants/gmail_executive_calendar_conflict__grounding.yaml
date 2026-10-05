@@ -1,0 +1,28 @@
+variant_id: gmail_executive_calendar_conflict__grounding_v1
+base_task_id: gmail_executive_calendar_conflict
+target_primitive: grounding
+description: >
+  Add confusing decoy meeting requests with similar times and attendees.
+  Agent must correctly identify actual conflicting meetings vs decoys and
+  ground resolution to correct participants.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+      - type: email
+        subject: "Meeting Request: Q2 Review"
+        from: "assistant@test.com"
+        snippet: "Requested for 2pm Thursday"
+        note: "Similar time to actual conflict"
+      - type: email
+        subject: "Calendar Hold: Strategy Session"
+        from: "scheduler@test.com"
+        snippet: "Tentative hold for 3pm Thursday"
+        note: "Adjacent time slot"
+      - type: email
+        subject: "Meeting Invite: Board Briefing"
+        from: "executive@test.com"
+        snippet: "Friday 2pm"
+        note: "Similar attendees, different day"

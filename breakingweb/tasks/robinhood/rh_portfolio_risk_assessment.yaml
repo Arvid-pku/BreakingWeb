@@ -1,0 +1,135 @@
+task_id: rh_portfolio_risk_assessment
+env_id: robinhood
+title: Mitigate Portfolio Concentration Risk
+instruction_template: 'Analyze your portfolio risk and take corrective action: (1)
+  sell enough shares of any single stock that represents more than 25% of your total
+  portfolio value to bring it below 25%, (2) close any options positions expiring
+  within 5 days by selling to close long positions and buying to close short positions,
+  and (3) deposit $5,000 from your default linked bank to reduce margin exposure.'
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - AMZN
+      - GOOGL
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 6
+      concentrated_stock: AAPL
+    outputs: []
+  - use: options_positions
+    params:
+      count: 3
+      near_expiry_count: 1
+      near_expiry_days: 3
+    outputs: []
+  - use: margin_account
+    params:
+      utilization_pct: 55
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: transfers
+    desc: $5,000 deposit initiated to reduce margin exposure
+    properties:
+      direction: {eq: deposit}
+      amount: {expr: "float(x) == 5000.0"}
+      status: {any: true}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  - entity: orders
+    desc: Sell orders placed for each concentrated (>25%) position
+    bijection:
+      over: "initial.concentrated_symbols(25.0)"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: options_orders
+    desc: Closing orders for each expiring options position (within 5 days)
+    bijection:
+      over: "list(initial.expiring_options_positions(5))"
+      variable: v
+    properties:
+      legs: {expr: "len(x) == 1 and any(leg['underlying_symbol'] == v.underlying_symbol and leg['option_type'] == v.option_type and leg['strike'] == v.strike_price and leg['expiration'] == v.expiration_date and leg['quantity'] == v.quantity and leg['side'] == ('sell' if v.position_side == 'long' else 'buy') for leg in x)"}
+      status: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'buy'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.options_orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.options_positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: No single stock remains above 25% of portfolio value
+    expr: "state.concentrated_symbols(25.0) == []"
+    severity: critical
+  - desc: Concentration-reduction stock sells filled
+    expr: all(o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders if o.side == 'sell' and o.id not in [io.id for io in
+      initial.orders])
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, exploration, verification, planning
+  by requiring the agent to identify multiple risk factors and take specific
+  corrective actions for each.

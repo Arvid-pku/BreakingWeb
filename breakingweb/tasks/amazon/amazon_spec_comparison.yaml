@@ -1,0 +1,140 @@
+task_id: amazon_spec_comparison
+env_id: amazon
+title: Compare Two Monitors Without Buying
+instruction_template: 'Compare the specifications of "{target.monitor_a_name}" and
+  "{target.monitor_b_name}". View each product page to read its features and specs.
+  Do NOT add either monitor to your cart or wishlist, and do NOT place an order —
+  this is a research-only comparison task.
+
+  '
+difficulty: easy
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+- grounding
+secondary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: LG UltraWide Monitor 34-inch
+      brand: LG
+      category: Electronics
+      price: 449.99
+      rating: 4.6
+      features:
+      - 3440x1440 resolution
+      - USB-C connectivity
+      - HDR10 support
+      - 160Hz refresh rate
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_monitor_a
+    - product_name_monitor_a
+    - product_price_monitor_a
+  - use: featured_product
+    params:
+      name: Samsung Curved Monitor 34-inch
+      brand: Samsung
+      category: Electronics
+      price: 429.99
+      rating: 4.5
+      features:
+      - 3440x1440 resolution
+      - 100Hz refresh rate
+      - Picture-by-picture mode
+      - Tilt and height adjustable stand
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_monitor_b
+    - product_name_monitor_b
+    - product_price_monitor_b
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 150.0
+      - 700.0
+    outputs:
+    - catalog_ids
+  targets:
+    monitor_a_name: '{output.product_name_monitor_a}'
+    monitor_a_id: '{output.product_id_monitor_a}'
+    monitor_b_name: '{output.product_name_monitor_b}'
+    monitor_b_id: '{output.product_id_monitor_b}'
+canonical_diff:
+  # READ-ONLY task: preserve Amazon state while requiring observable page-view
+  # evidence from the final state's browsing/recently-viewed data.
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  constraints:
+  - desc: Agent viewed both target monitor product pages
+    expr: "all(pid in state.recently_viewed for pid in [target['monitor_a_id'], target['monitor_b_id']])"
+    severity: critical
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not add items to cart
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium

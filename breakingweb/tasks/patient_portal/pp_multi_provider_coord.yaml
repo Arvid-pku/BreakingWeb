@@ -1,0 +1,191 @@
+task_id: pp_multi_provider_coord
+env_id: patient_portal
+title: Multi-Provider Medication Change
+instruction_template: 'Your cardiologist recommends changing your blood pressure medication.
+  Coordinate the follow-up with appointments only: 1) Schedule exactly one PCP appointment
+  using the next available PCP slot with reason "Blood pressure medication coordination",
+  2) Read the cardiology "Blood Pressure Medication Adjustment" message to confirm the
+  coverage details, 3) Schedule exactly one cardiology appointment using the next available
+  cardiology slot with reason "Covered medication follow-up". Do not send any messages
+  and do not discontinue any medications.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 32
+primary_primitives:
+- grounding
+start_path: /messages
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      - Chronic Kidney Disease
+      allergies:
+      - Sulfa
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      interaction_pair: false
+    outputs:
+    - active_rx_ids
+  - use: message_threads
+    params:
+      thread_count: 3
+      unread_count: 2
+      categories:
+      - clinical
+      body_context:
+        type: bp_medication_adjustment
+        provider_specialty: cardiology
+        new_medication_name: Valsartan 80mg
+        coverage_status: covered
+    outputs:
+    - thread_ids
+    - unread_msg_ids
+    - all_msg_ids
+    - context_msg_ids
+  # PP-4: scheduling with the cardiologist requires an approved referral;
+  # seed one so the task is solvable without sending a referral request
+  # message (the instruction forbids messages).
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      must_have_specialties:
+      - cardiology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    active_rx_ids: '{output.active_rx_ids}'
+    bp_msg_id: '{output.context_msg_ids.bp_medication_adjustment}'
+    all_msg_ids: '{output.all_msg_ids}'
+canonical_diff:
+  # Positive signals:
+  #   (a) mark the cardiology-authored "Blood Pressure Medication Adjustment"
+  #       message as read (identified by the deterministic seed target
+  #       bp_msg_id — the first provider message of the bp_medication_adjustment
+  #       thread, whose sender is a cardiology provider by body_context);
+  #   (b) create one PCP appointment at the next available PCP slot with the
+  #       exact required reason;
+  #   (c) create one cardiology appointment at the next available cardiology
+  #       slot (min slot across all cardio providers) with the exact required
+  #       reason.
+  update:
+    - entity: ClinicalMessage
+      desc: "Mark the cardiology Blood Pressure Medication Adjustment message as read"
+      where:
+        # `where` only sees id + changed fields, so match by id against the
+        # deterministic target. Identity (from_type / provider_id in cardio
+        # / subject) is enforced at seed time via body_context.
+        id:
+          expr: "x == target['bp_msg_id']"
+      changes:
+        is_read: {eq: true}
+  create:
+    - entity: Appointment
+      desc: "Schedule one PCP appointment at the next available PCP slot for BP medication coordination"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Blood pressure medication coordination"}
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id == target['pcp_id'] for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one cardiology appointment at the next available cardiology slot for covered-medication follow-up"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        reason: {eq: "Covered medication follow-up"}
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['cardio_provider_ids']
+                     for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    # Existing messages — no modification beyond the targeted `update`.
+    # The matcher scopes each update to the specific candidate it matched,
+    # so this invariant applies to every other message in the seed.
+    - collection: state.messages
+      preserve: ALL
+    # Pre-existing appointments must be preserved (agent only creates new).
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not modify or send unrelated messages"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not discontinue or modify prescriptions"
+      ref: invariant[2]
+      severity: critical
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

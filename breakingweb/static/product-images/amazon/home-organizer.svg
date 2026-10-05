@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Home drawer organizer">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="78" y="108" width="244" height="214" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="6"/>
+  <path d="M78 172h244M78 238h244M158 108v214M240 108v214" fill="none" stroke="#cbd5e1" stroke-width="6"/>
+  <rect x="102" y="126" width="46" height="44" rx="8" fill="#e0f2fe" stroke="#93c5fd" stroke-width="5"/>
+  <rect x="172" y="126" width="50" height="44" rx="8" fill="#fef3c7" stroke="#fbbf24" stroke-width="5"/>
+  <rect x="254" y="126" width="44" height="44" rx="8" fill="#dcfce7" stroke="#86efac" stroke-width="5"/>
+  <rect x="104" y="190" width="116" height="38" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="5"/>
+  <rect x="256" y="188" width="42" height="42" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="5"/>
+  <rect x="104" y="260" width="116" height="38" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="5"/>
+  <rect x="256" y="258" width="42" height="42" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="5"/>
+  <path d="M116 332h168" stroke="#ff9900" stroke-width="10" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,279 @@
+task_id: amazon_account_overhaul_and_shop
+env_id: amazon
+title: Configure Account Settings and Complete Multi-Product Purchase
+instruction_template: 'Set up your account and complete a purchase: 1. Add a new address:
+  {target.addr1_name}, {target.addr1_street}, {target.addr1_city}, TX {target.addr1_zip}.
+  2. Add a second address: {target.addr2_name}, {target.addr2_street}, {target.addr2_city},
+  CO {target.addr2_zip}. 3. Set the {target.addr1_city} address as your default shipping
+  address. 4. Enable one-click ordering and two-factor authentication in your account
+  settings. 5. Search for ''{target.p1}'', ''{target.p2}'', and ''{target.p3}'', add
+  all three to your cart, and complete checkout shipping to your default address.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 48
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Noise-Cancelling Headphone Stand
+      brand: AudioMax
+      category: Electronics
+      price: 29.99
+      rating: 4.5
+      features:
+      - Aluminum construction
+      - Cable management
+      - Non-slip base
+      - Universal fit
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_acct1
+    - product_name_acct1
+    - product_price_acct1
+  - use: featured_product
+    params:
+      name: Organic Cotton Bath Towel Set
+      brand: NestWell
+      category: Home & Kitchen
+      price: 44.99
+      rating: 4.6
+      features:
+      - 100% organic cotton
+      - 6-piece set
+      - Quick-dry technology
+      - OEKO-TEX certified
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_acct2
+    - product_name_acct2
+    - product_price_acct2
+  - use: featured_product
+    params:
+      name: Daily Planner Journal
+      brand: GridLine
+      category: Office Supplies
+      price: 18.99
+      rating: 4.4
+      features:
+      - 12-month undated
+      - Lay-flat binding
+      - Vegan leather cover
+      - Ribbon bookmark
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_acct3
+    - product_name_acct3
+    - product_price_acct3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 70.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_home
+  targets:
+    p1: '{output.product_name_acct1}'
+    product_id_acct1: '{output.product_id_acct1}'
+    p2: '{output.product_name_acct2}'
+    product_id_acct2: '{output.product_id_acct2}'
+    p3: '{output.product_name_acct3}'
+    product_id_acct3: '{output.product_id_acct3}'
+    addr1_name: Alex Chen
+    addr1_street: 100 Oak Boulevard
+    addr1_city: Austin
+    addr1_state: TX
+    addr1_zip: '73301'
+    addr2_name: Morgan Blake
+    addr2_street: 55 Pine Court
+    addr2_city: Denver
+    addr2_state: CO
+    addr2_zip: '80201'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: Austin address for addr1 (set as default)
+    properties:
+      full_name:
+        expr: x == target['addr1_name']
+      street_address:
+        expr: target['addr1_street'] in x
+      city:
+        expr: x == target['addr1_city']
+      state:
+        expr: x == target['addr1_state']
+      zip_code:
+        expr: x == target['addr1_zip']
+      is_default:
+        eq: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  - entity: Address
+    desc: Denver address for addr2
+    properties:
+      full_name:
+        expr: x == target['addr2_name']
+      street_address:
+        expr: target['addr2_street'] in x
+      city:
+        expr: x == target['addr2_city']
+      state:
+        expr: x == target['addr2_state']
+      zip_code:
+        expr: x == target['addr2_zip']
+      is_default:
+        eq: false
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  - entity: Order
+    desc: New order placed containing all three products, shipping to the Austin address
+    properties:
+      items:
+        expr: len(x) == 3 and any(it['product_id'] == target['product_id_acct1'] for
+          it in x) and any(it['product_id'] == target['product_id_acct2'] for it in
+          x) and any(it['product_id'] == target['product_id_acct3'] for it in x)
+      shipping_address_id:
+        expr: any(a.full_name == target['addr1_name'] and a.city == target['addr1_city']
+          for a in state.addresses if a.id == x)
+      status:
+        eq: confirmed
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  update:
+  - entity: Address
+    desc: Prior default address demoted as a side effect of setting the Austin address
+      as default (weight 0)
+    weight: 0.0
+    where:
+      id:
+        any: true
+    changes:
+      is_default:
+        eq: false
+  - entity: settings
+    collection: state.settings
+    desc: One-click ordering and two-factor authentication enabled
+    where:
+      id:
+        any: true
+    changes:
+      one_click_enabled:
+        eq: true
+      two_factor_enabled:
+        eq: true
+  invariant:
+  - collection: state.addresses
+    filter: a.full_name != target['addr1_name'] and a.full_name != target['addr2_name']
+    preserve: ALL
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['product_id_acct1'] for it in
+      (a.items or [])) and any(it.get('product_id') == target['product_id_acct2']
+      for it in (a.items or [])) and any(it.get('product_id') == target['product_id_acct3']
+      for it in (a.items or [])))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[12]
+    severity: medium

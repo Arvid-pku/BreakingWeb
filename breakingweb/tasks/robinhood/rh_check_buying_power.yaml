@@ -1,0 +1,100 @@
+task_id: rh_check_buying_power
+env_id: robinhood
+title: Invest Half of Buying Power in AAPL
+instruction_template: Check your current buying power. Compute half of that amount,
+  round down to the nearest whole share of AAPL, and place a market buy order for
+  that many shares.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 4
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 15
+      must_include:
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      quantities:
+      - '10'
+      - '5'
+      cost_bases:
+      - '175.00'
+      - '380.00'
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Market buy order for AAPL placed for ~half of buying power
+    properties:
+      symbol: {eq: AAPL}
+      side: {eq: buy}
+      order_type: {eq: market}
+      status: {eq: filled}
+      quantity: {expr: "abs(float(x * state.get_stock('AAPL').price) / float(initial.buying_power) - 0.5) <= 0.1"}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Buy transaction for AAPL
+    properties:
+      type: {eq: buy}
+      symbol: {eq: AAPL}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order fill notification
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  update:
+  - entity: positions
+    desc: AAPL position updated with new shares
+    where:
+      symbol: {eq: AAPL}
+    changes:
+      quantity: {any: true}
+      avg_cost_basis: {any: true}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'AAPL'"
+    preserve: ALL
+  - collection: state.orders
+    filter: "a.symbol != 'AAPL'"
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures grounding by requiring the agent to look up buying power
+  and translate it into a correctly sized order.

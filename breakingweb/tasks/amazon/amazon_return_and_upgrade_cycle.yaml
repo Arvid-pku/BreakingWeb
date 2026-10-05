@@ -1,0 +1,273 @@
+task_id: amazon_return_and_upgrade_cycle
+env_id: amazon
+title: Return Disappointing Items and Purchase Upgrades with Review
+instruction_template: 'You received a disappointing order. Handle returns and buy
+  upgrades: 1. Return ''{target.ret_name_1}'' from your delivered order with reason
+  ''defective''. 2. Return ''{target.ret_name_2}'' from the same order with reason
+  ''not_as_described''. 3. Search for ''{target.up_name_1}'' as a replacement for
+  the earphones and add it to cart. 4. Search for ''{target.up_name_2}'' as a replacement
+  for the desk lamp and add it to cart. 5. Purchase both upgrades in a single order.
+  6. Write a 5-star review for ''{target.up_name_1}'' with the title ''{target.review_title}''.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 50
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /orders
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Basic Wired Earphones
+      brand: SoundCore
+      category: Electronics
+      price: 14.99
+      rating: 3.5
+      features:
+      - 3.5mm jack
+      - In-ear design
+      - Inline microphone
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ret1
+    - product_name_ret1
+    - product_price_ret1
+  - use: featured_product
+    params:
+      name: Standard Desk Lamp
+      brand: LuminDesk
+      category: Office Supplies
+      price: 19.99
+      rating: 3.4
+      features:
+      - LED bulb
+      - Adjustable neck
+      - On/off switch
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ret2
+    - product_name_ret2
+    - product_price_ret2
+  - use: featured_product
+    params:
+      name: Premium Wireless Earbuds ANC
+      brand: Wavefront
+      category: Electronics
+      price: 59.99
+      rating: 4.8
+      features:
+      - Active noise cancellation
+      - 8-hour battery life
+      - Wireless charging case
+      - IPX5 waterproof
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_up1
+    - product_name_up1
+    - product_price_up1
+  - use: featured_product
+    params:
+      name: Smart LED Desk Lamp Touch
+      brand: LuminDesk
+      category: Office Supplies
+      price: 44.99
+      rating: 4.7
+      features:
+      - Touch controls
+      - 5 brightness levels
+      - USB charging port
+      - Color temperature adjustment
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_up2
+    - product_name_up2
+    - product_price_up2
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_ret1}'
+      - '{output.product_id_ret2}'
+      status: delivered
+      days_ago: 5
+    outputs:
+    - order_id_ret
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Office Supplies
+      count: 6
+      price_range:
+      - 10.0
+      - 50.0
+    outputs:
+    - catalog_office
+  targets:
+    ret_name_1: '{output.product_name_ret1}'
+    ret_pid_1: '{output.product_id_ret1}'
+    ret_name_2: '{output.product_name_ret2}'
+    ret_pid_2: '{output.product_id_ret2}'
+    up_name_1: '{output.product_name_up1}'
+    up_pid_1: '{output.product_id_up1}'
+    up_name_2: '{output.product_name_up2}'
+    up_pid_2: '{output.product_id_up2}'
+    order_id: '{output.order_id_ret}'
+    review_title: Major Upgrade Worth Every Penny
+canonical_diff:
+  create:
+  - entity: ReturnRequest
+    desc: Return request 1 for ret_pid_1 with reason defective
+    properties:
+      order_id: {expr: "x == target['order_id']"}
+      product_id: {expr: "x == target['ret_pid_1']"}
+      reason: {eq: defective}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: ReturnRequest
+    desc: Return request 2 for ret_pid_2 with reason not_as_described
+    properties:
+      order_id: {expr: "x == target['order_id']"}
+      product_id: {expr: "x == target['ret_pid_2']"}
+      reason: {eq: not_as_described}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: Order
+    desc: New order containing both upgrade products
+    properties:
+      items:
+        expr: "len(x) == 2 and {it['product_id'] for it in x} == {target['up_pid_1'],
+          target['up_pid_2']} and all(it['quantity'] == 1 for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Review
+    desc: 5-star review for upgrade product 1
+    properties:
+      product_id: {expr: "x == target['up_pid_1']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['review_title']"}
+      body: {any: true}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented for upgrade 1 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['up_pid_1']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['up_pid_1'])
+          + 1"
+  invariant:
+  - collection: state.orders
+    filter: "not (any(it.get('product_id') == target['up_pid_1'] for it in (a.items
+      or [])) and any(it.get('product_id') == target['up_pid_2'] for it in (a.items
+      or [])))"
+    preserve: ALL
+  - collection: state.returns
+    filter: "a.order_id != target['order_id']"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['up_pid_1']"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id != target['up_pid_1']"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other return requests
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not write reviews for other products
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[3]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,26 @@
+variant_id: gmail_search_and_star__planning_v1
+base_task_id: gmail_search_and_star
+target_primitive: grounding
+description: >
+  Scrambled timestamps, 5 distractor emails from the SAME sender with
+  near-identical subjects, plus stale search results on first attempt.
+  Agent must ground on sender, subject, and content after a stale first search,
+  then star the correct one.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 77
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 8
+    subject_prefix: ""
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: "**/api/env/gmail/search**"
+    stale_body: {"items": [], "total": 0, "page": 1, "page_size": 25, "pages": 1, "query": ""}
+    stale_count: 2
+    behavior:
+      mode: once

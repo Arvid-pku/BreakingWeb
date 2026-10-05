@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Home fragrance diffuser">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <path d="M126 214h148l-18 92c-4 20-22 34-42 34h-28c-20 0-38-14-42-34z" fill="#ffffff" stroke="#94a3b8" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M148 252h104" stroke="#ff9900" stroke-width="10" stroke-linecap="round"/>
+  <path d="M168 214c0-24 15-42 32-42s32 18 32 42" fill="none" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M154 148c-16-18-14-40 2-56M200 142c-12-24-6-48 14-66M246 148c16-18 14-40-2-56" fill="none" stroke="#60a5fa" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="200" cy="214" r="18" fill="#ff9900"/>
+</svg>

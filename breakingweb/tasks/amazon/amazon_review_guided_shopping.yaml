@@ -1,0 +1,278 @@
+task_id: amazon_review_guided_shopping
+env_id: amazon
+title: Buy Top-Rated Products and Wishlist Low-Rated Ones Based on Reviews
+instruction_template: 'Browse these four products and read their reviews: ''Plastic
+  Desk Organizer'', ''Smart Home Speaker Mini'', ''Budget Phone Charger'', and ''Aromatherapy
+  Diffuser Set''. Open each product page and read the actual review text and ratings.
+  Based on what you read, identify the two products with the highest average rating
+  and the two with the lowest. Purchase the two highest-rated products in a single
+  order. After purchasing, write a 5-star review titled ''{target.review_title_1}''
+  for the highest-rated product, and a 4-star review titled ''{target.review_title_2}''
+  for the second-highest-rated product. Add the two lowest-rated products to your
+  wishlist for future consideration.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 48
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: product_with_reviews
+    params:
+      product_name: Smart Home Speaker Mini
+      category: Electronics
+      price: 39.99
+      brand: Lumivox
+      rating: 4.8
+      reviews:
+      - rating: 5
+        title: Amazing sound
+        body: Crystal clear audio quality
+      - rating: 5
+        title: Best speaker
+        body: Worth every penny
+    outputs:
+    - product_id_best1
+    - review_ids_1
+  - use: product_with_reviews
+    params:
+      product_name: Aromatherapy Diffuser Set
+      category: Home & Kitchen
+      price: 29.99
+      brand: Aquaterra
+      rating: 4.7
+      reviews:
+      - rating: 5
+        title: Love the scents
+        body: Makes the room smell wonderful
+      - rating: 4
+        title: Pretty good
+        body: Nice design and works well
+    outputs:
+    - product_id_best2
+    - review_ids_2
+  - use: product_with_reviews
+    params:
+      product_name: Budget Phone Charger
+      category: Electronics
+      price: 9.99
+      brand: Circuitry
+      rating: 3.2
+      reviews:
+      - rating: 3
+        title: It works
+        body: Basic charger nothing special
+      - rating: 2
+        title: Slow charging
+        body: Takes forever to charge
+    outputs:
+    - product_id_low1
+    - review_ids_3
+  - use: product_with_reviews
+    params:
+      product_name: Plastic Desk Organizer
+      category: Office Supplies
+      price: 14.99
+      brand: ClearView Office
+      rating: 3.0
+      reviews:
+      - rating: 3
+        title: Okay
+        body: Does the job but cheaply made
+      - rating: 2
+        title: Flimsy
+        body: Broke after a month
+    outputs:
+    - product_id_low2
+    - review_ids_4
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    best1: '{output.product_id_best1}'
+    best2: '{output.product_id_best2}'
+    low1: '{output.product_id_low1}'
+    low2: '{output.product_id_low2}'
+    review_title_1: Fantastic Home Addition
+    review_title_2: Great Everyday Essential
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed containing both best products together
+    properties:
+      items:
+        expr: "len(x) == 2 and {it['product_id'] for it in x} == {target['best1'],
+          target['best2']} and all(it['quantity'] == 1 for it in x)"
+      status:
+        eq: confirmed
+      shipping_address_id:
+        any: true
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  - entity: Review
+    desc: 5-star review for best product 1 with target title
+    properties:
+      product_id:
+        expr: x == target['best1']
+      rating:
+        eq: 5
+      title:
+        expr: x == target['review_title_1']
+      body:
+        any: true
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at:
+        any: true
+  - entity: Review
+    desc: 4-star review for best product 2 with target title
+    properties:
+      product_id:
+        expr: x == target['best2']
+      rating:
+        eq: 4
+      title:
+        expr: x == target['review_title_2']
+      body:
+        any: true
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at:
+        any: true
+  - entity: wishlist
+    desc: Low-rated product 1 added to wishlist
+    properties:
+      value:
+        expr: x == target['low1']
+  - entity: wishlist
+    desc: Low-rated product 2 added to wishlist
+    properties:
+      value:
+        expr: x == target['low2']
+  update:
+  - entity: Product
+    desc: Product review_count incremented for best1 review (weight 0)
+    weight: 0.0
+    where:
+      id:
+        expr: x == target['best1']
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['best1'])
+          + 1"
+  - entity: Product
+    desc: Product review_count incremented for best2 review (weight 0)
+    weight: 0.0
+    where:
+      id:
+        expr: x == target['best2']
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['best2'])
+          + 1"
+  invariant:
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['best1'] for it in (a.items
+      or [])) and any(it.get('product_id') == target['best2'] for it in (a.items
+      or [])))
+    preserve: ALL
+  - collection: state.products
+    filter: a.id != target['best1'] and a.id != target['best2']
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    filter: a.product_id != target['best1'] and a.product_id != target['best2']
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    filter: a.value not in [target['low1'], target['low2']]
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write reviews for other products
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

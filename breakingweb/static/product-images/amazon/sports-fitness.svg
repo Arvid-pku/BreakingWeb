@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Fitness gear">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="72" y="168" width="54" height="96" rx="14" fill="#111827"/>
+  <rect x="274" y="168" width="54" height="96" rx="14" fill="#111827"/>
+  <rect x="124" y="198" width="152" height="36" rx="18" fill="#475569"/>
+  <rect x="154" y="148" width="92" height="32" rx="16" fill="#ff9900"/>
+  <path d="M146 306h108" stroke="#94a3b8" stroke-width="12" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,32 @@
+variant_id: gmail_contact_deduplication__alias_confusion
+base_task_id: gmail_contact_deduplication
+target_primitive: grounding
+description: Extra contacts with confusingly similar names and addresses are present. The agent must match
+  the exact contact evidence rather than editing the wrong lookalike.
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    multiplier: 2
+    aliases:
+    - name: Priya Narayanan-Gupta
+      email: priya.ng@partner-corp.com
+      note: External partner
+    - name: P. Narayanan
+      email: p.narayanan@thornton.com
+      note: Internal finance contact
+    - name: Priya N.
+      email: priya.narayan@acmelabs.io
+      note: Contractor
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: P. Narayanan
+      from: p.narayanan@thornton.com
+      subject: 'Re: Contact update'
+      body: Hi, just letting you know my email has changed again. Please double-check the correct contact
+        before editing any entry.
+      labels:
+      - inbox

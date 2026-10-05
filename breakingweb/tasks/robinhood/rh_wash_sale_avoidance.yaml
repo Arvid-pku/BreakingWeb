@@ -1,0 +1,144 @@
+task_id: rh_wash_sale_avoidance
+env_id: robinhood
+title: Tax-Loss Harvest While Avoiding Wash Sales
+instruction_template: 'Perform tax-loss harvesting: sell all positions that have unrealized
+  losses. However, skip any position where you purchased the same stock within the
+  last 30 days, as this would trigger a wash sale.'
+difficulty: hard
+time_limit_seconds: 280
+expected_steps: 12
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      count: 6
+      include_losers: true
+    outputs:
+    - loss_symbols
+    - gain_symbols
+  - use: transaction_ledger
+    params:
+      months: 2
+      symbols:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+      include_recent_buys: true
+      recent_buy_symbols: '{output.loss_symbols}'
+      recent_buy_count: 1
+    outputs:
+    - recent_buy_symbols
+  targets:
+    loss_symbols: '{output.loss_symbols}'
+    recent_buy_symbols: '{output.recent_buy_symbols}'
+    gain_symbols: '{output.gain_symbols}'
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order placed for each eligible loss position (tax-loss harvest)
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded for each eligible loss position
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      type: {eq: sell}
+      symbol: {expr: "x == v"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted for each harvest sell
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  delete:
+  - entity: positions
+    desc: Fully-sold loss positions removed from portfolio
+    bijection:
+      over: "[p for p in initial.positions if p.symbol in target['loss_symbols'] and
+        p.symbol not in target['recent_buy_symbols']]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'sell' and (a.symbol not in target['loss_symbols'] or a.symbol
+      in target['recent_buy_symbols'])"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol not in target['loss_symbols']"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol not in target['loss_symbols']"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  constraints:
+  - desc: Wash-sale-safe harvest sell orders filled completely
+    expr: all(o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders if o.side == 'sell' and o.id not in [io.id for io in
+      initial.orders]) and any(o.side == 'sell' and o.id not in [io.id for io in
+      initial.orders] for o in state.orders)
+    severity: critical
+secondary_primitives: []

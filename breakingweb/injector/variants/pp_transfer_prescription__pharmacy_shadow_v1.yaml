@@ -1,0 +1,70 @@
+variant_id: pp_transfer_prescription__pharmacy_shadow_v1
+base_task_id: pp_transfer_prescription
+target_primitive: state_tracking
+description: A state_tracking stressor. Membership in the "currently at the mail-order pharmacy"
+  set is made contested rather than readable. (A) A SECOND "pharmacy closing" message contradicts
+  the first and the structured truth, naming a different medication set. (B) Boundary-lookalike
+  ACTIVE prescriptions for the SAME medications as the real mail-order set are added at a DIFFERENT
+  retail pharmacy, with near-identical dosages and timestamps, so the agent must track each
+  prescription's pharmacy_id rather than match by medication name. The canonical answer is
+  unchanged (it is keyed off the structured rxes_at_source_pharmacy id set), so an agent that
+  matches by medication name or trusts either notice transfers the wrong set.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      category: clinical
+      subject: "Mail-order transition — your medications"
+      body: >-
+        Pharmacy Transition Notice: As part of the mail-order closure, our records show
+        the following maintenance medications on file for transfer: Atorvastatin 20mg,
+        Amlodipine 5mg, and Lisinopril 10mg. Please confirm. (Note: this list is generated
+        from a prior billing snapshot and may be out of date.)
+      timestamp: '2025-09-10T08:00:00+00:00'
+      is_read: false
+    - type: message
+      category: rx_renewal
+      subject: "Renewal reminder — informational"
+      body: >-
+        Several of your prescriptions are eligible for renewal. No action is required for the
+        pharmacy transfer; renewing is optional and unrelated to moving a prescription.
+      timestamp: '2025-10-02T08:00:00+00:00'
+      is_read: true
+    - type: prescription
+      medication: Metformin 500mg
+      dosage: 500mg
+      frequency: twice daily
+      refills_remaining: 5
+      last_filled: '2025-11-18T08:00:00+00:00'
+      expires_at: '2026-11-18T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Losartan 50mg
+      dosage: 50mg
+      frequency: once daily
+      refills_remaining: 4
+      last_filled: '2025-11-12T08:00:00+00:00'
+      expires_at: '2026-10-12T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Levothyroxine 75mcg
+      dosage: 75mcg
+      frequency: once daily on empty stomach
+      refills_remaining: 3
+      last_filled: '2025-10-30T08:00:00+00:00'
+      expires_at: '2026-09-30T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Omeprazole 20mg
+      dosage: 20mg
+      frequency: once daily before breakfast
+      refills_remaining: 2
+      last_filled: '2025-11-05T08:00:00+00:00'
+      expires_at: '2026-08-05T08:00:00+00:00'
+      status: active
+      interactions: []

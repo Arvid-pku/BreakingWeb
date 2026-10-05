@@ -1,0 +1,144 @@
+task_id: rh_options_income_portfolio
+env_id: robinhood
+title: Build Monthly Options Income Strategy
+instruction_template: Build a monthly income strategy across your portfolio. For each
+  stock where you own 100 or more shares, sell a covered call at the nearest monthly
+  expiration with a delta closest to 0.30. For stocks where you own fewer than 100
+  shares, sell a cash-secured put at a delta closest to -0.30.
+difficulty: frontier
+time_limit_seconds: 500
+expected_steps: 32
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      quantities:
+      - '120'
+      - '100'
+      - '150'
+      - '45'
+      - '30'
+      cost_bases:
+      - '165.00'
+      - '380.00'
+      - '155.00'
+      - '170.00'
+      - '210.00'
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: AAPL
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: MSFT
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: GOOGL
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: AMZN
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: TSLA
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: META
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Covered call placed for every 100+ share position with an options chain
+    bijection:
+      over: "[sym for sym in initial.position_symbols_at_or_above_shares(Decimal('100')) if sym in initial.options_chains]"
+      variable: v
+    properties:
+      legs: {expr: "len(x) == 1 and any(leg['underlying_symbol'] == v and leg['side'] == 'sell' and leg['option_type'] == 'call' and leg['quantity'] == 1 for leg in x)"}
+      status: {in: [filled, pending]}
+      strategy: {eq: covered_call}
+  - entity: options_orders
+    desc: Cash-secured put placed for every sub-100-share position with an options chain
+    bijection:
+      over: "[p.symbol for p in initial.positions if p.quantity < Decimal('100') and p.symbol in initial.options_chains]"
+      variable: v
+    properties:
+      legs: {expr: "len(x) == 1 and any(leg['underlying_symbol'] == v and leg['side'] == 'sell' and leg['option_type'] == 'put' and leg['quantity'] == 1 for leg in x)"}
+      status: {in: [filled, pending]}
+      strategy: {eq: single}
+  invariant:
+  - collection: state.options_orders
+    filter: "any(leg.side == 'buy' for leg in a.legs) and not a.id.startswith('opt_decoy_')"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.options_orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.options_positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, planning, exploration, grounding, verification
+  by requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

@@ -1,0 +1,208 @@
+task_id: amazon_price_comparison
+env_id: amazon
+title: Compare Products and Buy Best Value in Price Range
+instruction_template: 'Search for products in the "{target.category}" category. Among
+  products priced between $50 and $100, purchase the one with the highest customer
+  rating. Use the shipping address for Jordan Parker at 742 Evergreen Terrace and
+  the Visa card ending in 4242.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 23
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Premium Silicone Kitchen Mat
+      brand: HomeStyle
+      category: Home & Kitchen
+      price: 74.99
+      rating: 4.95
+      features:
+      - Heat resistant to 450F
+      - Non-slip surface
+      - Easy to clean
+      - BPA free
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: featured_product
+    params:
+      name: Bamboo Spice Rack Organizer
+      brand: KitchenPro
+      category: Home & Kitchen
+      price: 59.99
+      rating: 4.2
+      features:
+      - 3-tier design
+      - Expandable width
+      - Natural bamboo
+      - Non-slip feet
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_decoy1
+    - product_name_decoy1
+    - product_price_decoy1
+  - use: featured_product
+    params:
+      name: Stainless Steel Utensil Holder
+      brand: CookEase
+      category: Home & Kitchen
+      price: 64.99
+      rating: 4.0
+      features:
+      - Large capacity
+      - Weighted base
+      - Rust resistant
+      - Modern design
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_decoy2
+    - product_name_decoy2
+    - product_price_decoy2
+  - use: featured_product
+    params:
+      name: Glass Food Storage Set 12-Piece
+      brand: FreshKeep
+      category: Home & Kitchen
+      price: 89.99
+      rating: 3.8
+      features:
+      - Borosilicate glass
+      - Snap-lock lids
+      - Microwave safe
+      - Stackable design
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_decoy3
+    - product_name_decoy3
+    - product_price_decoy3
+  targets:
+    category: Home & Kitchen
+    best_value_id: '{output.product_id}'
+    best_value_name: '{output.product_name}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order for any highest-rated product in target category priced $50-$100
+    properties:
+      # Tie-tolerant: accept ANY product in the target category, priced $50-$100,
+      # whose rating equals the maximum rating among qualifying products.
+      items:
+        expr: >-
+          len(x) == 1 and x[0]['quantity'] == 1
+          and any(
+            p.id == x[0]['product_id'] and p.category == target['category']
+            and 50.0 <= p.price <= 100.0
+            and p.rating == max(
+              q.rating for q in initial.products
+              if q.category == target['category'] and 50.0 <= q.price <= 100.0
+            )
+            for p in initial.products
+          )
+      status: {eq: confirmed}
+      shipping_address_id: {expr: "any(a.id == x and a.full_name == 'Jordan Parker'
+          and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"}
+      payment_method_id: {expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four
+          == '4242' for p in state.payment_methods)"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    # Tie-tolerant: allow new orders containing any qualifying highest-rated product.
+    filter: >-
+      not any(
+        any(
+          p.id == it.get('product_id') and p.category == target['category']
+          and 50.0 <= p.price <= 100.0
+          and p.rating == max(
+            q.rating for q in initial.products
+            if q.category == target['category'] and 50.0 <= q.price <= 100.0
+          )
+          for p in initial.products
+        )
+        for it in (a.items or [])
+      )
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

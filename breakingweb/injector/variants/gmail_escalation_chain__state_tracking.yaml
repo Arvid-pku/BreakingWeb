@@ -1,0 +1,25 @@
+variant_id: gmail_escalation_chain__state_tracking_v1
+base_task_id: gmail_escalation_chain
+target_primitive: state_tracking
+description: >
+  Inject 8 topical distractors about escalations, issues, and priority levels.
+  Scramble timestamps. Agent must track escalation history, severity levels,
+  and routing rules across 12+ confusing emails.
+injections:
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 8
+    topical_subjects:
+      - "Escalation Protocol Update"
+      - "Issue Priority Matrix"
+      - "Escalation Chain Contacts"
+      - "Previous Escalation History"
+      - "Severity Level Guidelines"
+      - "Escalation Response Times"
+      - "Issue Routing Rules"
+      - "Priority Assignment Changes"
+- layer: server
+  params:
+    action: scramble_timestamps

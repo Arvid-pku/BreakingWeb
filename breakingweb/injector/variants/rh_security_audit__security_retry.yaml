@@ -1,0 +1,28 @@
+variant_id: rh_security_audit__security_retry
+base_task_id: rh_security_audit
+target_primitive: backtracking
+description: The first 2FA update fails transiently. The agent must verify the authenticator setting actually persisted.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/security/2fa'
+    methods:
+    - PUT
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/security/2fa'
+    methods:
+    - PUT
+    fail_count: 1
+    success_body:
+      success: true
+      message: 2FA settings updated.
+    behavior:
+      mode: once

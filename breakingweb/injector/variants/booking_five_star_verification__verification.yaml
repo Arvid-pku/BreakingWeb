@@ -1,0 +1,25 @@
+variant_id: booking_five_star_verification__verification_v1
+base_task_id: booking_five_star_verification
+target_primitive: verification
+description: Search results show inaccurate star ratings (4-star displayed as 5-star)
+  for some properties, requiring verification on the detail page.
+injections:
+- layer: client
+  params:
+    action: mutate_displayed_text
+    mutations:
+    - selector: '.bk-stars'
+      behavior: inflate_stars
+      probability: 0.3
+      note: Some 4-star hotels show 5 stars in search results
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: "Imperial Palace Tokyo"
+      city: Tokyo
+      star_rating: 4
+      review_score: 8.8
+      amenities: ["Free WiFi", "Spa", "Pool", "Restaurant"]
+      note: Has spa and pool but is only 4 stars

@@ -1,0 +1,21 @@
+variant_id: rh_portfolio_risk_assessment__state_tracking_v1
+base_task_id: rh_portfolio_risk_assessment
+target_primitive: state_tracking
+description: >
+  Extra positions with values near the 25% concentration threshold are injected,
+  forcing the agent to carefully track portfolio weights rather than relying on
+  a quick glance at the largest holding.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: NVDA
+      quantity: 40
+      cost_basis: "420.00"
+      return_pct: 18.5
+    - symbol: META
+      quantity: 55
+      cost_basis: "310.00"
+      return_pct: 22.1

@@ -1,0 +1,163 @@
+task_id: amazon_prime_enable_and_free_shipping
+env_id: amazon
+title: Enable Prime and Place a Free-Shipping Order
+instruction_template: 'Enable Prime membership on your account settings. Then search
+  for "{target.product_name}" (priced at ${target.product_price}) and add it to your
+  cart. Place the order using your default address and default payment method. The
+  shipping cost on your order must be $0 - Prime members get free shipping even on
+  sub-$25 orders.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: settings_override
+    params:
+      prime_member: false
+    outputs: []
+  - use: featured_product
+    params:
+      name: Silicone Phone Grip
+      brand: Circuitry
+      category: Electronics
+      price: 12.99
+      rating: 4.4
+      features:
+      - 3M adhesive backing
+      - Collapsible design
+      - Works with wireless charging
+      - Universal compatibility
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 3
+      price_range:
+      - 15.0
+      - 50.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    product_price: '{output.product_price}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order for target product placed with $0 shipping (Prime member)
+    properties:
+      items:
+        expr: len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1
+      shipping_cost:
+        eq: 0.0
+      status:
+        eq: confirmed
+      shipping_address_id:
+        expr: "x == initial.settings.default_address_id"
+      payment_method_id:
+        expr: "x == initial.settings.default_payment_id"
+      subtotal:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  update:
+  - entity: settings
+    collection: state.settings
+    desc: Prime membership enabled
+    where:
+      id:
+        any: true
+    changes:
+      prime_member:
+        eq: true
+  invariant:
+  - collection: state.orders
+    filter: not any(it.get('product_id') == target['product_id'] for it in (a.items
+      or []))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[12]
+    severity: medium

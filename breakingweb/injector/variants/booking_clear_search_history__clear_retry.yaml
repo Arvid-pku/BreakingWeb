@@ -1,0 +1,17 @@
+variant_id: booking_clear_search_history__clear_retry
+base_task_id: booking_clear_search_history
+target_primitive: backtracking
+description: The first clear-history request fails transiently. The agent must verify the search history is actually empty
+  and retry if it is not.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/booking/search-history'
+    methods:
+    - DELETE
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

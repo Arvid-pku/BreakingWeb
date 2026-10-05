@@ -1,0 +1,37 @@
+variant_id: rh_live_cross_stock_alert__exploration_v1
+base_task_id: rh_live_cross_stock_alert
+target_primitive: exploration
+description: >
+  Distractor notifications about other energy stocks and confusing
+  positions make the agent explore more of the interface to confirm
+  the correct XOM/CVX pair. Scrambled order timestamps add confusion
+  about trade sequencing.
+injections:
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    notifications:
+    - title: "Energy Sector Alert"
+      message: "BP surged above $38 — energy rotation opportunity detected"
+      type: alert
+    - title: "Pairs Trade Signal"
+      message: "CVX/SLB spread widening — traditional energy pair diverging"
+      type: alert
+    - title: "Position Update: XOM"
+      message: "XOM cost basis adjusted for recent dividend reinvestment"
+      type: system
+- layer: server
+  params:
+    action: scramble_order_timestamps
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

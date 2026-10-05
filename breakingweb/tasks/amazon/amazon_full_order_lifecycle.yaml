@@ -1,0 +1,249 @@
+task_id: amazon_full_order_lifecycle
+env_id: amazon
+title: Complete Order Lifecycle with Cancel, Return, and Review
+instruction_template: 'Complete this multi-step shopping workflow: 1. Search for ''{target.cancel_name}''
+  and purchase it. 2. Immediately cancel that order. 3. Search for ''{target.keep_name}''
+  and ''{target.return_name}'', add both to your cart, and purchase them together
+  in one order. 4. Return ''{target.return_name}'' from that order with reason ''not_as_described''.
+  5. Write a 5-star review for ''{target.keep_name}'' with the title ''{target.review_title}''.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 52
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Smart Bluetooth Tracker 4-Pack
+      brand: TechNova
+      category: Electronics
+      price: 34.99
+      rating: 4.5
+      features:
+      - Bluetooth 5.0
+      - 300ft range
+      - Replaceable battery
+      - Water resistant
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cancel
+    - product_name_cancel
+    - product_price_cancel
+  - use: featured_product
+    params:
+      name: Ceramic Pour-Over Coffee Set
+      brand: Hearthway
+      category: Home & Kitchen
+      price: 42.99
+      rating: 4.6
+      features:
+      - Hand-crafted ceramic
+      - Stainless steel filter
+      - 4-cup capacity
+      - Gift box included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_keep
+    - product_name_keep
+    - product_price_keep
+  - use: featured_product
+    params:
+      name: Silk Pillowcase Set of 2
+      brand: NestWell
+      category: Home & Kitchen
+      price: 28.99
+      rating: 4.3
+      features:
+      - 100% mulberry silk
+      - Envelope closure
+      - Hypoallergenic
+      - Standard size
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_return
+    - product_name_return
+    - product_price_return
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 8
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_home
+  targets:
+    cancel_name: '{output.product_name_cancel}'
+    cancel_pid: '{output.product_id_cancel}'
+    keep_name: '{output.product_name_keep}'
+    keep_pid: '{output.product_id_keep}'
+    return_name: '{output.product_name_return}'
+    return_pid: '{output.product_id_return}'
+    review_title: Outstanding Coffee Experience
+canonical_diff:
+  create:
+  - entity: Order
+    desc: First order placed for cancel_pid and then cancelled
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['cancel_pid'] and x[0]['quantity']
+          == 1"
+      status: {eq: cancelled}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Second order places keep_pid and return_pid together (still confirmed)
+    properties:
+      items:
+        expr: "len(x) == 2 and {it['product_id'] for it in x} == {target['keep_pid'],
+          target['return_pid']} and all(it['quantity'] == 1 for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: ReturnRequest
+    desc: Return request filed for return_pid with not_as_described reason
+    properties:
+      product_id: {expr: "x == target['return_pid']"}
+      reason: {eq: not_as_described}
+      order_id:
+        expr: "any(o.id == x and not o.id.startswith('order_initial_') and any(it.product_id
+          == target['keep_pid'] for it in o.items) and any(it.product_id == target['return_pid']
+          for it in o.items) for o in state.orders)"
+      order_item_index: {any: true}
+      product_name: {any: true}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: Review
+    desc: 5-star review for keep_pid with target title
+    properties:
+      product_id: {expr: "x == target['keep_pid']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['review_title']"}
+      body: {any: true}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented on review (side effect, weight 0)
+    weight: 0.0
+    where:
+      id:
+        expr: "x == target['keep_pid']"
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['keep_pid'])
+          + 1"
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id != target['keep_pid']"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['keep_pid']"
+    preserve: ALL
+  - collection: state.returns
+    filter: "a.id.startswith('return_initial_')"
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not write reviews for other products
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify other returns
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not leave items in cart
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

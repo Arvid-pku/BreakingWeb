@@ -1,0 +1,274 @@
+task_id: booking_expert_notification_workflow
+env_id: booking
+title: Notification-Driven Property Discovery with Save and Book
+instruction_template: "Follow up on your price-drop notifications:\n1. Go to your\
+  \ notifications.\n2. Find the three notifications about price drops in Vienna.\n\
+  3. Look up each of these three properties and compare their current prices.\n4.\
+  \ Save the cheapest of the three to a new list called \"Price Drop Picks\".\n5.\
+  \ Book the second cheapest of the three - book its cheapest room for 2 guests checking\
+  \ in 2026-09-15 and checking out 2026-09-19 (4 nights). Use the Amex card ending\
+  \ in 1234.\n6. Mark these three price-drop notifications as read.\n"
+difficulty: expert
+time_limit_seconds: 440
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Sacher Wien
+      city: Vienna
+      country: Austria
+      star_rating: 5
+      review_score: 9.5
+      review_count: 6780
+      price: 480.0
+      neighborhood: Innere Stadt
+      address: Philharmoniker Str. 4, 1010 Vienna
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Concierge
+      - Fitness center
+      popular_facilities:
+      - Spa
+      - Restaurant
+      - Free WiFi
+      rooms:
+      - name: Superior Double Room
+        price: 480.0
+        bed_type: king
+        max_occupancy: 2
+        cancel_type: free_cancellation
+        original_price: 560.0
+    outputs:
+    - drop_id_1
+    - drop_name_1
+    - drop_room_id_1
+    - drop_room_name_1
+  - use: featured_property
+    params:
+      name: The Guesthouse Vienna
+      city: Vienna
+      country: Austria
+      star_rating: 4
+      review_score: 9.0
+      review_count: 3450
+      price: 220.0
+      neighborhood: Innere Stadt
+      address: Fuehrichgasse 10, 1010 Vienna
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Concierge
+      popular_facilities:
+      - Free WiFi
+      - Restaurant
+      rooms:
+      - name: Classic Room
+        price: 220.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+        original_price: 275.0
+    outputs:
+    - drop_id_2
+    - drop_name_2
+    - drop_room_id_2
+    - drop_room_name_2
+  - use: featured_property
+    params:
+      name: Hotel Topazz Vienna
+      city: Vienna
+      country: Austria
+      star_rating: 4
+      review_score: 8.8
+      review_count: 1890
+      price: 310.0
+      neighborhood: Stephansplatz
+      address: Lichtensteg 3, 1010 Vienna
+      amenities:
+      - Free WiFi
+      - Bar
+      - Room service
+      - Air conditioning
+      popular_facilities:
+      - Free WiFi
+      - Bar
+      rooms:
+      - name: Topazz Room
+        price: 310.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+        original_price: 380.0
+    outputs:
+    - drop_id_3
+    - drop_name_3
+    - drop_room_id_3
+    - drop_room_name_3
+  - use: add_notification
+    params:
+      type: price_drop
+      title: Price Drop - Hotel Sacher Wien
+      message: Great news! Hotel Sacher Wien in Vienna has dropped its price from
+        $560 to $480 per night. Book now before the price goes back up!
+      read: false
+      related_id: '{output.drop_id_1}'
+    outputs:
+    - notif_id_1
+  - use: add_notification
+    params:
+      type: price_drop
+      title: Price Drop - The Guesthouse Vienna
+      message: Price alert! The Guesthouse Vienna has reduced rates from $275 to $220
+        per night. Limited availability!
+      read: false
+      related_id: '{output.drop_id_2}'
+    outputs:
+    - notif_id_2
+  - use: add_notification
+    params:
+      type: price_drop
+      title: Price Drop - Hotel Topazz Vienna
+      message: Hotel Topazz Vienna has lowered its rate from $380 to $310 per night.
+        This is a rare price drop!
+      read: false
+      related_id: '{output.drop_id_3}'
+    outputs:
+    - notif_id_3
+  - use: add_notification
+    params:
+      type: deal_alert
+      title: Summer Flash Sale - Greek Islands
+      message: Save up to 40% on hotels in Santorini and Mykonos this summer!
+      read: false
+    outputs:
+    - distractor_notif_id
+  targets:
+    drop_id_1: '{output.drop_id_1}'
+    drop_name_1: '{output.drop_name_1}'
+    drop_id_2: '{output.drop_id_2}'
+    drop_name_2: '{output.drop_name_2}'
+    drop_id_3: '{output.drop_id_3}'
+    drop_name_3: '{output.drop_name_3}'
+    cheapest_id: '{output.drop_id_2}'
+    cheapest_name: '{output.drop_name_2}'
+    second_id: '{output.drop_id_3}'
+    second_name: '{output.drop_name_3}'
+    notif_id_1: '{output.notif_id_1}'
+    notif_id_2: '{output.notif_id_2}'
+    notif_id_3: '{output.notif_id_3}'
+canonical_diff:
+  update:
+    - entity: Notification
+      desc: Mark first price-drop notification as read
+      where:
+        id: {expr: "x == target['notif_id_1']"}
+      changes:
+        read: {eq: true}
+    - entity: Notification
+      desc: Mark second price-drop notification as read
+      where:
+        id: {expr: "x == target['notif_id_2']"}
+      changes:
+        read: {eq: true}
+    - entity: Notification
+      desc: Mark third price-drop notification as read
+      where:
+        id: {expr: "x == target['notif_id_3']"}
+      changes:
+        read: {eq: true}
+  create:
+    - entity: SavedList
+      desc: Save cheapest property to Price Drop Picks list
+      properties:
+        name: {eq: "Price Drop Picks"}
+        property_ids:
+          expr: "target['cheapest_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Reservation
+      desc: Book second cheapest property with Amex, 2026-09-15 to 2026-09-19
+      properties:
+        property_id: {expr: "x == target['second_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {any: true}
+        check_in: {eq: "2026-09-15"}
+        check_out: {eq: "2026-09-19"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {expr: "x == min(rt.price_per_night for p in initial.properties if p.id == target['second_id'] for rt in p.room_types if rt.is_available and rt.max_occupancy >= 2)"}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Amex' and pm.last_four == '1234' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['second_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Price Drop Picks'"
+      preserve: ALL
+    - collection: state.notifications
+      filter: "a.id not in (target['notif_id_1'], target['notif_id_2'], target['notif_id_3'])"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+  named_invariants:
+    - name: Agent saved cheapest property to Price Drop Picks list
+      ref: create[0]
+      severity: high
+    - name: Agent booked second cheapest property with correct dates
+      ref: create[1]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify other saved lists
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify unrelated notifications
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send unsolicited messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[6]
+      severity: high

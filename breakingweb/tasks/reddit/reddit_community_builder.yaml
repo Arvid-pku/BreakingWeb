@@ -1,0 +1,254 @@
+task_id: reddit_community_builder
+title: Community Building Campaign
+instruction_template: '1. Subscribe to r/{target.j1}, r/{target.j2}, r/{target.j3}.
+
+  2. Create post in r/{target.j1}: title "{target.p1_title}" body "{target.p1_body}".
+
+  3. In r/{target.comment_sub} find "{target.ct}". Upvote and comment: "{target.cc}"
+
+  4. Send messages to u/NeuralNexus, u/ByteRunner, u/DataWizard42 all with subject "{target.ms}" body: "{target.mb}"
+
+  5. Mark all notifications read.
+
+  6. Set theme "dark", comment sort "new", disable show active communities.
+
+
+  Do not unsubscribe from existing communities.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- state_tracking
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_ids
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Global carbon emissions fall for first time without economic recession
+      body: IEA data shows renewable transition driving decline.
+      score: 55000
+    outputs:
+    - wn_id
+    - wn_title
+    - wn_sub
+  - use: target_post
+    params:
+      subreddit: programming
+      title: How we reduced our CI/CD pipeline from 45 minutes to 3 minutes
+      body: Caching, parallelization, and smarter test selection.
+      author: CompileError
+      score: 11000
+    outputs:
+    - prog_id
+    - prog_title
+    - prog_sub
+  - use: target_comment
+    params:
+      post_id: '{output.prog_id}'
+      body: Test selection based on code coverage diff is the biggest win here. We saw similar results.
+      author: DeepDiver
+      score: 2100
+    outputs:
+    - reply_id
+    - reply_body
+  - use: target_message
+    params:
+      from_user: DigitalSage
+      subject: Collaboration request
+      body: Want to work together?
+      is_read: false
+    outputs:
+    - r_msg_id
+    - r_msg_sub
+    - r_msg_from
+  - use: target_message
+    params:
+      from_user: ryushin6
+      subject: FREE NFT DROP!!!
+      body: Limited time offer!
+      is_read: false
+    outputs:
+    - del_msg_id
+    - del_msg_sub
+    - del_msg_from
+  targets:
+    subscriptions: '{output.subscriptions}'
+    initial_subscriptions: '{output.subscriptions}'
+    wn_title: '{output.wn_title}'
+    wn_id: '{output.wn_id}'
+    prog_title: '{output.prog_title}'
+    prog_id: '{output.prog_id}'
+    reply_author: DeepDiver
+    reply_hint: code coverage
+    reply_id: '{output.reply_id}'
+    r_from: '{output.r_msg_from}'
+    r_sub: '{output.r_msg_sub}'
+    r_body: Sounds great, let us set up a call next week.
+    del_sub: '{output.del_msg_sub}'
+    del_id: '{output.del_msg_id}'
+    block_user: CryptoSkeptic
+    leave_sub: memes
+    join: MachineLearning
+    j1: MachineLearning
+    j2: Piracy
+    j3: dataisbeautiful
+    sub1: '{output.wn_sub}'
+    p1: '{output.wn_title}'
+    c1: Finally some good news on climate. The renewable transition is working.
+    sub2: '{output.prog_sub}'
+    p2: '{output.prog_title}'
+    t1: '{output.wn_title}'
+    t2: '{output.prog_title}'
+    t3: '{output.wn_title}'
+    t4: '{output.prog_title}'
+    c3: This data gives me hope.
+    c4: Smart test selection is underrated.
+    comment_sub: '{output.prog_sub}'
+    ct: '{output.prog_title}'
+    cc: Great CI/CD improvements.
+    pt: Practical guide to deploying ML models with FastAPI and Docker
+    pb: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    py_title: Async Python patterns that actually improve performance
+    py_body: Not all async code is faster. Here are the patterns where async Python genuinely helps and where it hurts.
+    ml_title: 'Fine-tuning LLMs on domain-specific data: lessons from healthcare NLP'
+    ml_body: We fine-tuned several models on clinical notes. Here is what worked and what did not.
+    p1_title: Practical guide to deploying ML models with FastAPI and Docker
+    p1_body: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    post_title: Practical guide to deploying ML models with FastAPI and Docker
+    post_body: Step-by-step walkthrough from development to production.
+    prog_comment: Caching alone cut our pipeline by 60 percent.
+    reply_text: Code coverage diff is the key insight. Most teams over-test unchanged code.
+    msg_to: CompileError
+    msg_sub: Your CI/CD post
+    ms: Community announcement
+    mb: Just published a new guide in r/MachineLearning. Would love your review.
+    m_to: CompileError
+    wn_comment: Renewables are finally delivering on their promise. This is the turning point.
+canonical_diff:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    desc: Mark every unread notification as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Upvote the programming target post
+    where:
+      id:
+        expr: x == target['prog_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Subreddit
+    collection: subreddits
+    bijection:
+      over: '[target[''j1''], target[''j2''], target[''j3'']]'
+      variable: v
+    desc: Subscribe to each required subreddit (j1, j2, j3)
+    where:
+      id:
+        expr: state.get_subreddit(x).name == v
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      default_comment_sort: {eq: new}
+      show_active_communities: {eq: false}
+  create:
+  - entity: Post
+    collection: posts
+    desc: Create the post in r/{j1} with the exact title and body
+    properties:
+      subreddit_name:
+        expr: x == target['j1']
+      title:
+        expr: x == target['p1_title']
+      body:
+        expr: x == target['p1_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    collection: comments
+    desc: Comment on the programming post containing the target snippet
+    properties:
+      post_id:
+        expr: x == target['prog_id']
+      body:
+        expr: x == target['cc']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Message
+    collection: sent_messages
+    bijection:
+      over: '[''NeuralNexus'', ''ByteRunner'', ''DataWizard42'']'
+      variable: v
+    desc: Send the announcement to each of the three recipients
+    properties:
+      to_user:
+        expr: x == v
+      subject:
+        expr: x == target['ms']
+      body:
+        expr: x == target['mb']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media ==
+      initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

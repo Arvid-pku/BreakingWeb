@@ -1,0 +1,159 @@
+task_id: amazon_gift_purchase
+env_id: amazon
+title: Buy a Gift and Ship to a New Address
+instruction_template: 'Search for "{target.product_name}" and purchase it as a gift.
+  Ship it to a new address with recipient name "{target.recipient_name}", street "{target.street}",
+  city "{target.city}", state "{target.state_code}", ZIP "{target.zip}". Use the Visa
+  card ending in 4242 for payment.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 24
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Kindle Paperwhite E-Reader
+      brand: Amazon
+      category: Electronics
+      price: 139.99
+      rating: 4.7
+      features:
+      - 6.8-inch glare-free display
+      - Adjustable warm light
+      - Waterproof design
+      - 8GB storage
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 50.0
+      - 300.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    recipient_name: Maria Garcia
+    street: 250 Oak Avenue
+    city: Portland
+    state_code: OR
+    zip: '97201'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New gift address created with target details
+    properties:
+      full_name: {expr: "x == target['recipient_name']"}
+      street_address: {expr: "target['street'] in x"}
+      city: {expr: "x == target['city']"}
+      state: {expr: "x == target['state_code']"}
+      zip_code: {expr: "x == target['zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: Order
+    desc: New order placed for target product shipping to the new gift address
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recipient_name'] for a in
+          state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for
+          p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name != target['recipient_name']"
+    preserve: ALL
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

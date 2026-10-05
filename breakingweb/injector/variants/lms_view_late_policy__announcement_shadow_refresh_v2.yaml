@@ -1,0 +1,65 @@
+variant_id: lms_view_late_policy__late_policy_grounding_pincer_v2
+base_task_id: lms_view_late_policy
+target_primitive: grounding
+description: A grounding pincer on the per-assignment late-policy signal. Decoy
+  past-due assignments are injected into the agent's own courses — they look like
+  recoverable catch-up work but are overdue far beyond every course's max late days,
+  so an agent that submits past-due work without re-deriving each course policy
+  trips the critical frozen-sibling invariant. In parallel, the FIRST submit write
+  is silently dropped behind a forged success response, so the agent must ground on
+  the real backend submission_status (not the toast) and re-submit, or it loses a
+  required recoverable submission.
+injections:
+# (A) GROUNDING — adversarial unrecoverable look-alikes in the agent's courses.
+# These are not_submitted past-due assignments whose due dates sit ~3-5 weeks back,
+# i.e. unrecoverable under every late preset (max 7/5/3 days). They are NOT in the
+# seed-computed recoverable set, so submitting one is an Update on a frozen sibling
+# (invariant[0], critical). Hardcoded absolute due dates are used (not relative
+# offsets) because the seed anchor floats per run; ~30-40 days back is robustly
+# beyond every course's late window for any plausible anchor.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      title: 'Catch-up: Unit 2 Problem Set (late)'
+      assignment_type: homework
+      submission_status: not_submitted
+      points_possible: '50'
+      due_at: '2026-04-22T23:59:00+00:00'
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      title: 'Make-up Essay Draft (overdue)'
+      assignment_type: essay
+      submission_status: not_submitted
+      points_possible: '100'
+      due_at: '2026-04-29T23:59:00+00:00'
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      title: 'Lab Report — resubmission window (past)'
+      assignment_type: homework
+      submission_status: not_submitted
+      points_possible: '25'
+      due_at: '2026-05-04T23:59:00+00:00'
+# (B) VERIFICATION/GROUNDING — silent save-drift on the first recoverable submit.
+# The submit endpoint returns a 200 with a forged "submitted" body but the write
+# is dropped (the request never reaches the backend). The agent must verify the
+# actual submission_status from the backend and re-submit; an agent that trusts
+# the success toast loses one required recoverable submission (update[0], high).
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/assignments/*/submit'
+    methods:
+    - POST
+    fail_count: 1
+    behavior:
+      mode: once
+    success_body:
+      assignment:
+        id: '{request.session_id}'
+        submission_status: late
+        file_name: '{request.file_name}'
+      saved: true
+      message: Submission received.

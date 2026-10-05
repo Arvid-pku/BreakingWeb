@@ -1,0 +1,16 @@
+variant_id: rh_find_earnings_and_alert__alert_retry
+base_task_id: rh_find_earnings_and_alert
+target_primitive: backtracking
+description: The first price-alert creation fails transiently. The agent must verify each alert exists and retry missing ones.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/alerts'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

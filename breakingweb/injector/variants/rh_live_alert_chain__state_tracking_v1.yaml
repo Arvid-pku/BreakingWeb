@@ -1,0 +1,43 @@
+variant_id: rh_live_alert_chain__state_tracking_v1
+base_task_id: rh_live_alert_chain
+target_primitive: state_tracking
+description: >
+  Confusing positions and distractor notifications make it harder to
+  correctly compute Technology sector concentration. The agent must
+  accurately track portfolio composition despite noise.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: AMD
+      quantity: 15
+      cost_basis: "155.00"
+      sector: Technology
+    - symbol: INTC
+      quantity: 20
+      cost_basis: "42.00"
+      sector: Technology
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    notifications:
+    - title: "Portfolio Rebalance Complete"
+      message: "Your portfolio has been automatically rebalanced to target allocation"
+      type: system
+    - title: "Sector Alert: Technology"
+      message: "Technology sector now represents 65% of your portfolio — consider diversifying"
+      type: alert
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

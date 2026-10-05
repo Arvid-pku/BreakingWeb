@@ -1,0 +1,37 @@
+variant_id: rh_wash_sale_avoidance__state_tracking_v1
+base_task_id: rh_wash_sale_avoidance
+target_primitive: state_tracking
+description: >
+  Noise orders for the same symbols as real positions inject recent
+  buy activity that could trigger wash sale rules. Agent must track
+  the full transaction ledger accurately and distinguish real recent
+  purchases from noise when deciding which losers are safe to sell.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    count: 6
+    side: "buy"
+    symbols: ["AAPL", "MSFT", "GOOGL", "AMZN"]
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+      - symbol: "TSLA"
+        condition: "below"
+        target_price: 100.00
+      - symbol: "META"
+        condition: "below"
+        target_price: 200.00
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

@@ -1,0 +1,38 @@
+variant_id: rh_notification_triage__state_tracking_v1
+base_task_id: rh_notification_triage
+target_primitive: state_tracking
+description: >
+  Decoy order-fill notifications for the same symbols with different fill
+  prices and timestamps force the agent to carefully match each notification
+  to its corresponding order and track which have been triaged.
+injections:
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    notifications:
+    - type: order_fill
+      symbol: AAPL
+      fill_price: "178.50"
+      limit_price: "179.00"
+      quantity: 10
+      side: buy
+      is_read: false
+    - type: order_fill
+      symbol: MSFT
+      fill_price: "415.20"
+      limit_price: "410.00"
+      quantity: 5
+      side: buy
+      is_read: false
+    - type: order_fill
+      symbol: TSLA
+      fill_price: "242.80"
+      limit_price: "245.00"
+      quantity: 8
+      side: sell
+      is_read: true
+- layer: server
+  params:
+    action: scramble_order_timestamps
+    seed: 42

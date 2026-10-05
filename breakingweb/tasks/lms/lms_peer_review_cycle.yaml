@@ -1,0 +1,208 @@
+task_id: lms_peer_review_cycle
+env_id: lms
+title: Complete Peer Review Cycle
+instruction_template: 'Complete the full peer review cycle for student Riley Chen.
+  Submit every pending peer review so its status becomes submitted, and for each one
+  provide all three rubric scores (clarity, depth, originality) on a 1 to 5 scale plus
+  a written comment. Each comment must be at least 60 characters, must address the
+  reviewee by their first name, and must explicitly name the rubric criterion that
+  received that review''s LOWEST corrected score. Some of these reviews were previously
+  returned for revision and already carry previous rubric scores. For any such review
+  you must recompute every score with this exact rule: for each criterion that already
+  has a previous score, the corrected score is exactly the previous score plus two,
+  capped at 5; for any criterion that has no previous score, the corrected score is
+  exactly 3. Reviews that were never scored before take any valid 1 to 5 score on each
+  criterion. Do not submit, edit, or re-open any peer review that is already submitted,
+  and do not send any messages.'
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- planning
+start_path: /peer-reviews
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params:
+      name: Riley Chen
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.4
+    outputs:
+    - assignment_ids
+  - use: peer_review_assignments
+    params:
+      count: 8
+      returned_review_count: 2
+      returned_prev_profiles:
+      - clarity: 2
+        depth: 1
+      - clarity: 4
+        depth: 4
+      statuses:
+      - assigned
+      - in_progress
+      - assigned
+      - submitted
+      - assigned
+      - submitted
+      - submitted
+      - submitted
+    outputs:
+    - review_ids
+    - pending_review_ids
+    - completed_review_ids
+    - returned_review_ids
+    - pending_review_req_scores
+    - pending_review_low_crit
+    - pending_review_name_tokens
+  targets:
+    course_code: '{output.course_code}'
+    pending_review_ids: '{output.pending_review_ids}'
+    completed_review_ids: '{output.completed_review_ids}'
+    returned_review_ids: '{output.returned_review_ids}'
+    pending_review_req_scores: '{output.pending_review_req_scores}'
+    pending_review_low_crit: '{output.pending_review_low_crit}'
+    pending_review_name_tokens: '{output.pending_review_name_tokens}'
+canonical_diff:
+  update:
+  - entity: PeerReview
+    desc: Redo every returned-for-revision review with the EXACT rule-derived corrected scores and an addressed comment naming its lowest-scored criterion
+    bijection:
+      over: "[rid.strip() for rid in target['returned_review_ids'].split(',') if rid.strip()]"
+      variable: v
+    where:
+      id:
+        expr: "x == v.strip()"
+    changes:
+      rubric_scores:
+        expr: 'len(x) == 3 and set(str(k) for k in x.keys()) == {''clarity'', ''depth'', ''originality''} and [int(x[''clarity'']), int(x[''depth'']), int(x[''originality''])] == [int(s) for s in next(e.split(''='')[1] for e in target[''pending_review_req_scores''].split(''|'') if e.split(''='')[0] == v.strip()).split(''~'')]'
+      comments:
+        # Returned reviews: corrected scores are rule-pinned, but when two criteria
+        # tie at the minimum corrected score (e.g. 4~3~3 -> depth & originality both 3)
+        # the instruction gives no tie-break, so accept ANY criterion whose corrected
+        # score equals the vector minimum (still rejects non-lowest criteria).
+        expr: "len(x.strip()) >= 60 and any(c.lower() in x.lower() for i, c in enumerate(['clarity','depth','originality']) if [int(s) for s in next(e.split('=')[1] for e in target['pending_review_req_scores'].split('|') if e.split('=')[0] == v.strip()).split('~')][i] == min(int(s) for s in next(e.split('=')[1] for e in target['pending_review_req_scores'].split('|') if e.split('=')[0] == v.strip()).split('~'))) and next(e.split(':', 1)[1] for e in target['pending_review_name_tokens'].split('|') if e.split(':', 1)[0] == v.strip()).lower() in x.lower()"
+      status: {eq: submitted}
+  - entity: PeerReview
+    desc: Submit every fresh (never-returned) pending review with three valid scores and an addressed comment naming its lowest-scored criterion
+    bijection:
+      over: '[rid.strip() for rid in target[''pending_review_ids''].split('','') if rid.strip() and rid.strip() not in [r.strip() for r in target[''returned_review_ids''].split('','') if r.strip()]]'
+      variable: v
+    where:
+      id:
+        expr: "x == v.strip()"
+    changes:
+      rubric_scores:
+        expr: 'len(x) == 3 and set(str(k) for k in x.keys()) == {''clarity'', ''depth'', ''originality''} and all(1 <= int(s) <= 5 for s in x.values())'
+      comments:
+        # Fresh reviews "take any valid 1-5 score", so the LOWEST-corrected criterion the
+        # comment must name is derived from the agent's OWN submitted scores (looked up in
+        # the final state by review id), with the canonical clarity<depth<originality
+        # tie-break. Using the static seed target pending_review_low_crit here was a bug:
+        # it always resolved to 'clarity' (argmin of the unused 3~3~3 fresh-default vector),
+        # so a correct agent that scored e.g. originality lowest and named it was failed.
+        expr: "len(x.strip()) >= 60 and next((min(['clarity','depth','originality'], key=lambda k: (int(rs[k]), ['clarity','depth','originality'].index(k))).lower() in x.lower() for rs in [next((r.rubric_scores for r in state.peer_reviews if r.id == v.strip()), None)] if rs), False) and next(e.split(':', 1)[1] for e in target['pending_review_name_tokens'].split('|') if e.split(':', 1)[0] == v.strip()).lower() in x.lower()"
+      status: {eq: submitted}
+  invariant:
+  - collection: state.peer_reviews
+    filter: "a.id not in [rid.strip() for rid in target['pending_review_ids'].split(',') if rid.strip()]"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.assignments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  - desc: Every already-submitted peer review still has a non-empty comment (untouched)
+    expr: >-
+      all(
+        len(str(r.comments).strip()) > 0
+        for r in state.peer_reviews
+        if r.id in [c.strip() for c in target['completed_review_ids'].split(',') if c.strip()]
+      )
+    severity: high
+  - desc: No previously-submitted peer review was re-opened to a pending status
+    expr: >-
+      all(
+        r.status == 'submitted'
+        for r in state.peer_reviews
+        if r.id in [c.strip() for c in target['completed_review_ids'].split(',') if c.strip()]
+      )
+    severity: high
+  named_invariants:
+  - name: Agent redid all returned reviews with the exact rule-derived corrected scores
+    ref: update[0]
+    severity: critical
+  - name: Agent submitted all fresh pending reviews with addressed feedback
+    ref: update[1]
+    severity: critical
+  - name: Agent did not modify or re-open other peer reviews
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify assignments
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify modules
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

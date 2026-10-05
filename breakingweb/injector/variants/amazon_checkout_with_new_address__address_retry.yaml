@@ -1,0 +1,29 @@
+variant_id: amazon_checkout_with_new_address__address_retry
+base_task_id: amazon_checkout_with_new_address
+target_primitive: backtracking
+description: >
+  The first two address POSTs return a fake 200 with a realistic address body
+  but never persist on the backend. The agent must verify the address actually
+  exists via re-read (not by trusting the success toast) before checkout.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending Recipient
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior:
+      mode: once

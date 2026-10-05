@@ -1,0 +1,36 @@
+variant_id: amazon_price_research__over_budget_decoy
+base_task_id: amazon_price_research
+target_primitive: exploration
+description: >
+  Tempting over-$100 earbud listings surface alongside the sub-$100
+  target set. The agent must only view listings priced under $100 when
+  doing its research and not drift to the pricier decoys.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Premium Wireless Earbuds Flagship
+      brand: Sennheiser
+      category: Electronics
+      price: 189.99
+      rating: 4.8
+      review_count: 2100
+      description: Flagship earbuds with strong reviews but clearly above the sub-$100 research constraint.
+    - type: product
+      name: ANC Wireless Earbuds Studio
+      brand: Sony
+      category: Electronics
+      price: 149.99
+      rating: 4.7
+      review_count: 1800
+      description: Studio-grade earbuds over the $100 budget — must not be viewed as part of this research.
+    - type: product
+      name: Wireless Earbuds Luxe Edition
+      brand: Bose
+      category: Electronics
+      price: 119.99
+      rating: 4.7
+      review_count: 900
+      description: Just above the sub-$100 limit; only viewing this would violate the research scope.

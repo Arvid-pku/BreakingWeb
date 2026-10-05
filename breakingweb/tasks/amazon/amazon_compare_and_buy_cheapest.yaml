@@ -1,0 +1,161 @@
+task_id: amazon_compare_and_buy_cheapest
+env_id: amazon
+title: Compare Products and Buy the Cheapest Option
+instruction_template: 'Search for "{target.search_query}" products, compare the available
+  options, and purchase the cheapest one that has a rating of at least 4.0 stars.
+  Use the shipping address for {target.shipping_name} at {target.shipping_street}
+  and the {target.payment_type} card ending in {target.payment_last_four}.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 30
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Basic Bluetooth Speaker
+      brand: AmazonBasics
+      category: Electronics
+      price: 12.99
+      rating: 4.2
+      review_count: 1850
+      features:
+      - Portable design
+      - 8-hour battery
+      - Bluetooth 5.0
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  targets:
+    search_query: bluetooth speaker
+    cheapest_product_id: '{output.product_id}'
+    cheapest_product_name: '{output.product_name}'
+    shipping_name: Jordan Parker
+    shipping_street: 742 Evergreen Terrace
+    payment_type: Visa
+    payment_last_four: '4242'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order placed for any cheapest eligible product (single item, qty 1)
+    properties:
+      # Tie-tolerant: accept ANY product whose name matches the search query,
+      # has rating >= 4.0, and whose price equals the minimum price among
+      # qualifying products. Multiple products may tie at the lowest price.
+      items:
+        expr: >-
+          len(x) == 1 and x[0]['quantity'] == 1
+          and any(
+            p.id == x[0]['product_id']
+            and target['search_query'].lower() in p.name.lower()
+            and p.rating >= 4.0
+            and p.price == min(
+              q.price for q in initial.products
+              if target['search_query'].lower() in q.name.lower() and q.rating >= 4.0
+            )
+            for p in initial.products
+          )
+      status: {eq: confirmed}
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['shipping_name'] and a.street_address == target['shipping_street'] for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == target['payment_type'] and p.last_four == target['payment_last_four'] for p in state.payment_methods)"
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    # Tie-tolerant: allow new orders containing ANY cheapest qualifying product.
+    filter: >-
+      not any(
+        any(
+          p.id == it.get('product_id')
+          and target['search_query'].lower() in p.name.lower()
+          and p.rating >= 4.0
+          and p.price == min(
+            q.price for q in initial.products
+            if target['search_query'].lower() in q.name.lower() and q.rating >= 4.0
+          )
+          for p in initial.products
+        )
+        for it in (a.items or [])
+      )
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

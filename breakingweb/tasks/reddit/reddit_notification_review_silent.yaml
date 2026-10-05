@@ -1,0 +1,79 @@
+task_id: reddit_notification_review_silent
+env_id: reddit
+title: Clear Notifications
+instruction_template: 'Go to your notification center and clear the unread badge by marking every unread notification as read. Use any available method ("Mark all read" button, or opening each notification individually — either is fine).
+
+  '
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 10
+primary_primitives:
+- state_tracking
+secondary_primitives:
+- verification
+start_path: /notifications
+seed:
+  distractors: 0
+  actors: {}
+  steps:
+  - use: target_notification
+    params:
+      type: site_announcement
+      title: Monthly site update
+      body: Read about recent platform changes in the admin post pinned to your home feed.
+      from_user: reddit
+      subreddit_name: announcements
+      is_read: false
+    outputs:
+    - notif_a_id
+  - use: target_notification
+    params:
+      type: digest
+      title: Weekly community digest
+      body: Here is an informational summary of the communities you follow. No action required.
+      from_user: reddit
+      subreddit_name: digest
+      is_read: false
+    outputs:
+    - notif_b_id
+  - use: target_notification
+    params:
+      type: policy
+      title: Updated content policy
+      body: A reminder of the site's content policy. Informational only.
+      from_user: reddit
+      subreddit_name: policy
+      is_read: false
+    outputs:
+    - notif_c_id
+  targets:
+    notif_a_id: '{output.notif_a_id}'
+    notif_b_id: '{output.notif_b_id}'
+    notif_c_id: '{output.notif_c_id}'
+
+canonical_diff:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: "[n.id for n in initial.notifications if not n.is_read]"
+      variable: v
+    desc: "Mark every unread notification as read"
+    where:
+      id: {expr: "x == v"}
+    changes:
+      is_read: {eq: true}
+  invariant:
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: "Agent did not modify inbox messages"
+    ref: invariant[0]
+    severity: high
+  - name: "Agent did not send any messages"
+    ref: invariant[1]
+    severity: high

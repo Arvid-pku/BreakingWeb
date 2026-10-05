@@ -1,0 +1,70 @@
+task_id: booking_add_payment
+env_id: booking
+title: Add a Discover Card
+instruction_template: 'Go to settings and add a new Discover card with the last four
+  digits "7777", expiry "09/28", and holder name "Jordan Parker".
+
+  '
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 6
+primary_primitives:
+- backtracking
+start_path: /settings
+seed:
+  distractors: 3
+  actors: {}
+  steps: []
+  targets: {}
+canonical_diff:
+  create:
+    - entity: PaymentMethod
+      desc: Add a Discover card ending in 7777
+      properties:
+        card_type: {eq: Discover}
+        last_four: {eq: "7777"}
+        expiry: {eq: "09/28"}
+        holder_name: {eq: "Jordan Parker"}
+        is_default: {eq: false}
+  invariant:
+    - collection: state.payment_methods
+      filter: "a.last_four != '7777' or a.card_type != 'Discover'"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent added the Discover card with correct details
+      ref: create[0]
+      severity: critical
+    - name: Agent did not remove or modify existing payment methods
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

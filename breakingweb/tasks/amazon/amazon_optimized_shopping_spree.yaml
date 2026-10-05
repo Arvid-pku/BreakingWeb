@@ -1,0 +1,250 @@
+task_id: amazon_optimized_shopping_spree
+env_id: amazon
+title: Buy 5 Items from 5 Categories Under $500
+instruction_template: 'Find and purchase exactly 5 items, one from each of these
+  5 categories: Electronics, Books, Home & Kitchen, Sports & Outdoors, and Office
+  Supplies. From each category pick the highest-rated item that has a rating of at
+  least 4.0, and ensure your total order stays under $500. Add one of each to your
+  cart, verify the total is under $500, then complete checkout using the shipping
+  address for Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242.
+
+  '
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 35
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 18
+  # Skip the real-products distractor pool: amazon_real_products.json holds
+  # dozens of items per category at the 4.6 catalog rating cap, so the
+  # seeded 5 featured winners can be tied (or beaten) by catalog entries
+  # in the same category. The grader hard-codes the 5 featured product_ids
+  # via a set-equality check, so any catalog-tied alternative would grade
+  # as fail. Combined with the bumped featured ratings below (>=4.7), this
+  # guarantees each featured product is the unique highest-rated in its
+  # category for the prompt's filter.
+  skip_real_products: true
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Wireless Noise-Cancelling Headphones
+      brand: Sony
+      category: Electronics
+      price: 129.99
+      rating: 4.8
+      features:
+      - Active noise cancellation
+      - 30-hour battery life
+      - Bluetooth 5.2
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: featured_product
+    params:
+      name: The Art of Problem Solving
+      brand: Princeton Press
+      category: Books
+      price: 18.99
+      rating: 4.9
+      features:
+      - Hardcover edition
+      - 400 pages
+      - Bestseller
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_2
+    - product_name_2
+    - product_price_2
+  - use: featured_product
+    params:
+      name: Stainless Steel Cookware Set
+      brand: Cuisinart
+      category: Home & Kitchen
+      price: 89.99
+      rating: 4.8
+      features:
+      - 10-piece set
+      - Dishwasher safe
+      - Oven safe to 500F
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_3
+    - product_name_3
+    - product_price_3
+  - use: featured_product
+    params:
+      name: Yoga Mat Premium Non-Slip
+      brand: Manduka
+      category: Sports & Outdoors
+      price: 54.99
+      rating: 4.9
+      features:
+      - 6mm thick
+      - Non-slip surface
+      - Eco-friendly material
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_4
+    - product_name_4
+    - product_price_4
+  - use: featured_product
+    params:
+      name: Ergonomic Standing Desk Converter
+      brand: FlexiSpot
+      category: Office Supplies
+      price: 159.99
+      rating: 4.8
+      features:
+      - Height adjustable
+      - Dual monitor support
+      - Gas spring lift
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_5
+    - product_name_5
+    - product_price_5
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 50.0
+      - 500.0
+      rating_range:
+      - 3.0
+      - 4.2
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Books
+      count: 6
+      price_range:
+      - 5.0
+      - 50.0
+      rating_range:
+      - 3.0
+      - 4.2
+    outputs:
+    - catalog_books
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 20.0
+      - 200.0
+      rating_range:
+      - 3.0
+      - 4.2
+    outputs:
+    - catalog_home
+  targets:
+    elec_id: '{output.product_id}'
+    book_id: '{output.product_id_2}'
+    home_id: '{output.product_id_3}'
+    sport_id: '{output.product_id_4}'
+    office_id: '{output.product_id_5}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order contains the 5 category winners and stays under $500
+    properties:
+      items:
+        expr: "len(x) == 5 and {it['product_id'] for it in x} == {target['elec_id'],
+          target['book_id'], target['home_id'], target['sport_id'], target['office_id']}
+          and all(it['quantity'] == 1 for it in x)"
+      total:
+        expr: "x < 500.0"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address
+          == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for
+          p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

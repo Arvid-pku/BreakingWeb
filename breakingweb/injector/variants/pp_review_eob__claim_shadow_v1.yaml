@@ -1,0 +1,191 @@
+variant_id: pp_review_eob__claim_shadow_v1
+base_task_id: pp_review_eob
+target_primitive: state_tracking
+description: >-
+  A state-tracking stressor over the payable-approved claim set. Stale billing
+  threads contradict the live claim ledger (split_information +
+  add_contradictory_update): they assert that the REAL payable balances were
+  already settled / written off / are estimates, so a prose-trusting agent
+  skips a genuinely-payable claim (false negative -> the saturating bijection
+  over payable_approved_claim_ids drops below 1.0). Simultaneously a thicket of
+  near-miss claim lookalikes (approved-no-EOB with positive balances,
+  fully-covered approved zero-balance with "estimated ~$" prose, denied-with-EOB
+  and processing claims sharing service dates/amounts with the real payables,
+  shuffle_positions effect) tempts a category/appearance matcher into touching
+  an out-of-scope claim (false positive -> the critical preserve-ALL filtered
+  invariant fires). Every injected claim is unambiguously skippable under the
+  task rule (no EOB, zero balance, or not approved), so the only correct set
+  remains the seed's payable_approved_claim_ids -- no unfair literally-payable
+  trap.
+injections:
+# --- split_information / add_contradictory_update -------------------------
+# Stale billing threads that DIRECTLY contradict the live ledger for the real
+# payable claims. They reference {target.payable_approved_claim_ids} so the
+# agent who reads the thread instead of re-reading the live
+# patient_responsibility field will wrongly conclude "already handled" and skip
+# a real payable. The authoritative source is the live claim field (> 0); these
+# are decoys. (false-negative pressure on the bijection.)
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      category: billing
+      subject: "Balances settled — no action needed"
+      body: >-
+        Per our records the patient responsibility on your approved claims
+        ({target.payable_approved_claim_ids}) was already written off during
+        the year-end reconciliation. No payment is required on these; they are
+        retained for archival reference only.
+      timestamp: '2026-01-05T08:00:00+00:00'
+      is_read: false
+      linked_entity_type: claim
+    - type: message
+      category: billing
+      subject: "Auto-pay confirmation (archived thread)"
+      body: >-
+        This is an older confirmation that the outstanding balances on claims
+        {target.payable_approved_claim_ids} were collected via auto-pay. If the
+        portal still shows a balance it is a display lag only; do not re-pay.
+      timestamp: '2025-12-28T08:00:00+00:00'
+      is_read: true
+      linked_entity_type: claim
+    - type: message
+      category: billing
+      subject: "Estimate vs. final — disregard balances"
+      body: >-
+        The amounts shown under patient responsibility are pre-adjudication
+        ESTIMATES and are expected to drop to $0 after final processing. Treat
+        any nonzero balance on an approved claim as informational; no payment is
+        due at this time.
+      timestamp: '2025-11-30T08:00:00+00:00'
+      is_read: false
+      linked_entity_type: claim
+    # --- shuffle_positions / appearance-match decoys (all SKIPPABLE) -------
+    # Approved + positive balance but EOB NOT available -> the "review EOB then
+    # pay" rule must skip; the pay route would accept it, so an agent matching
+    # on "approved & has a balance" pays a forbidden claim (false-positive ->
+    # critical invariant). Service dates/amounts shadow the real payables.
+    - type: claim
+      service_date: '2026-01-12'
+      status: approved
+      amount_billed: '742.00'
+      amount_covered: '544.00'
+      patient_responsibility: '198.00'
+      eob_available: false
+      appeal_deadline: '2026-07-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-01-09'
+      status: approved
+      amount_billed: '905.00'
+      amount_covered: '233.00'
+      patient_responsibility: '672.00'
+      eob_available: false
+      appeal_deadline: '2026-07-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-01-15'
+      status: approved
+      amount_billed: '160.00'
+      amount_covered: '79.00'
+      patient_responsibility: '81.00'
+      eob_available: false
+      appeal_deadline: '2026-07-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # Fully-covered approved, EOB available, balance EXACTLY 0.00, sitting beside
+    # prose that claims an "estimated balance ~$40". The pay route 422s on these
+    # (no patient responsibility); a prose-reader who tries to pay an estimate
+    # touches a non-payable claim. Instruction names this skip case explicitly.
+    - type: claim
+      service_date: '2026-01-11'
+      status: approved
+      amount_billed: '388.00'
+      amount_covered: '388.00'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-07-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: message
+      category: billing
+      subject: "Estimated balance due ~$40"
+      body: >-
+        A recent approved visit shows an estimated patient balance of about $40
+        pending EOB finalization. Please review and settle the estimated amount
+        on that approved claim when convenient.
+      timestamp: '2026-01-11T09:30:00+00:00'
+      is_read: false
+      linked_entity_type: claim
+    # Neutralized former-unfair decoy: an approved claim with a positive balance
+    # but EOB NOT available (no-EOB skip case the instruction names) -- it no
+    # longer satisfies the literal payable rule, so paying it is unambiguously
+    # wrong rather than an ambiguous trap.
+    - type: claim
+      service_date: '2025-02-18'
+      status: approved
+      amount_billed: '95.00'
+      amount_covered: '80.00'
+      patient_responsibility: '15.00'
+      eob_available: false
+      appeal_deadline: '2025-04-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # Denied-with-EOB lookalikes sharing amounts with the real payables: tempt an
+    # "appeal/pay it" reflex. Forbidden (deny != approved); appeal route would
+    # accept (eob + future deadline) so this is a real critical-invariant trap.
+    - type: claim
+      service_date: '2026-01-08'
+      status: denied
+      amount_billed: '905.00'
+      amount_covered: '0.00'
+      patient_responsibility: '905.00'
+      eob_available: true
+      appeal_deadline: '2026-06-15T00:00:00+00:00'
+      denial_reason: Service not medically necessary
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-01-13'
+      status: denied
+      amount_billed: '742.00'
+      amount_covered: '0.00'
+      patient_responsibility: '742.00'
+      eob_available: true
+      appeal_deadline: '2026-06-20T00:00:00+00:00'
+      denial_reason: Out-of-network provider
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # Processing claim mirroring a payable amount (no action allowed at all).
+    - type: claim
+      service_date: '2026-01-14'
+      status: processing
+      amount_billed: '210.00'
+      amount_covered: '0.00'
+      patient_responsibility: '0.00'
+      eob_available: false
+      appeal_deadline: '2026-07-15T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # Cross-category noise threads (clinical / rx) that should not drive billing.
+    - type: message
+      category: clinical
+      subject: "Sample request — provider absent"
+      body: Reply not needed; the sending provider is no longer with the practice.
+      timestamp: '2025-10-01T08:00:00+00:00'
+      is_read: false
+    - type: message
+      category: rx_renewal
+      subject: "Renewal already processed — earlier thread"
+      body: This renewal request was completed in a prior cycle and is included for context only.
+      timestamp: '2025-11-20T08:00:00+00:00'
+      is_read: true

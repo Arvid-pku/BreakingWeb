@@ -1,0 +1,119 @@
+task_id: gmail_travel_itinerary_resolution
+env_id: gmail
+title: Travel Itinerary Resolution
+instruction_template: 'You have two flight confirmation emails and two hotel confirmation
+  emails for your trip to the Denver conference on March 25. One flight was rebooked
+  — find the current flight confirmation (the one with a rebooking reference starting
+  with "RBK-"). You also have two hotel bookings: one in Denver with a non-refundable
+  cancellation deadline that has passed, and one in Boulder that is freely cancellable.
+  The Denver hotel is the correct one for the conference. Forward the current flight
+  confirmation and the Denver hotel confirmation — exactly those two emails, as two
+  separate forwards — to travel.assistant@ops.thornton.com. Do not forward the superseded
+  flight or the Boulder hotel. After forwarding, create a Gmail filter for emails
+  from {target.airline_sender} that automatically applies the label "Travel."'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 36
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: travel_itinerary_resolution
+    params: {}
+    outputs:
+    - airline_sender
+    - flight_original_email_id
+    - flight_rebooked_email_id
+    - hotel_denver_email_id
+    - hotel_boulder_email_id
+    - conference_email_id
+    - decoy_summary_email_id
+    - jordan_name
+  targets:
+    airline_sender: '{output.airline_sender}'
+    flight_original_email_id: '{output.flight_original_email_id}'
+    flight_rebooked_email_id: '{output.flight_rebooked_email_id}'
+    hotel_denver_email_id: '{output.hotel_denver_email_id}'
+    hotel_boulder_email_id: '{output.hotel_boulder_email_id}'
+    conference_email_id: '{output.conference_email_id}'
+    decoy_summary_email_id: '{output.decoy_summary_email_id}'
+    jordan_name: '{output.jordan_name}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward rebooked flight confirmation to travel assistant
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['flight_rebooked_email_id']"
+        to:
+          expr: "x == ['travel.assistant@ops.thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Denver hotel confirmation to travel assistant
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['hotel_denver_email_id']"
+        to:
+          expr: "x == ['travel.assistant@ops.thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: filters
+      desc: Create filter for airline sender with Travel label
+      count: 1
+      properties:
+        from_addresses:
+          expr: "target['airline_sender'] in x"
+        add_labels:
+          set_eq:
+            - Travel
+    - entity: labels
+      desc: Create Travel label
+      count: 1
+      properties:
+        name:
+          eq: Travel
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Travel'"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded rebooked flight to travel assistant
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded Denver hotel to travel assistant
+      ref: create[1]
+      severity: high
+    - name: Agent created airline filter with Travel label
+      ref: create[2]
+      severity: high
+    - name: Agent created Travel label
+      ref: create[3]
+      severity: medium
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high

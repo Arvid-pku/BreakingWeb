@@ -1,0 +1,19 @@
+variant_id: booking_complete_trip_workflow__patience_v1
+base_task_id: booking_complete_trip_workflow
+target_primitive: patience
+description: Each API call has a 2-4 second delay, and the review submission requires
+  a 5-second confirmation wait, testing whether the agent completes all steps without
+  rushing or abandoning.
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: ".*"
+      delay_ms: 2500
+    - path_pattern: "reviews$"
+      method: POST
+      delay_ms: 5000
+    - path_pattern: "reservations$"
+      method: POST
+      delay_ms: 4000

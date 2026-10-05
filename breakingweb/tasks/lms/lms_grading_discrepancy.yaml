@@ -1,0 +1,229 @@
+task_id: lms_grading_discrepancy
+env_id: lms
+title: Resolve Grading Discrepancy
+instruction_template: Review your grades in {target.course_code}. Independently compute
+  your weighted score from individual assignment scores, category weights, and drop-lowest
+  policies. If you find a discrepancy of more than 1 point between your computation
+  and the displayed score, resubmit the most impactful graded assignment (the one
+  in the highest-weighted category) with file 'grade_verification.pdf'. If there is
+  no discrepancy (within 1 point), mark the course's latest announcement as read.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- exploration
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 8
+      graded_fraction: 0.7
+      late_count: 2
+    outputs:
+    - assignment_ids
+  - use: announcements_feed
+    params:
+      count: 4
+      unread_count: 2
+    outputs:
+    - announcement_ids
+    - unread_announcement_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - dropped_grade_ids
+    - has_discrepancy
+    - most_impactful_graded_id
+    - latest_announcement_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    has_discrepancy: '{output.has_discrepancy}'
+    most_impactful_graded_id: '{output.most_impactful_graded_id}'
+    latest_announcement_id: '{output.latest_announcement_id}'
+canonical_diff:
+  oneof:
+    # Branch discriminator baked into Update where-clause (was a critical constraint).
+    - update:
+        - entity: Assignment
+          desc: Resubmit the most impactful graded assignment with grade_verification.pdf (target has discrepancy)
+          where:
+            id:
+              expr: "x == target['most_impactful_graded_id'] and target['has_discrepancy'] == 'true'"
+          changes:
+            submission_status:
+              in:
+                - submitted
+                - late
+            file_name:
+              eq: grade_verification.pdf
+            attempt_count:
+              expr: "x >= 2"
+            submitted_at:
+              expr: "x >= session_start"
+      invariant:
+        - collection: state.assignments
+          filter: "a.id != target['most_impactful_graded_id']"
+          preserve: ALL
+        - collection: state.courses
+          preserve: ALL
+        - collection: state.enrollments
+          preserve: ALL
+        - collection: state.modules
+          preserve: ALL
+        - collection: state.discussions
+          preserve: ALL
+        - collection: state.discussion_posts
+          preserve: ALL
+        - collection: state.peer_reviews
+          preserve: ALL
+        - collection: state.announcements
+          preserve: ALL
+        - collection: state.grades
+          preserve: ALL
+        - collection: state.calendar_events
+          preserve: ALL
+        - collection: state.sent_messages
+          preserve: ALL
+        - collection: state.student
+          preserve: ALL
+      constraints:
+        - desc: Agent did not send messages
+          expr: "len(state.sent_messages) == 0"
+          severity: medium
+      named_invariants:
+        - name: Agent resubmitted the highest-impact graded assignment
+          ref: update[0]
+          severity: high
+        - name: Agent did not modify other assignments
+          ref: invariant[0]
+          severity: high
+        - name: Agent did not modify course records
+          ref: invariant[1]
+          severity: medium
+        - name: Agent did not drop or alter enrollments
+          ref: invariant[2]
+          severity: high
+        - name: Agent did not modify modules
+          ref: invariant[3]
+          severity: medium
+        - name: Agent did not modify discussions
+          ref: invariant[4]
+          severity: medium
+        - name: Agent did not create or edit discussion posts
+          ref: invariant[5]
+          severity: medium
+        - name: Agent did not alter peer reviews
+          ref: invariant[6]
+          severity: medium
+        - name: Agent did not modify announcements
+          ref: invariant[7]
+          severity: medium
+        - name: Agent did not modify grades
+          ref: invariant[8]
+          severity: high
+        - name: Agent did not modify calendar events
+          ref: invariant[9]
+          severity: low
+        - name: Agent did not send messages
+          ref: invariant[10]
+          severity: medium
+    # Branch 2: only matches when no discrepancy.
+    - update:
+        - entity: Announcement
+          desc: Mark the latest announcement as read (no grade discrepancy)
+          where:
+            id:
+              expr: "x == target['latest_announcement_id'] and target['has_discrepancy'] == 'false'"
+          changes:
+            is_read:
+              eq: true
+      invariant:
+        - collection: state.announcements
+          filter: "a.id != target['latest_announcement_id']"
+          preserve: ALL
+        - collection: state.courses
+          preserve: ALL
+        - collection: state.enrollments
+          preserve: ALL
+        - collection: state.assignments
+          preserve: ALL
+        - collection: state.modules
+          preserve: ALL
+        - collection: state.discussions
+          preserve: ALL
+        - collection: state.discussion_posts
+          preserve: ALL
+        - collection: state.peer_reviews
+          preserve: ALL
+        - collection: state.grades
+          preserve: ALL
+        - collection: state.calendar_events
+          preserve: ALL
+        - collection: state.sent_messages
+          preserve: ALL
+        - collection: state.student
+          preserve: ALL
+      constraints:
+        - desc: Agent did not send messages
+          expr: "len(state.sent_messages) == 0"
+          severity: medium
+      named_invariants:
+        - name: Agent marked the latest announcement as read
+          ref: update[0]
+          severity: high
+        - name: Agent did not modify other announcements
+          ref: invariant[0]
+          severity: high
+        - name: Agent did not modify course records
+          ref: invariant[1]
+          severity: medium
+        - name: Agent did not drop or alter enrollments
+          ref: invariant[2]
+          severity: high
+        - name: Agent did not modify assignments
+          ref: invariant[3]
+          severity: medium
+        - name: Agent did not modify modules
+          ref: invariant[4]
+          severity: medium
+        - name: Agent did not modify discussions
+          ref: invariant[5]
+          severity: medium
+        - name: Agent did not create or edit discussion posts
+          ref: invariant[6]
+          severity: medium
+        - name: Agent did not alter peer reviews
+          ref: invariant[7]
+          severity: medium
+        - name: Agent did not modify grades
+          ref: invariant[8]
+          severity: high
+        - name: Agent did not modify calendar events
+          ref: invariant[9]
+          severity: low
+        - name: Agent did not send messages
+          ref: invariant[10]
+          severity: medium
+secondary_primitives: []

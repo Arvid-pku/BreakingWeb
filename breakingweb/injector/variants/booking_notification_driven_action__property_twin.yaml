@@ -1,0 +1,65 @@
+variant_id: booking_notification_driven_action__property_twin
+base_task_id: booking_notification_driven_action
+target_primitive: grounding
+description: Near-identical Copenhagen properties appear alongside the target,
+  AND server-layer slow_responses adds 3s to /notifications and /properties/search,
+  forcing the agent to wait through latency between notification-read and
+  property-search while disambiguating typos.
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: "notifications$"
+      method: GET
+      delay_ms: 3000
+    - path_pattern: "properties/search$"
+      method: POST
+      delay_ms: 3000
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Four near-typo siblings of "Copenhagen Harbor Hotel". rs > target's
+    # 8.9 to lure rating sorts. The notification mentions only the real
+    # Copenhagen Harbor Hotel, so a careful agent still finds it.
+    - type: property
+      name: Copenhagen Harbour Hotel     # Harbor → Harbour (British)
+      city: Copenhagen
+      country: Denmark
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.1
+      review_count: 860
+      price: 225.0
+      description: Nearly identical property name with slightly different review profile.
+    - type: property
+      name: Copenhagen Harbor Hotell     # Hotel → Hotell
+      city: Copenhagen
+      country: Denmark
+      property_type: Hotel
+      star_rating: 4
+      review_score: 9.0
+      review_count: 640
+      price: 222.0
+      description: Similar branding can distract from the exact property match.
+    - type: property
+      name: Copenhagen Habor Hotel       # drop r in Harbor
+      city: Copenhagen
+      country: Denmark
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.2
+      review_count: 720
+      price: 228.0
+      description: Dropped-letter typo in the middle word.
+    - type: property
+      name: Copehagen Harbor Hotel       # drop n in Copenhagen
+      city: Copenhagen
+      country: Denmark
+      property_type: Hotel
+      star_rating: 4
+      review_score: 9.3
+      review_count: 540
+      price: 223.0
+      description: City-prefix typo (Copenhagen → Copehagen).

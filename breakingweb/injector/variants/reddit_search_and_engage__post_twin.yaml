@@ -1,0 +1,80 @@
+variant_id: reddit_search_and_engage__post_twin
+base_task_id: reddit_search_and_engage
+target_primitive: grounding
+description: Three near-duplicate Cloudflare bot-detection posts collide in r/technology
+  and a lookalike sub on the exact target title; the agent must distinguish the
+  real target by author + body before saving and commenting. Pair with silent_fail
+  (fail_count:2) on the post-save endpoint so the first two save writes silently
+  no-op and the agent must verify via state read.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: post
+      subreddit: technology
+      title: Cloudflare Launches Free AI Bot Detection for All Websites
+      author: shadow_mod
+      score: 1440
+      comments: 142
+      body: Near-duplicate Cloudflare announcement by an alternate author with the
+        exact same title. Distinct post — verify the body and author before saving.
+    - type: post
+      subreddit: technology
+      title: Cloudflare Launches Free AI Bot Detection for Some Websites
+      author: lookalike_helper
+      score: 5210
+      comments: 122
+      body: One-word title variant (Some vs All) with high engagement; not the
+        actual target.
+    - type: subreddit
+      name: technology_
+      display_name: r/technology_
+      description: Lookalike community mirroring r/technology's news headlines with
+        minor edits.
+      subscribers: 82000
+    - type: post
+      subreddit: technology_
+      title: Cloudflare Launches Free AI Bot Detection for All Websites
+      author: crosspost_helper
+      score: 6420
+      comments: 98
+      body: Crosspost into a lookalike subreddit; identical headline, different
+        community.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*/save'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: '{target.target_post_id}'
+        subreddit_id: sub_technology
+        subreddit_name: technology
+        author_name: TripleShotPls
+        author_is_op: true
+        title: '{target.target_post_title}'
+        body: ''
+        url: ''
+        post_type: text
+        score: 15230
+        upvote_ratio: 0.95
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text: AI
+        flair_color:
+        awards: []
+        is_saved: true
+        is_hidden: false
+        vote_direction: 0
+        permalink: '/r/technology/comments/{target.target_post_id}'
+    behavior:
+      mode: once

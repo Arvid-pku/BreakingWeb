@@ -1,0 +1,74 @@
+variant_id: pp_medication_conflict__medication_shadow_v1
+base_task_id: pp_medication_conflict
+target_primitive: state_tracking
+description: Extra active medications are added to the cabinet. The agent must keep track of the seeded target medications
+  instead of acting on unrelated but plausible prescriptions. Decoys include boundary-case lookalikes (matching entity type,
+  similar timestamps, and near-threshold values) that force the agent to apply strict filters rather than match by category.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: prescription
+      medication: Metoprolol 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 3
+      last_filled: '2025-02-01T08:00:00+00:00'
+      expires_at: '2027-02-01T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Albuterol Inhaler
+      dosage: 2 puffs
+      frequency: as needed
+      refills_remaining: 1
+      last_filled: '2025-01-10T08:00:00+00:00'
+      expires_at: '2026-12-01T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Atorvastatin 20mg
+      dosage: 20mg
+      frequency: once daily
+      refills_remaining: 1
+      last_filled: '2025-12-20T08:00:00+00:00'
+      expires_at: '2026-05-20T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Metformin 500mg
+      dosage: 500mg
+      frequency: twice daily
+      refills_remaining: 0
+      last_filled: '2025-08-01T08:00:00+00:00'
+      expires_at: '2026-07-15T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Hydrochlorothiazide 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2025-09-15T08:00:00+00:00'
+      expires_at: '2026-02-01T08:00:00+00:00'
+      status: expired
+      interactions: []
+    - type: message
+      category: billing
+      subject: "Claim resolved \u2014 informational only"
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2025-09-15T08:00:00+00:00'
+      is_read: true
+    - type: message
+      category: clinical
+      subject: "Sample request \u2014 provider absent"
+      body: Reply not needed; the sending provider is no longer with the practice.
+      timestamp: '2025-10-01T08:00:00+00:00'
+      is_read: false
+    - type: message
+      category: rx_renewal
+      subject: "Renewal already processed \u2014 earlier thread"
+      body: This renewal request was completed in a prior cycle and is included for context only.
+      timestamp: '2025-11-20T08:00:00+00:00'
+      is_read: true

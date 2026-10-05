@@ -1,0 +1,20 @@
+variant_id: booking_frontier_reservation_manager__property_shadow_v2
+base_task_id: booking_frontier_reservation_manager
+target_primitive: grounding
+description: Search results include a same-city sibling property with a nearly identical name and overlapping
+  amenities. The agent must still book or compare the exact target hotel.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Hotel Athena Rome Suites
+      city: Rome
+      country: Italy
+      price: 218.4
+      review_score: 8.4
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Air conditioning

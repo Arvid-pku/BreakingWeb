@@ -1,0 +1,20 @@
+variant_id: booking_frontier_grand_tour__property_shadow_v2
+base_task_id: booking_frontier_grand_tour
+target_primitive: grounding
+description: Search results include a same-city sibling property with a nearly identical name and overlapping
+  amenities. The agent must still book or compare the exact target hotel.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: The Langham New York Suites
+      city: New York
+      country: United States
+      price: 468.0
+      review_score: 8.9
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Air conditioning

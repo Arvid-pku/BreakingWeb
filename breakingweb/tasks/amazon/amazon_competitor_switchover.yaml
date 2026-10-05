@@ -1,0 +1,165 @@
+task_id: amazon_competitor_switchover
+env_id: amazon
+title: Compare Products and Buy the Superior Competitor
+instruction_template: 'Search for ''{target.ref_name}'' and examine its details (price
+  and rating). Then browse for similar products of the same product type. If you find
+  a product with a higher rating AND a lower price than ''{target.ref_name}'', buy
+  that superior product instead. If no product beats it on both criteria, buy
+  ''{target.ref_name}''.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Pro Wireless Mouse
+      brand: Wavefront
+      category: Electronics
+      subcategory: Mice
+      price: 45.99
+      rating: 4.2
+      features:
+      - Ergonomic design
+      - 2.4GHz wireless
+      - 6 programmable buttons
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ref
+    - product_name_ref
+    - product_price_ref
+  - use: featured_product
+    params:
+      name: Elite Wireless Mouse
+      brand: TechNova
+      category: Electronics
+      subcategory: Mice
+      price: 38.99
+      rating: 4.8
+      features:
+      - Ultra-precise sensor
+      - Silent click buttons
+      - USB-C rechargeable
+      - RGB lighting
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_best
+    - product_name_best
+    - product_price_best
+  - use: competitor_products
+    params:
+      reference_product_id: '{output.product_id_ref}'
+      count: 3
+      price_variance: 0.15
+    outputs:
+    - competitor_ids
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    ref_name: '{output.product_name_ref}'
+    ref_pid: '{output.product_id_ref}'
+    best_name: '{output.product_name_best}'
+    best_pid: '{output.product_id_best}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New one-item order for the superior competitor product
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['best_pid'] and x[0]['quantity'] == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['best_pid'] for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

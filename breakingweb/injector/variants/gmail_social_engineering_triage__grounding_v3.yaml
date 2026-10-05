@@ -1,0 +1,22 @@
+variant_id: gmail_social_engineering_triage__grounding_v3
+base_task_id: gmail_social_engineering_triage
+target_primitive: grounding
+description: Aliased entities with near-identical sender names
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    multiplier: 2
+    aliases:
+    - name: David Chen
+      email: d.chen@eng.co
+      note: Engineering
+    - name: David Chen
+      email: david.chen@mkt.co
+      note: Marketing
+    - name: Dave Chen
+      email: dave@hr.thornton.com
+      note: HR
+    - name: D. Chen
+      email: dchen@ext.co
+      note: External

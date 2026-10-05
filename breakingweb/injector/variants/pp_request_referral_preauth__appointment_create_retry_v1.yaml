@@ -1,0 +1,65 @@
+variant_id: pp_request_referral_preauth__appointment_create_retry_v1
+base_task_id: pp_request_referral_preauth
+target_primitive: backtracking
+description: >-
+  A verification-and-backtracking gauntlet on the two backend gates this task
+  grades. (1) The confirm endpoint returns a LOUD fake success ("Appointment
+  confirmed") while the appointment stays confirmation_state=pending server-side
+  — the agent must distrust the toast, re-read the appointment, and re-confirm.
+  (2) The appointment create endpoint fails twice with 503 before succeeding, so
+  a single naive retry still fails and the agent must persist. (3) Available-slot
+  reads slow progressively, stressing recomputation of the earliest accepting
+  slot. Each stressor strikes a state gate the canonical_diff checks
+  (confirmation_state==confirmed and the create), so a forged success cannot pass.
+injections:
+# (1) Verification trap on the confirmation step — the new gating predicate
+#     (confirmation_state must flip to 'confirmed'). The SPA receives a 200 with a
+#     convincing success toast, but the backend state is NOT mutated (the route is
+#     short-circuited client-side), so the agent must verify and re-confirm.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/confirm'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      status: confirmed
+      confirmation_state: confirmed
+      requires_confirmation: true
+      message: Appointment confirmed.
+      toast: Your appointment has been confirmed.
+    behavior:
+      mode: once
+# (2) Backtracking trap on the create step — two transient 503s before success,
+#     so a single retry is insufficient; the agent must persist and re-issue the
+#     booking, then verify it actually landed.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/create'
+    methods:
+    - POST
+    error_count: 2
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+# (3) Progressive latency on available-slot reads — slows the earliest-accepting-
+#     slot recomputation across the widened closed-panel haystack, stressing
+#     patience/backtracking during slot selection.
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/patient_portal/appointments/available-slots'
+    methods:
+    - GET
+    behavior:
+      mode: progressive
+      stages:
+      - after_call: 0
+        delay_ms: 1500
+      - after_call: 2
+        delay_ms: 3500
+      - after_call: 4
+        delay_ms: 6000

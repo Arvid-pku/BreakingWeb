@@ -1,0 +1,132 @@
+task_id: amazon_write_review
+env_id: amazon
+title: Write a 5-Star Product Review
+instruction_template: 'Find the product "{target.product_name}" and write a 5-star
+  review with the title "Absolutely love it" and a body of at least 11 characters
+  describing how much you enjoy using the product (a one- or two-word body is too
+  short).
+
+  '
+difficulty: easy
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 7
+  actors: {}
+  steps:
+  - use: product_with_reviews
+    params:
+      product_name: Bamboo Cutting Board Set
+      category: Home & Kitchen
+      price: 29.99
+      reviews:
+      - rating: 4
+        title: Solid quality
+        body: These cutting boards are well made and look great in the kitchen.
+      - rating: 3
+        title: Best boards I have owned
+        body: The bamboo is thick and durable. Highly recommend.
+    outputs:
+    - product_id
+    - review_ids
+  targets:
+    product_name: Bamboo Cutting Board Set
+    product_id: '{output.product_id}'
+canonical_diff:
+  create:
+  - entity: Review
+    desc: 5-star review with title "Absolutely love it" and a meaningful body
+    properties:
+      product_id: {expr: "x == target['product_id']"}
+      rating: {eq: 5}
+      title: {eq: "Absolutely love it"}
+      body: {expr: "len(x) > 10"}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented for the review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['product_id']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['product_id'])
+          + 1"
+  invariant:
+  - collection: state.products
+    filter: "a.id != target['product_id']"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['product_id']"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not write reviews for other products
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not add items to cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

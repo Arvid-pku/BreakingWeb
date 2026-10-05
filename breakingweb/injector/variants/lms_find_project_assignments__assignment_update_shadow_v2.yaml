@@ -1,0 +1,18 @@
+variant_id: lms_find_project_assignments__assignment_update_shadow_v2
+base_task_id: lms_find_project_assignments
+target_primitive: state_tracking
+description: Relevant LMS state is updated after the first clue, so the agent must
+  keep tracking the current object and not anchor on the initial snapshot.
+injections:
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    type: announcement
+    # is_read: true so the announcement-preservation invariant doesn't fire
+    # when the agent does its assignment-finding work.
+    is_read: true

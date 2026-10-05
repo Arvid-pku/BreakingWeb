@@ -1,0 +1,147 @@
+task_id: amazon_reorder_highly_rated_only
+env_id: amazon
+title: Reorder Only the Products You Rated 4 or 5 Stars
+instruction_template: >
+  Review your past orders and your reviews. For every product you have
+  reviewed with a rating of 4 or 5 stars, place a new order containing
+  exactly those highly-rated products (one of each). Use your default
+  address and default payment method.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 28
+primary_primitives:
+- grounding
+- backtracking
+start_path: /
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: user_reviews_batch
+    params:
+      specs:
+      - name: Adjustable Laptop Stand Aluminum
+        brand: DeskPro
+        category: Office Supplies
+        price: 42.99
+        rating: 5
+        title: Outstanding build quality
+        body: Holds my 16 inch laptop rock steady. Height adjustment is smooth and the finish looks great.
+      - name: Wireless Ergonomic Mouse
+        brand: TechNova
+        category: Electronics
+        price: 29.99
+        rating: 4
+        title: Comfortable grip
+        body: Nice ergonomic shape. Battery life is good. Slight scroll wheel wobble but workable.
+      - name: Ceramic Pour-Over Coffee Dripper
+        brand: Hearthway
+        category: Home & Kitchen
+        price: 24.50
+        rating: 3
+        title: Decent for the price
+        body: Does the job. The cone angle is a bit shallow so it drips fast, but the ceramic feels solid.
+      - name: Compact Travel Pillow Memory Foam
+        brand: NestWell
+        category: Home & Kitchen
+        price: 18.75
+        rating: 2
+        title: Not as supportive as hoped
+        body: Too soft for my neck. Collapses under any real weight. Returning it.
+    outputs:
+    - product_ids
+    - review_ratings
+    - high_rated_product_ids
+    - order_ids
+  targets:
+    high_rated_product_ids: '{output.high_rated_product_ids}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order containing exactly the products the user rated 4 or 5 stars (one of each)
+    properties:
+      items:
+        expr: >-
+          (lambda hi: len(x) == len(hi) and set(it['product_id'] for it in x) == hi and all(it['quantity'] == 1 for it in x))(set(target['high_rated_product_ids']))
+      shipping_address_id:
+        expr: "state.settings.default_address_id == x"
+      payment_method_id:
+        expr: "state.settings.default_payment_id == x"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: >-
+      not (set(it.get('product_id') for it in (a.items or [])) == set(target['high_rated_product_ids']))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify or write reviews
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

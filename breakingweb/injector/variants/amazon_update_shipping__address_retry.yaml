@@ -1,0 +1,53 @@
+variant_id: amazon_update_shipping__address_retry
+base_task_id: amazon_update_shipping
+target_primitive: backtracking
+description: >
+  The task instructs the user to ADD a new shipping address (POST), so the
+  first two address POSTs return a fake 200 with a realistic address body but
+  never persist on the backend. The agent must verify the address actually
+  exists via re-read (not by trusting the success toast) before declaring
+  done. We also fail the first two PUTs in case the agent edits an existing
+  address instead of creating a new one.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending Recipient
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses/*'
+    methods:
+    - PUT
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending Recipient
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior:
+      mode: once

@@ -1,0 +1,18 @@
+variant_id: booking_frontier_payment_and_booking__payment_retry_v2
+base_task_id: booking_frontier_payment_and_booking
+target_primitive: backtracking
+description: The first payment-method write fails transiently. The agent must verify the card or default-payment change actually
+  stuck.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/booking/payment-methods**'
+    methods:
+    - POST
+    - DELETE
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

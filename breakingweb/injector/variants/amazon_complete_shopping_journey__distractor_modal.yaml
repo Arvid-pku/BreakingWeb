@@ -1,0 +1,14 @@
+variant_id: amazon_complete_shopping_journey__distractor_modal
+base_task_id: amazon_complete_shopping_journey
+target_primitive: patience
+description: >
+  A cookie-consent modal appears on the second navigation. The close
+  button is tiny and Escape dismisses the modal. Agent must dismiss, not
+  interact, to keep the task on track.
+injections:
+  - layer: client
+    params:
+      action: distractor_modal
+      kind: cookie
+      after_nav: 2
+      behavior: { mode: persistent }

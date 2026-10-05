@@ -1,0 +1,229 @@
+task_id: lms_complete_account_audit
+env_id: lms
+title: Complete Account Audit
+instruction_template: "Perform a complete account audit. (1) Mark every unread announcement
+  in your feed as read — leave no unread announcement behind. (2) Clear every
+  pending peer review obligation: for each peer review still in 'assigned' or 'in_progress'
+  state, score all three rubric criteria (clarity, depth, originality) with a value
+  from 1 to 5 — and do NOT give every criterion the identical score (the three scores
+  must not be all the same) — and write reviewer comments of at least 80 characters,
+  then submit it. (3) Send a single audit summary message to your advisor
+  ({target.advisor_name}): the subject line must state BOTH the exact number of
+  announcements you marked as read AND the exact number of peer reviews you submitted
+  (both integers must appear in the subject), and the body must be at least 60
+  characters describing the audit. Do not modify grades, enrollments, assignments,
+  modules, discussions, calendar events, or any already-read announcement, and do not
+  touch any peer review that was already submitted."
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 58
+primary_primitives:
+- patience
+start_path: /dashboard
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 5
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.5
+      late_count: 1
+      resubmit_count: 1
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+  - use: module_sequence
+    params:
+      count: 5
+      completed_count: 2
+    outputs:
+    - module_ids
+  - use: discussion_forums
+    params:
+      count: 3
+      posts_per: 4
+    outputs:
+    - discussion_ids
+  - use: peer_review_assignments
+    params:
+      count: 8
+      statuses:
+      - assigned
+      - in_progress
+      - submitted
+      - assigned
+      - in_progress
+      - submitted
+      - assigned
+      - in_progress
+    outputs:
+    - review_ids
+    - pending_review_ids
+    - completed_review_ids
+    - peer_review_assignment_ids
+    - pending_review_count
+  - use: announcements_feed
+    params:
+      count: 20
+      unread_count: 10
+      urgent_count: 2
+    outputs:
+    - announcement_ids
+    - unread_announcement_ids
+  targets:
+    advisor_name: '{output.advisor_name}'
+    course_codes: '{output.course_codes}'
+    course_ids: '{output.course_ids}'
+    pending_review_ids: '{output.pending_review_ids}'
+    pending_review_count: '{output.pending_review_count}'
+    completed_review_ids: '{output.completed_review_ids}'
+    peer_review_assignment_ids: '{output.peer_review_assignment_ids}'
+    module_ids: '{output.module_ids}'
+    unread_announcement_ids: '{output.unread_announcement_ids}'
+canonical_diff:
+  update:
+  - entity: Announcement
+    desc: Mark every unread announcement as read
+    bijection:
+      over: "target['unread_announcement_ids'].split(',') if target['unread_announcement_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v.strip()"
+    changes:
+      is_read:
+        eq: true
+  - entity: PeerReview
+    desc: Submit every pending peer review with complete rubric scores and substantive comments
+    bijection:
+      over: "target['pending_review_ids'].split(',') if target['pending_review_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v.strip()"
+    changes:
+      rubric_scores:
+        expr: >-
+          len(x) == 3
+          and set(x) == {'clarity', 'depth', 'originality'}
+          and all(1 <= score <= 5 for score in x.values())
+          and len(set(x.values())) >= 2
+      comments:
+        expr: "len(x.strip()) >= 80"
+      status:
+        eq: submitted
+  invariant:
+  - collection: state.announcements
+    filter: "a.id not in [aid.strip() for aid in target['unread_announcement_ids'].split(',') if aid.strip()]"
+    preserve: ALL
+  - collection: state.peer_reviews
+    filter: "a.id not in [rid.strip() for rid in target['pending_review_ids'].split(',') if rid.strip()]"
+    preserve: ALL
+  - collection: state.assignments
+    # Exclude any assignment referenced by a peer review — submitting a peer
+    # review can cascade onto the underlying assignment record, so those
+    # assignments should not be treated as unrelated mutations.
+    filter: "a.id not in [aid.strip() for aid in (target.get('peer_review_assignment_ids', '') or '').split(',') if aid.strip()]"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  - desc: Agent sent an audit summary to the advisor whose subject states BOTH the exact unread count it cleared and the exact number of peer reviews it submitted
+    expr: >-
+      any(
+        target['advisor_name'] in (m.get('to', '') or '')
+        and str(len([aid for aid in target['unread_announcement_ids'].split(',') if aid.strip()])) in (m.get('subject', '') or '')
+        and str(len([rid for rid in target['pending_review_ids'].split(',') if rid.strip()])) in (m.get('subject', '') or '')
+        and len((m.get('body', '') or '').strip()) >= 60
+        for m in state.sent_messages
+      )
+    severity: critical
+  - desc: Advisor message came from the student account
+    expr: "any(target['advisor_name'] in (m.get('to', '') or '') and m.get('from') == state.student.email for m in state.sent_messages)"
+    severity: high
+  - desc: Agent did not send excessive messages
+    expr: "len(state.sent_messages) <= 3"
+    severity: medium
+  - desc: Agent did not leave any unread announcement behind
+    expr: "all(a.is_read for a in state.announcements)"
+    severity: high
+  - desc: Agent did not leave any pending peer review behind
+    expr: "all(r.status == 'submitted' for r in state.peer_reviews)"
+    severity: high
+  named_invariants:
+  - name: Agent marked all unread announcements as read
+    ref: update[0]
+    severity: high
+  - name: Agent completed every pending peer review
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify already-read announcements
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify already-submitted peer reviews
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify assignments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify course records
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[4]
+    severity: critical
+  - name: Agent did not modify modules
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: critical
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not modify the student profile
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

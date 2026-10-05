@@ -1,0 +1,31 @@
+variant_id: rh_recurring_optimization__state_tracking_v1
+base_task_id: rh_recurring_optimization
+target_primitive: state_tracking
+description: >
+  Noise orders with similar symbols and recent timestamps are injected,
+  making it harder to distinguish recurring investment purchase history from
+  one-off trades when computing average purchase prices.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: AAPL
+      side: buy
+      quantity: 3
+      price: "188.50"
+      order_type: market
+      status: filled
+    - symbol: GOOGL
+      side: buy
+      quantity: 2
+      price: "162.30"
+      order_type: market
+      status: filled
+    - symbol: MSFT
+      side: buy
+      quantity: 4
+      price: "405.00"
+      order_type: limit
+      status: filled

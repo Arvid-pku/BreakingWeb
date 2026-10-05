@@ -1,0 +1,108 @@
+variant_id: amazon_category_exploration__cart_add_retry
+base_task_id: amazon_category_exploration
+target_primitive: planning
+description: >
+  Two-layer category-bait trap (no cart pre-pollution): (a) 6 decoy
+  products with appealing names appear in 3 WRONG categories
+  (Electronics, Beauty, Toys & Games — none of which satisfy the
+  predicate `category in [cat_1, cat_2, cat_3]`). The decoys appear
+  in search results when the agent browses categories, tempting them
+  to pick across category lines.
+  (b) The first /cart/add POST silent-fails with a templated body
+  echoing the agent's request. (c) The first /checkout POST
+  misleading-successes with an empty-items order body. canonical_diff
+  requires items in cat_1, cat_2, cat_3 — picking decoys lands the
+  order in wrong categories.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Wireless Mouse Refurb
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 12.99
+      rating: 3.8
+      review_count: 65
+    - type: product
+      name: Travel Toiletry Pack
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Beauty
+      price: 9.99
+      rating: 3.9
+      review_count: 91
+    - type: product
+      name: Mini Puzzle Set
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Toys & Games
+      price: 6.49
+      rating: 4.0
+      review_count: 47
+    - type: product
+      name: Premium Earbuds Compact
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 19.99
+      rating: 4.1
+      review_count: 130
+    - type: product
+      name: Daily Skincare Trio
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Beauty
+      price: 14.99
+      rating: 4.0
+      review_count: 56
+    - type: product
+      name: Family Board Game
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Toys & Games
+      price: 21.49
+      rating: 4.2
+      review_count: 84
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      cart_item:
+        id: 'cart_pending_{request.product_id}'
+        product_id: '{request.product_id}'
+        product_name: 'Pending: {request.product_id}'
+        quantity: '{request.quantity}'
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/amazon/checkout'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      order:
+        id: order_pending_fake
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        discount: 0.0
+        total: 0.0
+        status: confirmed
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: 'Arriving in 3 days'
+        promo_code:

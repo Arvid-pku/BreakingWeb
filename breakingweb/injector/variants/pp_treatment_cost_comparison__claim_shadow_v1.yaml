@@ -1,0 +1,93 @@
+variant_id: pp_treatment_cost_comparison__claim_shadow_v1
+base_task_id: pp_treatment_cost_comparison
+target_primitive: state_tracking
+description: Older claim lookalikes and a stale billing thread appear beside the seeded records. The agent must identify the
+  real eligible claim set rather than acting on cosmetic near-misses. Decoys include boundary-case lookalikes (matching entity
+  type, similar timestamps, and near-threshold values) that force the agent to apply strict filters rather than match by category.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: claim
+      service_date: '2025-01-10'
+      status: denied
+      amount_billed: '425.00'
+      amount_covered: '0.00'
+      patient_responsibility: '425.00'
+      eob_available: false
+      appeal_deadline: '2025-02-15T00:00:00+00:00'
+      denial_reason: Documentation incomplete
+    - type: claim
+      service_date: '2025-02-18'
+      status: approved
+      amount_billed: '95.00'
+      amount_covered: '80.00'
+      patient_responsibility: '15.00'
+      eob_available: true
+      appeal_deadline: '2025-04-01T00:00:00+00:00'
+    - type: message
+      category: billing
+      subject: Older claim update available
+      body: This archived billing thread refers to an older claim and is not the one that needs action.
+      timestamp: '2025-02-20T08:30:00+00:00'
+    - type: claim
+      service_date: '2025-12-15'
+      status: approved
+      amount_billed: '210.00'
+      amount_covered: '168.00'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-06-15T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-01-04'
+      status: denied
+      amount_billed: '560.00'
+      amount_covered: '0.00'
+      patient_responsibility: '560.00'
+      eob_available: true
+      appeal_deadline: '2026-01-10T00:00:00+00:00'
+      denial_reason: Not covered under current plan
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2025-11-22'
+      status: pending
+      amount_billed: '95.50'
+      amount_covered: '76.40'
+      patient_responsibility: '19.10'
+      eob_available: false
+      appeal_deadline: null
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: prescription
+      medication: Atorvastatin 20mg
+      dosage: 20mg
+      frequency: once daily
+      refills_remaining: 1
+      last_filled: '2025-12-20T08:00:00+00:00'
+      expires_at: '2026-05-20T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Metformin 500mg
+      dosage: 500mg
+      frequency: twice daily
+      refills_remaining: 0
+      last_filled: '2025-08-01T08:00:00+00:00'
+      expires_at: '2026-07-15T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Hydrochlorothiazide 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2025-09-15T08:00:00+00:00'
+      expires_at: '2026-02-01T08:00:00+00:00'
+      status: expired
+      interactions: []

@@ -1,0 +1,15 @@
+variant_id: gmail_action_item_extraction__save_drift
+base_task_id: gmail_action_item_extraction
+target_primitive: verification
+description: >
+  Before the draft save form hits the network, the subject field silently
+  picks up a trailing space. Only a readback from server state catches it.
+injections:
+  - layer: client
+    params:
+      action: save_drift
+      form_selector: "form"
+      field: "subject"
+      offset: +1
+      apply_count: 1
+      behavior: { mode: persistent }

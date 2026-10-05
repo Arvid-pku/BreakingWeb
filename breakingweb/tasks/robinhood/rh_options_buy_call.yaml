@@ -1,0 +1,55 @@
+task_id: rh_options_buy_call
+env_id: robinhood
+title: Buy a Call Option on AAPL
+instruction_template: Buy 1 call option on AAPL with the nearest expiration date,
+  at the strike price closest to current price.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 7
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - TSLA
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: AAPL
+      expirations_count: 4
+      strikes_per_expiration: 10
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Single-leg call buy on AAPL (1 contract)
+    properties:
+      strategy: {eq: single}
+      status: {in: [pending, filled]}
+      legs: {expr: "all(leg['underlying_symbol'] == 'AAPL' and leg['option_type'] == 'call' and leg['side'] == 'buy' and leg['quantity'] == 1 for leg in x)"}
+  invariant:
+  - collection: state.options_orders
+    filter: "any(leg.option_type == 'put' and leg.side == 'buy' for leg in a.legs)"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+secondary_primitives: []

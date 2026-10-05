@@ -1,0 +1,62 @@
+variant_id: reddit_downvote_comment__comment_twin
+base_task_id: reddit_downvote_comment
+target_primitive: grounding
+description: Three lookalike-author comments in the same thread echo the target
+  ketchup-on-steak snippet; the agent must distinguish the canonical author +
+  exact body before downvoting. Pair with silent_fail (fail_count:2) on the
+  comment-vote endpoint so the first two vote writes silently no-op and the agent
+  must verify via state read.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: comment
+      post_id: '{target.post_id}'
+      author: '{target.comment_author}_'
+      body: Putting ketchup on a well-done steak is perfectly acceptable and I refuse
+        to apologize for it.
+      score: 18
+      depth: 0
+    - type: comment
+      post_id: '{target.post_id}'
+      author: '{target.comment_author}.alt'
+      body: Putting ketchup on a well-done steak is perfectly acceptable and I refuse
+        to apologize for it.
+      score: 35
+      depth: 0
+    - type: comment
+      post_id: '{target.post_id}'
+      author: '{target.comment_author}2'
+      body: Putting ketchup on a well-done steak is perfectly acceptable and I refuse
+        to apologize for it.
+      score: 12
+      depth: 0
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/comments/*/vote'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      comment:
+        id: '{target.comment_id}'
+        post_id: '{target.post_id}'
+        parent_id:
+        author_name: '{target.comment_author}'
+        body: '{target.comment_snippet}'
+        score: 3399
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_edited: false
+        edited_at:
+        is_removed: false
+        is_collapsed: false
+        is_saved: false
+        is_submitter: false
+        vote_direction: -1
+        depth: 0
+        awards: []
+        flair_text:
+    behavior:
+      mode: once

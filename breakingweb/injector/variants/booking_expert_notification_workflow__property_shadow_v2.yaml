@@ -1,0 +1,46 @@
+variant_id: booking_expert_notification_workflow__property_shadow_v2
+base_task_id: booking_expert_notification_workflow
+target_primitive: grounding
+description: Vienna search results include 3 typo siblings of "Hotel Sacher Wien"
+  AND server-layer latency on /notifications + /properties/search slows every
+  read by 5s, stressing patience while the agent disambiguates the real Sacher
+  from look-alikes. The combo stresses both Grounding (decoys) and Patience (latency).
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: "notifications$"
+      method: GET
+      delay_ms: 5000
+    - path_pattern: "properties/search$"
+      method: POST
+      delay_ms: 3000
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Three near-typo siblings of "Hotel Sacher Wien". rs > target's 9.5
+    # to lure rating sorts. None have a price-drop notification, so the
+    # notification-driven flow still surfaces the real Hotel Sacher Wien.
+    - type: property
+      name: Hotel Sacher Wein           # Wien → Wein (i/e swap)
+      city: Vienna
+      country: Austria
+      price: 485.0
+      review_score: 9.6
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel Sachher Wien          # Sacher → Sachher
+      city: Vienna
+      country: Austria
+      price: 475.0
+      review_score: 9.4
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel Sacher Vienna         # Wien (German) → Vienna (English)
+      city: Vienna
+      country: Austria
+      price: 495.0
+      review_score: 9.7
+      amenities: [Free WiFi, Restaurant, Air conditioning]

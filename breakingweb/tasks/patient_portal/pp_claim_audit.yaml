@@ -1,0 +1,212 @@
+task_id: pp_claim_audit
+env_id: patient_portal
+title: Insurance Claim Audit
+instruction_template: Review all your insurance claims. A denied claim is eligible
+  for appeal only if it currently has the status denied, an Explanation of Benefits
+  (EOB) is available for it, and its appeal deadline has not yet passed. From the
+  set of claims that satisfy all three conditions, select the top 3 by patient responsibility
+  amount (highest first; if two claims tie on patient responsibility, break the tie
+  by ascending claim ID). Appeal exactly those 3 claims using the claim appeal action.
+  Do not appeal any claim outside that set of 3. Do not pay any claim. Do not modify
+  any other claim and do not send any messages.
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- state_tracking
+start_path: /billing
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Back Pain
+      insurance_tier: basic
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - orthopedics
+      - cardiology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 4
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: insurance_claims
+    params:
+      approved_count: 3
+      denied_count: 12
+      processing_count: 2
+      denied_no_eob_count: 4
+      denied_expired_count: 4
+      with_eob: true
+      near_appeal_deadline: true
+      # Force the INELIGIBLE denied decoys (no-EOB + expired-deadline) to draw
+      # patient_responsibility from the high end so all 8 of them OUTRANK every
+      # genuine eligible claim by raw PR. An agent that ranks top-3-by-PR before
+      # (or without) applying the full eligibility filter lands on decoys the
+      # appeal route rejects (422). The genuine eligible top PR is 1500 (below
+      # this floor), so the top ~8 by raw PR are all ineligible.
+      ineligible_pr_floor: 1600
+      ineligible_pr_ceiling: 2000
+      # Plant DELIBERATE TIES at the top-3 boundary among the 12 eligible denied
+      # claims. Three eligible claims tie at PR 1300 (positions 1,2,3 in
+      # creation order); the top-3 is {1500} plus the TWO lowest-claim-id of the
+      # three 1300s, so the ascending-claim-id tiebreaker decides which 1300
+      # claim is the genuine #3 and which is the excluded #4. A model that holds
+      # the ranked set but skips the tiebreaker picks the wrong third claim and
+      # trips the exact-3 bijection.
+      eligible_pr_plan:
+      - 1500
+      - 1300
+      - 1300
+      - 1300
+      - 1180
+      - 1040
+      - 920
+      - 780
+      - 640
+      - 500
+      - 360
+      - 200
+    outputs:
+    - denied_claim_ids
+    - appealable_claim_id
+    - appealable_claim_ids
+    - approved_claim_ids
+    - top_3_appealable_claim_ids
+    - ineligible_denied_ids
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 0
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    denied_claim_ids: '{output.denied_claim_ids}'
+    appealable_claim_id: '{output.appealable_claim_id}'
+    appealable_claim_ids: '{output.appealable_claim_ids}'
+    approved_claim_ids: '{output.approved_claim_ids}'
+    top_3_appealable_claim_ids: '{output.top_3_appealable_claim_ids}'
+    ineligible_denied_ids: '{output.ineligible_denied_ids}'
+canonical_diff:
+  update:
+    - entity: InsuranceClaim
+      desc: "Appeal the top 3 eligible denied claims (by patient responsibility, tiebreaker=cid)"
+      bijection:
+        over: "target['top_3_appealable_claim_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+        # The matched claim must have been denied BEFORE the appeal (the appeal
+        # route only accepts denied claims). Pins the bijection to the correct
+        # pre-state so an appeal of a non-denied lookalike cannot satisfy it.
+        status:
+          expr: "x == 'denied'"
+      changes:
+        status: {eq: "appealed"}
+  constraints:
+    # Honest forbidden-action clauses mapped onto post-state checks. The
+    # eligible appealable set is precomputed (target['appealable_claim_ids']);
+    # the agent must independently re-derive it (denied AND eob AND
+    # appeal_deadline >= now) to avoid the high-patient-responsibility decoys
+    # that are denied-but-ineligible (no EOB, or already-expired deadline).
+    - desc: "Exactly 3 claims are in the appealed status (no more, no fewer)"
+      expr: "len([c for c in state.claims if c.status == 'appealed']) == 3"
+      severity: critical
+    - desc: "Every newly-appealed claim is in the eligible appealable set (not an ineligible denied lookalike)"
+      expr: >-
+        all(
+          c.id in target['appealable_claim_ids']
+          for c in state.claims
+          if c.status == 'appealed'
+        )
+      severity: critical
+    - desc: "No claim was paid (every claim's patient_responsibility is preserved)"
+      expr: >-
+        all(
+          Decimal(str(c.patient_responsibility)) == Decimal(str(ic.patient_responsibility))
+          for c in state.claims
+          for ic in initial.claims
+          if c.id == ic.id
+        )
+      severity: critical
+  invariant:
+    # Every claim NOT in the top-3-appealable set must be preserved.
+    # Filter scope exposes `a` + `target` only — no `initial`, no lambdas —
+    # so the "eligible top 3" set must already be a scalar seed list.
+    - collection: state.claims
+      filter: "a.id not in target['top_3_appealable_claim_ids']"
+      preserve: ALL
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not appeal, pay, or modify any claim outside the top-3 appealable set"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent did not modify providers"
+      ref: invariant[8]
+      severity: medium
+    - name: "Agent did not appeal more or fewer than the top 3 eligible claims"
+      ref: update[0]
+      severity: high
+secondary_primitives: []

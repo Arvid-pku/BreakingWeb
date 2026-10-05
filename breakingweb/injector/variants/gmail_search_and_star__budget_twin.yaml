@@ -1,0 +1,17 @@
+variant_id: gmail_search_and_star__budget_twin
+base_task_id: gmail_search_and_star
+target_primitive: grounding
+description: A finance email with a near-identical subject appears beside the real budget summary. The
+  agent must star the exact email, not the similar draft.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Finance Team
+      from: finance-team@thornton.com
+      subject: Q4 Budget Summary - Draft
+      body: Preliminary draft for review. This is not the final summary requested in the task.
+      labels:
+      - inbox

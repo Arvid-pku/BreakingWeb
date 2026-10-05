@@ -1,0 +1,108 @@
+task_id: gmail_thread_detective
+env_id: gmail
+title: Thread Detective
+instruction_template: Read the scheduling threads from {target.sender_name} to find
+  all proposed meeting times. Then find the calendar email from {target.other_sender_name}
+  that lists which times conflict with the calendar — look for the most recent one
+  if there are multiple. Reply to {target.sender_name}'s most recent scheduling thread
+  confirming the one time that does not conflict.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 30
+primary_primitives:
+- exploration
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    sender:
+      domain: vertexlab.io
+      is_vip: true
+    other_sender:
+      domain: calendarhub.co
+    cc:
+      domain: vertexlab.io
+  steps:
+  - use: scheduling_conflicts
+    params:
+      sender: sender
+      other_sender: other_sender
+      cc: cc
+      meeting_times:
+      - 9:00 AM
+      - 10:00 AM
+      - 11:00 AM
+      - 2:30 PM
+      - 4:00 PM
+    outputs:
+    - sender_name
+    - sender_email
+    - other_sender_name
+    - other_sender_email
+    - calendar_subject
+    - calendar_email_id
+    - correct_time
+    - wrong_times
+    - most_recent_thread_id
+  - use: filler_emails
+    params:
+      actor: sender
+      count: 2
+      age_range:
+      - 6
+      - 12
+      is_read: true
+      labels:
+      - inbox
+  targets:
+    sender_name: '{output.sender_name}'
+    sender_email: '{output.sender_email}'
+    other_sender_name: '{output.other_sender_name}'
+    other_sender_email: '{output.other_sender_email}'
+    calendar_subject: '{output.calendar_subject}'
+    calendar_email_id: '{output.calendar_email_id}'
+    correct_time: '{output.correct_time}'
+    wrong_times: '{output.wrong_times}'
+    most_recent_thread_id: '{output.most_recent_thread_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to sender confirming the non-conflicting meeting time
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['sender_email']]"
+        in_reply_to:
+          expr: "x is not None"
+        body:
+          expr: "target['correct_time'] in x.split('\\n\\nOn ', 1)[0]"
+        cc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied with the correct non-conflicting time
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

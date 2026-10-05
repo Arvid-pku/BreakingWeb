@@ -1,0 +1,43 @@
+variant_id: lms_weighted_category_optimization__grade_verify_v1
+base_task_id: lms_weighted_category_optimization
+target_primitive: verification
+description: A plausible but misleading "verification" message claims different
+  category totals than the real grade book. All real grade data is preserved;
+  the agent must verify the actual persisted numbers instead of trusting the
+  announcement.
+# NOTE (audit_reports/w05.md): removed stale_data network injection.
+# The React grades page cached the null/empty response (all categories
+# rendered as "undefined% NaN%"), leaving no grade data to analyze.
+# The seed decoys below add a misleading announcement (claiming
+# different totals than the grade book) plus a practice-item reference
+# score; the real grades, weights, and categories are untouched so
+# verification against the actual state remains possible. If
+# stale_data is reintroduced, narrow stale_body to *specific* missing
+# fields and verify the UI re-fetches.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Grade review worksheet
+      assignment_type: homework
+      submission_status: graded
+      score: '92'
+      feedback: Reference score from a lower-weight practice item.
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Verification: consolidated category totals'
+      body: 'Verification notice: consolidated category totals show Homework 88%,
+        Quizzes 91%, Midterm 84%, Final 89%. Use the official grade book to
+        confirm before acting.'
+      priority: normal
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Grade review clarification
+      body: Reminder that grade calculations should use the active syllabus weights.
+      priority: normal

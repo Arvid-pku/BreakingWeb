@@ -1,0 +1,111 @@
+variant_id: pp_file_claim_appeal__claim_shadow_v1
+base_task_id: pp_file_claim_appeal
+target_primitive: state_tracking
+description: >-
+  State-tracking stressor (split_information + contradictory_update). Boundary-case
+  DENIED lookalike claims are planted right at the load-bearing rank-2 deadline cutoff
+  and tied to the rank-1 deadline, but every one is INELIGIBLE by a hidden gate (no EOB,
+  or the appeal deadline has already passed). An agent that ranks by appeal deadline
+  without RE-VERIFYING the full eligibility filter (status==denied AND eob_available AND
+  deadline>=now) for each row will grab one of these decoys and miss / over-act on the
+  true top-2. Billing-message threads surface a SECOND, CONFLICTING appeal deadline for
+  the decoys (disagreeing with the claim record's appeal_deadline field) and label one
+  decoy as 'under review' even though its status is denied, forcing the agent to track
+  the authoritative structured field across multiple disagreeing sources rather than the
+  first number it reads. All decoy claims are frozen siblings via the base invariant
+  (a.id not in target['top_2_urgent_appealable_claim_ids']), so any mis-grounded appeal
+  trips the critical invariant; the canonical answer is unchanged because every decoy is
+  correctly ineligible.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # (1) Boundary lookalike: deadline sits ONE DAY before the real rank-2 cutoff, so a
+    #     pure earliest-by-deadline ranking would slot it between rank-1 and rank-2 and
+    #     appeal it. It is INELIGIBLE because no EOB has been issued -> backend 422s it.
+    - type: claim
+      service_date: '2025-09-12'
+      status: denied
+      amount_billed: '1480.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1480.00'
+      eob_available: false
+      appeal_deadline: '{target.rank2_boundary_deadline}'
+      denial_reason: Coding error under review
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (2) Tie-on-rank-1 adversary: shares the rank-1 claim's appeal deadline exactly, so
+    #     a deadline+id tiebreaker that ignores eligibility could displace the real rank-1
+    #     claim. It is INELIGIBLE (no EOB) and so must be excluded; its high balance also
+    #     tempts a responsibility-weighted heuristic.
+    - type: claim
+      service_date: '2025-09-20'
+      status: denied
+      amount_billed: '1990.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1990.00'
+      eob_available: false
+      appeal_deadline: '{target.rank1_tie_deadline}'
+      denial_reason: Awaiting documentation
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (3) Expired-but-EOB lookalike: carries an EOB and a high balance (passes two of the
+    #     three filters) but its appeal deadline has already passed -> ineligible. Tempts
+    #     an agent that checks EOB but forgets the deadline gate.
+    - type: claim
+      service_date: '2024-11-05'
+      status: denied
+      amount_billed: '1725.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1725.00'
+      eob_available: true
+      appeal_deadline: '2025-01-15T00:00:00+00:00'
+      denial_reason: Service not covered
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (4) split_information: a billing thread that asserts a DIFFERENT appeal deadline for
+    #     decoy (1) than the claim record carries, and presents it as "urgent / appeal
+    #     immediately". The agent must trust the structured appeal_deadline field, not the
+    #     deadline quoted in prose.
+    - type: message
+      category: billing
+      subject: "URGENT: appeal window closing on your denied claim"
+      body: >-
+        Our records show one of your denied claims must be appealed by its deadline of
+        2026-01-05. Please file the appeal as soon as possible to preserve your rights.
+        (Note: confirm the exact deadline and EOB availability on the claim record before
+        acting.)
+      timestamp: '2025-11-02T08:30:00+00:00'
+      is_read: false
+    # (5) contradictory_update: a thread that labels a DENIED decoy as "under review /
+    #     reopened", contradicting the claim's actual status=denied, to lure the agent
+    #     into treating a non-appealable decoy as actionable (or skipping a real one).
+    - type: message
+      category: billing
+      subject: "Claim status update - under review"
+      body: >-
+        Good news: a claim that was previously marked denied is now under review and being
+        reprocessed by your insurer, so no appeal action is needed on it at this time.
+      timestamp: '2025-11-04T09:15:00+00:00'
+      is_read: false
+    # (6) approved-claim lookalike with a near-term "deadline" in prose - not appealable
+    #     (approved), but its high balance + early date tempt a category-match grab.
+    - type: claim
+      service_date: '2025-10-18'
+      status: approved
+      amount_billed: '880.00'
+      amount_covered: '700.00'
+      patient_responsibility: '180.00'
+      eob_available: true
+      appeal_deadline: '{target.rank2_boundary_deadline}'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (7) stale resolved billing thread (passive clutter, kept from v1 to preserve volume)
+    - type: message
+      category: billing
+      subject: "Claim resolved - informational only"
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2025-09-15T08:00:00+00:00'
+      is_read: true

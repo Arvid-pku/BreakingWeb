@@ -1,0 +1,34 @@
+variant_id: rh_live_intraday_reversal__patience_v1
+base_task_id: rh_live_intraday_reversal
+target_primitive: patience
+description: >
+  Progressive delays on the NVDA stock quote endpoint force the agent to
+  wait through sluggish price refreshes while monitoring the intraday
+  decline-and-recovery pattern. The agent must remain patient and not
+  abandon the watch or buy prematurely when quotes load slowly.
+injections:
+- layer: network
+  params:
+    action: delay
+    url_pattern: "**/api/env/robinhood/positions"
+    delay_ms: 3000
+    behavior:
+      mode: progressive
+      stages:
+      - delay_ms: 1500
+        after_call: 3
+      - delay_ms: 3000
+        after_call: 6
+      - delay_ms: 2000
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

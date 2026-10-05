@@ -1,0 +1,13 @@
+variant_id: booking_book_family_room__distractor_modal
+base_task_id: booking_book_family_room
+target_primitive: patience
+description: >
+  After 1 navigation a newsletter signup modal appears. Close button is
+  tiny; Escape also dismisses.
+injections:
+  - layer: client
+    params:
+      action: distractor_modal
+      kind: newsletter
+      after_nav: 1
+      behavior: { mode: persistent }

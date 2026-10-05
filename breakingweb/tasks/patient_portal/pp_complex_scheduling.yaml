@@ -1,0 +1,195 @@
+task_id: pp_complex_scheduling
+env_id: patient_portal
+title: Sequential Appointment Scheduling
+instruction_template: 'Schedule 3 in-person appointments in the correct sequence with
+  required spacing: 1) Blood work labs (in-person) with any available provider (scheduled
+  first), 2) Cardiologist appointment (in-person) at least 5 days after the labs,
+  3) PCP follow-up (in-person) at least 3 days after the cardiologist visit. All
+  specialist appointments must have an approved referral in place. All three appointments
+  must be booked in-person (not telehealth). Do not schedule any appointment without
+  the required prerequisites.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Coronary Artery Disease
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - cardiology
+    outputs:
+    - approved_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  - use: message_threads
+    params:
+      thread_count: 2
+      unread_count: 1
+      categories:
+      - clinical
+    outputs:
+    - thread_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule an in-person lab / blood work appointment (scheduled first)"
+      properties:
+        status: {eq: "scheduled"}
+        type: {eq: "in-person"}
+        provider_id: {any: true}
+        datetime: {any: true}
+        reason:
+          expr: "any(w in x.lower() for w in ['lab', 'blood', 'pre-visit', 'bloodwork'])"
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule an in-person cardiology appointment with an approved referral, at least 5 days after lab"
+      properties:
+        status: {eq: "scheduled"}
+        type: {eq: "in-person"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids']"
+        datetime:
+          # Spacing predicate (was a high-severity constraint): cardiology
+          # date must be >= 5 days after the most recent newly-scheduled lab.
+          expr: >-
+            any(
+              (x - lab.datetime).days >= 5
+              for lab in state.appointments
+              if lab.status == 'scheduled'
+              and any(w in (lab.reason or '').lower() for w in ['lab', 'blood', 'pre-visit', 'bloodwork'])
+              and lab.id not in {y.id for y in initial.appointments}
+            )
+        reason: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule an in-person PCP follow-up appointment, at least 3 days after cardiology"
+      properties:
+        status: {eq: "scheduled"}
+        type: {eq: "in-person"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason:
+          expr: "any(w in x.lower() for w in ['follow-up', 'follow up', 'followup'])"
+        datetime:
+          # Spacing predicate (was a high-severity constraint): PCP
+          # follow-up must be >= 3 days after the most recent newly-scheduled cardiology visit.
+          expr: >-
+            any(
+              (x - cardio.datetime).days >= 3
+              for cardio in state.appointments
+              if cardio.status == 'scheduled'
+              and cardio.provider_id in target['cardio_provider_ids']
+              and cardio.id not in {y.id for y in initial.appointments}
+            )
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

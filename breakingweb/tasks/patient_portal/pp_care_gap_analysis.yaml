@@ -1,0 +1,173 @@
+task_id: pp_care_gap_analysis
+env_id: patient_portal
+title: Care Gap Analysis
+instruction_template: 'Cross-reference your conditions, medications, and lab results
+  to close the seeded care gaps using only appointments: 1) Schedule exactly one cardiology
+  follow-up appointment with reason "Atrial fibrillation care gap", 2) Schedule exactly
+  one endocrinology follow-up appointment with reason "Diabetes care gap", 3) Schedule
+  exactly one PCP follow-up appointment with reason "Abnormal lab follow-up".'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      - Atrial Fibrillation
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - endocrinology
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+    - interacting_medications
+  - use: lab_results_panel
+    params:
+      resulted_count: 4
+      abnormal_count: 2
+      pending_count: 1
+    outputs:
+    - resulted_lab_ids
+    - abnormal_lab_ids
+    - pending_lab_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  # Specialty scheduling is gated by approved referrals. The instruction
+  # forbids messaging (the only way to request one), so we seed approved
+  # referrals for the two specialties the task asks the agent to book.
+  # See audit_reports/w05.md pp_care_gap_analysis.
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 0
+      must_have_specialties:
+      - cardiology
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    active_rx_ids: '{output.active_rx_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one cardiology follow-up for the Atrial Fibrillation care gap"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Atrial fibrillation care gap"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one endocrinology follow-up for the Diabetes care gap"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Diabetes care gap"}
+        provider_id:
+          expr: "x in target['endo_provider_ids']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one PCP follow-up for the abnormal-lab care gap"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Abnormal lab follow-up"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

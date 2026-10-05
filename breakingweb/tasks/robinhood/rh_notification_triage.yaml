@@ -1,0 +1,77 @@
+task_id: rh_notification_triage
+env_id: robinhood
+title: Triage Order Fill Notifications and Check Slippage
+instruction_template: Go through all unread order fill notifications. For each, check
+  if the fill price was within 2% of the limit price. Mark all notifications as read.
+  For any fills with more than 2% slippage, set a price alert at the fill price on
+  that stock to track recovery.
+difficulty: hard
+time_limit_seconds: 250
+expected_steps: 10
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - TSLA
+      - AMZN
+    outputs: []
+  - use: filled_orders
+    params:
+      count: 5
+      symbols:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - TSLA
+      - AMZN
+      order_types:
+      - limit
+      high_slippage_count: 2
+    outputs:
+    - high_slippage_symbols
+  - use: notifications
+    params:
+      count: 8
+      types:
+      - order_fill
+      unread_ratio: 0.75
+    outputs: []
+  targets:
+    high_slippage_symbols: '{output.high_slippage_symbols}'
+canonical_diff:
+  update:
+  - entity: notifications
+    desc: All unread order-fill notifications marked as read
+    bijection:
+      over: "[n for n in initial.notifications if n.type == 'order_fill' and not n.is_read]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      is_read: {eq: true}
+  create:
+  - entity: price_alerts
+    desc: Price alert set for each high-slippage stock
+    bijection:
+      over: "target['high_slippage_symbols']"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      status: {eq: active}
+  invariant:
+  - collection: state.price_alerts
+    filter: "a.symbol not in target['high_slippage_symbols'] and not a.id.startswith('alert_decoy_')"
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, grounding by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor account
+  state.

@@ -1,0 +1,166 @@
+task_id: pp_cancel_duplicate_appointments
+env_id: patient_portal
+title: Cancel Duplicate Appointments
+instruction_template: Three of your upcoming appointments are all scheduled for the
+  exact same date and time (each with a different provider). Keep ONLY the appointment
+  that was booked first (the one with the earliest booked_at timestamp) and cancel
+  every other appointment in that same-time group. When you cancel each one, set its
+  cancellation reason to the exact text "Duplicate booking - keeping earliest". Do
+  not cancel, reschedule, or otherwise modify the appointment you are keeping, and
+  do not touch any other appointment. Do not send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 16
+primary_primitives:
+- backtracking
+start_path: /appointments
+seed:
+  distractors: 12
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 4
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 2
+      cancelled_count: 1
+      conflict_pair: true
+      conflict_count: 3
+      # PP-CD v2: decouple booked_at order from id/creation order so the
+      # earliest-booked member is NOT the lowest-id / first-listed one. The
+      # agent must actually compare booked_at timestamps to find the KEEP.
+      conflict_shuffle_booked_at: true
+      # PP-CD v2: a second, legitimately-distinct same-time group the agent
+      # must NOT cancel — turns "find the same-time trio" into "identify WHICH
+      # same-time group is the duplicate set".
+      conflict_decoy_same_time_count: 2
+      # PP-CD v2: an already-cancelled appointment sharing the live cluster's
+      # exact datetime (a trap against double-cancel / "already resolved").
+      conflict_cancelled_same_time_count: 1
+    outputs:
+    - upcoming_ids
+    - conflict_apt_ids
+    - conflict_keep_apt_id
+    - conflict_cancel_apt_ids
+    - conflict_last_booked_apt_id
+  targets:
+    pcp_id: '{output.pcp_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    conflict_apt_ids: '{output.conflict_apt_ids}'
+    conflict_keep_apt_id: '{output.conflict_keep_apt_id}'
+    conflict_cancel_apt_ids: '{output.conflict_cancel_apt_ids}'
+    # Back-compat: the original variant references {target.later_booked_apt_id}.
+    # It is now the LAST-booked member of the cluster (max by booked_at, id),
+    # which remains one of the appointments that must be cancelled.
+    later_booked_apt_id: '{output.conflict_last_booked_apt_id}'
+
+canonical_diff:
+  update:
+    - entity: Appointment
+      desc: "Cancel every same-time conflict appointment except the earliest-booked one"
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        status: {eq: cancelled}
+        cancellation_reason: {eq: "Duplicate booking - keeping earliest"}
+      bijection:
+        over: "target['conflict_cancel_apt_ids']"
+        variable: v
+  invariant:
+    # The single mutated collection is narrowed with a filter so EVERY
+    # appointment except the to-cancel set is frozen — this freezes the
+    # kept earliest-booked appointment and every unrelated appointment.
+    - collection: state.appointments
+      filter: "a.id not in target['conflict_cancel_apt_ids']"
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  constraints:
+    # PP-CD v2: a SECOND, independent verification surface on the load-bearing
+    # discriminator (which same-time member is the earliest-BOOKED one to keep).
+    # The bijection above pins the cancel-set ids; this constraint pins the
+    # KEEP decision by booked_at directly: the kept member's booked_at must be
+    # the strict minimum over the whole same-time cluster, AND the kept member
+    # must still be scheduled in the final state. An agent that mis-orders the
+    # booked_at timestamps and keeps the wrong member (or cancels the kept one)
+    # fails this critical constraint even before the invariant fires — closing
+    # the "keep the first/lowest-id same-time appointment" shortcut. Uses only
+    # seed-computed target ids + initial/final state helpers (no inline group-by).
+    - desc: "The kept appointment is exactly the earliest-BOOKED member of the same-time cluster and remains scheduled"
+      expr: >-
+        initial.get_appointment(target['conflict_keep_apt_id']).booked_at
+        == min(
+            initial.get_appointment(aid).booked_at
+            for aid in target['conflict_apt_ids']
+        )
+        and state.get_appointment(target['conflict_keep_apt_id']).status == 'scheduled'
+      severity: critical
+  named_invariants:
+    - name: "Agent did not modify the earliest-booked conflict appointment or any other appointment"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not modify immunization records"
+      ref: invariant[1]
+      severity: medium
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent cancelled exactly the non-earliest same-time appointments, no more and no fewer"
+      ref: update[0]
+      severity: critical
+
+secondary_primitives: []

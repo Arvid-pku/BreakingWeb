@@ -1,0 +1,209 @@
+task_id: pp_post_accident_coordination
+env_id: patient_portal
+title: Post-Accident Care Coordination
+instruction_template: 'After an accident, coordinate the following care workstreams
+  using only appointments and referrals: 1) Schedule exactly one orthopedic follow-up
+  appointment with reason "Post-accident orthopedic follow-up" and CONFIRM it (specialist
+  appointments require an explicit confirmation step), 2) Request exactly one new
+  radiology referral from your PCP with reason "Post-accident MRI evaluation", 3)
+  Schedule exactly one PCP appointment with reason "Disability documentation visit".'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Lower Back Injury
+      - Hypertension
+      allergies:
+      - Codeine
+      insurance_tier: standard
+      # B-1: new orthopedic appointments land in confirmation_state="pending";
+      # the agent must call POST /appointments/{id}/confirm to finish.
+      auto_confirm_specialties:
+      - orthopedics
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - orthopedics
+      - cardiology
+      - neurology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - orthopedics
+      - radiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+    - interacting_rx_ids
+    - interacting_medications
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      with_prior_auth: true
+      must_have_specialties:
+      - orthopedics
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    ortho_provider_ids: '{output.providers_by_specialty.orthopedics}'
+    active_rx_ids: '{output.active_rx_ids}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # Positive signals (three independent creates, one per instruction sub-step):
+  #   (a) Schedule exactly one orthopedic follow-up appointment (provider in
+  #       target.ortho_provider_ids) with reason exactly "Post-accident
+  #       orthopedic follow-up". The seeded approved+prior-auth-approved
+  #       orthopedics referral unblocks the backend specialist gate.
+  #   (b) Request exactly one new radiology referral from the PCP
+  #       (from_provider_id == pcp_id) with reason "Post-accident MRI
+  #       evaluation". The /referrals/request route always sets
+  #       from_provider_id = patient.pcp_id and status = "requested".
+  #   (c) Schedule exactly one PCP appointment (provider_id == pcp_id) with
+  #       reason exactly "Disability documentation visit".
+  create:
+    - entity: Appointment
+      desc: "Schedule and CONFIRM one orthopedic follow-up appointment"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['ortho_provider_ids']"
+        reason: {eq: "Post-accident orthopedic follow-up"}
+        # Specialist appointment must be confirmed (two-step workflow).
+        # `auto_confirm_specialties` puts new specialist appointments in
+        # confirmation_state="pending" — the agent must POST /confirm to
+        # transition to "confirmed".
+        confirmation_state: {eq: "confirmed"}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Referral
+      desc: "Request one new radiology referral from the PCP"
+      properties:
+        from_provider_id:
+          expr: "x == target['pcp_id']"
+        to_specialty: {eq: "radiology"}
+        reason: {eq: "Post-accident MRI evaluation"}
+        status: {eq: "requested"}
+        to_provider_id: {any: true}
+        prior_auth_required: {any: true}
+        prior_auth_status: {any: true}
+        expires_at: {any: true}
+        notes: {any: true}
+        linked_appointment_id: {any: true}
+    - entity: Appointment
+      desc: "Schedule one PCP disability-documentation appointment"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Disability documentation visit"}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    # Existing appointments must not be cancelled, rescheduled, or otherwise
+    # mutated. The two Appointment creates above are the only permitted
+    # appointment changes.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    # Pre-existing referrals must not be mutated. The new radiology referral
+    # is the single permitted referral change (handled by create[1]).
+    - collection: state.referrals
+      filter: "a.id in {x.id for x in initial.referrals}"
+      preserve: ALL
+    # No messages sent — explicit instruction ("do not send any messages").
+    - collection: state.messages
+      preserve: ALL
+    # No prescription mutations — explicit instruction ("do not modify any
+    # medications").
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify or approve pre-existing referrals"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify any medications"
+      ref: invariant[3]
+      severity: critical
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

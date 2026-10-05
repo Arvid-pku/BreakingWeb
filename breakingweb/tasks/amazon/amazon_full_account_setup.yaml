@@ -1,0 +1,229 @@
+task_id: amazon_full_account_setup
+env_id: amazon
+title: Full Account Setup and First Purchase
+instruction_template: 'Set up your account fully and make a purchase. First, add two
+  new shipping addresses: (1) name "Home" at "200 Pine St, Seattle, WA 98101" and
+  (2) name "Office" at "800 Corporate Blvd, Bellevue, WA 98004". Then add a new payment
+  method (credit card). Update your account settings to enable one-click ordering
+  and turn on deal-alert emails. Finally, purchase "{target.product_name}" using the
+  "Office" address and the new payment method.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 16
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: UltraWide Monitor 34-inch
+      brand: LG
+      category: Electronics
+      price: 449.99
+      rating: 4.6
+      features:
+      - 3440x1440 resolution
+      - USB-C connectivity
+      - HDR10 support
+      - 160Hz refresh rate
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 100.0
+      - 600.0
+    outputs:
+    - catalog_ids
+  - use: product_catalog
+    params:
+      category: Office Supplies
+      count: 6
+      price_range:
+      - 10.0
+      - 100.0
+    outputs:
+    - catalog_office
+  targets:
+    product_name: UltraWide Monitor 34-inch
+    product_id: '{output.product_id}'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: Home address added (Seattle)
+    properties:
+      street_address:
+        eq: 200 Pine St
+      city:
+        eq: Seattle
+      state:
+        eq: WA
+      full_name:
+        eq: Home
+      zip_code:
+        eq: '98101'
+      is_default:
+        any: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  - entity: Address
+    desc: Office address added (Bellevue)
+    properties:
+      street_address:
+        eq: 800 Corporate Blvd
+      city:
+        eq: Bellevue
+      state:
+        eq: WA
+      full_name:
+        eq: Office
+      zip_code:
+        eq: '98004'
+      is_default:
+        any: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  - entity: PaymentMethod
+    desc: New payment method added
+    properties:
+      card_type:
+        any: true
+      last_four:
+        any: true
+      expiry:
+        any: true
+      holder_name:
+        any: true
+      is_default:
+        any: true
+  - entity: Order
+    desc: New order for the monitor, shipping to the Office (Bellevue) address,
+      using the new payment method
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: any('800 Corporate' in a.street_address for a in state.addresses
+          if a.id == x)
+      payment_method_id:
+        expr: x not in [p.id for p in initial.payment_methods]
+      status:
+        eq: confirmed
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  update:
+  - entity: settings
+    collection: state.settings
+    desc: One-click ordering enabled and deal-alert emails turned on
+    where:
+      id:
+        any: true
+    changes:
+      one_click_enabled:
+        eq: true
+      deal_alerts_email:
+        eq: true
+  invariant:
+  - collection: state.addresses
+    filter: '''200 Pine'' not in a.street_address and ''800 Corporate'' not in a.street_address'
+    preserve: ALL
+  - collection: state.payment_methods
+    filter: a.id in [p.id for p in initial.payment_methods]
+    preserve: ALL
+  - collection: state.orders
+    filter: not any(it.get('product_id') == target['product_id'] for it in
+      (a.items or []))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify pre-existing payment methods
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[3]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[12]
+    severity: medium

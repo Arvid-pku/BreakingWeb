@@ -1,0 +1,159 @@
+task_id: lms_resubmit_after_feedback
+env_id: lms
+title: Resubmit Every In-Window Flagged Assignment With Category-Attempt Named Revisions
+instruction_template: Across your courses, find every assignment whose submission
+  status is "resubmit_requested". Each course has its own late policy (penalty_per_day,
+  max_late_days, grace_period_hours) in its syllabus. A resubmission is only still
+  open if the assignment is within its course's resubmission window, i.e. the number
+  of days since its due date is at most that course's max_late_days; if the feedback
+  or due date shows the window has already lapsed, the resubmission is closed. Resubmit
+  ONLY the flagged assignments whose resubmission window is still open, and do NOT
+  resubmit any flagged assignment whose window has already closed. For each one you
+  resubmit, read the instructor feedback, then name the resubmission file
+  "revision_<category>_attempt<n>.pdf", where <category> is that assignment's own
+  weight category and <n> is its next attempt number (its current attempt_count plus
+  one) — so a homework on its second attempt becomes "revision_homework_attempt2.pdf".
+  Do not submit or resubmit any other assignment in {target.course_code} or any other
+  course, do not mark any announcement as read, and do not send any messages.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 20
+primary_primitives:
+- planning
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 5
+      must_include:
+      - CS201
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 10
+      graded_fraction: 0.5
+      resubmit_count: 3
+      vary_resubmit_attempts: true
+      resubmit_window_discriminator: 3
+    outputs:
+    - assignment_ids
+    - resubmit_assignment_ids
+    - expired_resubmit_assignment_ids
+    - decoy_assignment_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    resubmit_assignment_id: '{output.resubmit_assignment_ids[0]}'
+    resubmit_assignment_ids: '{output.resubmit_assignment_ids}'
+    expired_resubmit_assignment_ids: '{output.expired_resubmit_assignment_ids}'
+    decoy_assignment_id: '{output.decoy_assignment_id}'
+    resubmit_file_name: revision_v2.pdf
+canonical_diff:
+  update:
+  - entity: Assignment
+    desc: Resubmit every flagged assignment with a category-named revision file
+    bijection:
+      over: "target['resubmit_assignment_ids'].split(',') if target['resubmit_assignment_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        expr: "x == 'revision_' + initial.get_assignment(v).weight_category + '_attempt' + str(initial.get_assignment(v).attempt_count + 1) + '.pdf'"
+      attempt_count:
+        expr: "x == initial.get_assignment(v).attempt_count + 1"
+      submitted_at:
+        expr: "x >= session_start"
+  invariant:
+  - collection: state.assignments
+    filter: "a.id not in (target['resubmit_assignment_ids'].split(',') if target['resubmit_assignment_ids'] else [])"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: high
+  - desc: Agent did not mark any announcement as read
+    expr: "all(a.is_read == ia.is_read for a, ia in zip(sorted(state.announcements, key=lambda x: x.id), sorted(initial.announcements, key=lambda x: x.id)))"
+    severity: medium
+  named_invariants:
+  - name: Agent resubmitted every flagged assignment with the correct category-named file
+    ref: update[0]
+    severity: critical
+  - name: Agent did not submit or resubmit any other assignment
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: high
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: high
+  - name: Agent did not modify the student profile
+    ref: invariant[11]
+    severity: medium
+secondary_primitives: []

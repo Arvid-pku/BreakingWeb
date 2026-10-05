@@ -1,0 +1,170 @@
+task_id: pp_multi_referral_chain
+env_id: patient_portal
+title: Multi-Referral Chain Management
+instruction_template: 'Manage a referral chain: your PCP referred you to a cardiologist,
+  and a separate PCP referral has also been approved for orthopedics. Complete the
+  following in order: 1) Verify the cardiology referral is approved and pre-authorization
+  is in place, 2) Schedule a new cardiology appointment linked to that referral using
+  reason "Cardiology consultation", 3) Verify the orthopedics referral is approved,
+  4) Schedule a new orthopedics appointment linked to that referral using reason "Orthopedic
+  evaluation" with a datetime that is after the cardiology appointment datetime. Do
+  not send messages, do not modify any referral, and do not reuse any pre-existing
+  appointment to satisfy either step.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Coronary Artery Disease
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - orthopedics
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - orthopedics
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - cardiology
+      - orthopedics
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  - use: message_threads
+    params:
+      thread_count: 2
+      unread_count: 1
+      categories:
+      - clinical
+    outputs:
+    - thread_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    ortho_provider_ids: '{output.providers_by_specialty.orthopedics}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule the cardiology appointment linked to the approved cardiology referral (prior-auth approved)."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        reason: {eq: "Cardiology consultation"}
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'cardiology' and r.status == 'approved' and (not r.prior_auth_required or r.prior_auth_status == 'approved') for r in initial.referrals)"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule the orthopedics appointment linked to the approved orthopedics referral, with a datetime strictly after the newly scheduled cardiology appointment."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['ortho_provider_ids']"
+        reason: {eq: "Orthopedic evaluation"}
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'orthopedics' and r.status == 'approved' and (not r.prior_auth_required or r.prior_auth_status == 'approved') for r in initial.referrals)"
+        datetime:
+          expr: >
+            any(
+              a.status == 'scheduled'
+              and a.provider_id in target['cardio_provider_ids']
+              and a.reason == 'Cardiology consultation'
+              and a.id not in {ap.id for ap in initial.appointments}
+              and x > a.datetime
+              for a in state.appointments
+            )
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing upcoming appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

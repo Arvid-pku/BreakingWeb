@@ -1,0 +1,90 @@
+task_id: reddit_message_blast_and_settings
+title: Multi-Recipient Messaging
+instruction_template: '1. Send a message to u/NeuralNexus with subject "ML meetup" and body exactly: "{target.msg_body}"
+
+  2. Send the same message to u/ByteRunner.
+
+  3. Send the same message to u/DataWizard42.
+
+  4. Mark all notifications as read.
+
+  5. Go to Settings: set theme to "dark", disable "Show active communities", set feed sort to "new".
+
+
+  Do not send messages to anyone else.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps: []
+  targets:
+    msg_body: Organizing a virtual meetup for ML practitioners next Friday at 7pm EST. Topics include fine-tuning techniques and deployment best practices. RSVP by replying to this message.
+canonical_diff:
+  create:
+  - entity: Message
+    collection: sent_messages
+    bijection:
+      over: '[''NeuralNexus'', ''ByteRunner'', ''DataWizard42'']'
+      variable: v
+    desc: Send the ML-meetup message to each of the three recipients
+    properties:
+      to_user:
+        expr: x == v
+      subject:
+        eq: ML meetup
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    desc: Mark every unread notification as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      show_active_communities: {eq: false}
+      default_feed_sort: {eq: new}
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and
+      state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

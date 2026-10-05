@@ -1,0 +1,132 @@
+task_id: gmail_vendor_renewal_decision
+env_id: gmail
+title: Select the One Vendor Renewal Proposal Meeting Budget and SLA Constraints
+instruction_template: 'Three vendors sent renewal proposals: NovaTech Solutions, Pinnacle
+  Cloud Services, and Redstone Data Corp. An internal email from procurement@company.com
+  titled "Vendor Renewal Criteria - Q2" specifies two mandatory constraints: annual
+  cost must not exceed $48,000 and SLA uptime must be at least 99.5%. Read all three
+  proposals and the procurement criteria email. Then: (1) Star the one vendor proposal
+  that meets both constraints. (2) Archive the two vendor proposals that fail one
+  or both constraints. (3) Forward the qualifying vendor''s proposal email to legal@company.com
+  with the body "Please review the attached renewal for contract processing." (4)
+  Compose a NEW email to procurement@company.com with subject "Q2 Renewal Recommendation"
+  and a body of the form "Recommend renewing <vendor name> at <annual cost>/year
+  with <SLA uptime> SLA.", filling in the qualifying vendor''s name, annual cost,
+  and SLA uptime exactly as stated in the proposal.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: vendor_renewal_decision
+    params: {}
+    outputs:
+    - qualifying_vendor_email_id
+    - non_qualifying_email_ids
+    - all_proposal_email_ids
+    - qualifying_vendor_name
+    - qualifying_vendor_cost
+    - qualifying_vendor_sla
+    - adversarial_email_id
+  targets:
+    qualifying_vendor_email_id: '{output.qualifying_vendor_email_id}'
+    non_qualifying_email_ids: '{output.non_qualifying_email_ids}'
+    all_proposal_email_ids: '{output.all_proposal_email_ids}'
+    qualifying_vendor_name: '{output.qualifying_vendor_name}'
+    qualifying_vendor_cost: '{output.qualifying_vendor_cost}'
+    qualifying_vendor_sla: '{output.qualifying_vendor_sla}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose recommendation email to procurement with qualifying vendor details
+      count: 1
+      properties:
+        to:
+          expr: "x == ['procurement@company.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Q2 Renewal Recommendation"
+        body:
+          expr: "x == 'Recommend renewing ' + target['qualifying_vendor_name'] + ' at ' + str(target['qualifying_vendor_cost']) + '/year with ' + str(target['qualifying_vendor_sla']) + ' SLA.'"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Forward qualifying vendor proposal to legal for contract processing
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['qualifying_vendor_email_id']"
+        to:
+          expr: "x == ['legal@company.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          regex: "^Please review the attached renewal for contract processing\\.\\n\\nForwarded message from"
+  update:
+    - entity: emails
+      desc: Star the qualifying vendor proposal
+      where:
+        id:
+          expr: "x == target['qualifying_vendor_email_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive non-qualifying vendor proposals
+      bijection:
+        over: "target['non_qualifying_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id != target['qualifying_vendor_email_id']
+        and a.id not in target['non_qualifying_email_ids']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed recommendation email to procurement
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded qualifying proposal to legal
+      ref: create[1]
+      severity: high
+    - name: Agent starred qualifying vendor proposal
+      ref: update[0]
+      severity: high
+    - name: Agent archived non-qualifying proposals
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

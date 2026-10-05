@@ -1,0 +1,184 @@
+task_id: booking_find_deal_and_book
+env_id: booking
+title: Find a Deal and Book the Discounted Room
+instruction_template: 'Navigate to the Deals page and find the deal for "{target.property_name}"
+  in {target.city}. The property should be offering a discounted room. Book the discounted
+  "{target.room_name}" room for 2 nights checking in on 2026-06-20 and checking out
+  on 2026-06-22 for 2 guests. Use the default Visa payment method (ending in 4242).
+  Enter your name and email from your account profile.
+
+  '
+difficulty: medium
+time_limit_seconds: 220
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 8
+  skip_real_hotels: true
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Lisbon Riverside Retreat
+      city: Lisbon
+      country: Portugal
+      star_rating: 4
+      review_score: 8.5
+      review_count: 1340
+      price: 165.0
+      property_type: Hotel
+      neighborhood: Alfama
+      address: 22 Rua do Comercio, 1100-150 Lisbon
+      genius_discount_pct: 20
+      amenities:
+      - Free WiFi
+      - Rooftop bar
+      - Air conditioning
+      - River view rooms
+      popular_facilities:
+      - Free WiFi
+      - Rooftop bar
+      - River view
+      distance_km: 1.0
+      rooms:
+      - name: River View Deluxe
+        price: 165.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: 206.0
+        view_type: river
+      - name: Standard City Room
+        price: 185.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+        original_price: 231.0
+        view_type: city
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: decoy_property
+    params:
+      name: Porto Budget Stay
+      city: Lisbon
+      country: Portugal
+      star_rating: 2
+      review_score: 7.1
+      review_count: 320
+      price: 85.0
+      property_type: Hostel
+      neighborhood: Bairro Alto
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      distance_km: 1.5
+    outputs:
+    - decoy_property_1_id
+    - decoy_property_1_name
+  - use: decoy_property
+    params:
+      name: Belem Tower Suites
+      city: Lisbon
+      country: Portugal
+      star_rating: 5
+      review_score: 9.0
+      review_count: 2100
+      price: 380.0
+      property_type: Hotel
+      neighborhood: Belem
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Fine dining
+      distance_km: 4.2
+    outputs:
+    - decoy_property_2_id
+    - decoy_property_2_name
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    room_id: '{output.cheapest_room_id}'
+    room_name: River View Deluxe
+    city: Lisbon
+canonical_diff:
+  create:
+    - entity: Reservation
+      desc: Book the deal property River View Deluxe room for 2 nights
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        room_type_id: {expr: "x == target['room_id']"}
+        room_type_name: {eq: "River View Deluxe"}
+        check_in: {eq: "2026-06-20"}
+        check_out: {eq: "2026-06-22"}
+        nights: {eq: 2}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {expr: "x.full_name == initial.owner_name and x.email == initial.owner_email"}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['property_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent booked the deal property River View Deluxe with correct dates
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

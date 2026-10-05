@@ -1,0 +1,48 @@
+variant_id: gmail_thread_detective__exploration
+base_task_id: gmail_thread_detective
+target_primitive: exploration
+description: The real calendar-conflict email is buried in Updates while a newer inbox recap and a nearby same-sender thread point to the wrong evidence. The agent must find the final conflict email and reply on the correct launch-review thread.
+injections:
+- layer: seed
+  params:
+    action: hide_in_non_obvious_location
+    email_id: '{target.calendar_email_id}'
+    move_to_label: updates
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: '{target.other_sender_name}'
+      from: '{target.other_sender_email}'
+      subject: '{target.calendar_subject}'
+      body: |-
+        Quick recap before I verified the final executive holds:
+
+        - 9:00 AM: tentatively blocked
+        - 10:00 AM: tentatively blocked
+
+        I will send the final conflict list separately once the ops calendar is reconciled.
+      labels:
+      - inbox
+      - important
+    - from_name: '{target.sender_name}'
+      from: '{target.sender_email}'
+      subject: 'Could we hold {target.correct_time} for the Atlas staffing sync?'
+      body: |-
+        Separate staffing discussion that happens to use the same time slot.
+        Please do not use this thread for the launch review decision.
+      labels:
+      - inbox
+      - VIP
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 5
+    topical_subjects:
+    - 'Re: Atlas staffing sync'
+    - 'Fwd: Calendar hold recap'
+    - 'Thread: Launch review notes'
+    - 'Re: Scheduling follow-up'
+    - 'Fwd: Ops calendar reconciliation'

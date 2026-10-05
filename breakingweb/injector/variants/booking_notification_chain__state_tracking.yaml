@@ -1,0 +1,20 @@
+variant_id: booking_notification_chain__state_tracking_v1
+base_task_id: booking_notification_chain
+target_primitive: state_tracking
+description: New notifications arrive mid-task pushing the target notification down
+  the list, and the notification count badge updates asynchronously.
+injections:
+- layer: server
+  params:
+    action: inject_notifications
+    timing: after_first_request
+    notifications:
+    - type: deal_alert
+      title: "Flash sale: 40% off in Dubai"
+      message: "Limited time offer on select Dubai properties."
+    - type: booking_reminder
+      title: "Your trip starts tomorrow!"
+      message: "Don't forget to check in online."
+    - type: price_drop
+      title: "Price dropped on saved property"
+      message: "A hotel in your wishlist reduced its rate."

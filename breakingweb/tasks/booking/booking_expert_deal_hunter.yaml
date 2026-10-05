@@ -1,0 +1,272 @@
+task_id: booking_expert_deal_hunter
+env_id: booking
+title: Find Best Deal, Compare Alternatives, and Conditional Booking
+instruction_template: "Hunt for the best deal in Amsterdam:\n1. Search for hotels\
+  \ in Amsterdam and find the three properties advertising a Genius discount: \"{target.prop_name_1}\"\
+  , \"{target.prop_name_2}\", and \"{target.prop_name_3}\". Identify which of these\
+  \ has the largest Genius discount percentage.\n2. Compare that property with the\
+  \ other two in detail (review scores, amenities, prices).\n3. Book the property\
+  \ with the largest Genius discount ONLY if it has BOTH free cancellation AND breakfast\
+  \ included on at least one room. Book that specific room for 2 guests checking\
+  \ in 2026-07-20 and checking out 2026-07-25 (5 nights). Use the default Visa (ending\
+  \ in 4242).\n4. Save all three compared properties to a new list called \"Amsterdam\
+  \ Deals\".\n5. Write a message to the booked property with subject \"Pre-arrival\
+  \ inquiry\" and body \"Could you arrange an early check-in around 11am? We are\
+  \ arriving on an early flight.\"\n"
+difficulty: expert
+time_limit_seconds: 440
+expected_steps: 33
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel V Nesplein Amsterdam
+      city: Amsterdam
+      country: Netherlands
+      star_rating: 4
+      review_score: 8.9
+      review_count: 3450
+      price: 260.0
+      genius_discount_pct: 15
+      neighborhood: Dam Square
+      address: Nes 49, 1012 KD Amsterdam
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Bicycle rental
+      popular_facilities:
+      - Free WiFi
+      - Restaurant
+      - Bicycle rental
+      rooms:
+      - name: Cozy Room
+        price: 260.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+      - name: Comfy Room with Breakfast
+        price: 295.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: non_refundable
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - room_id_1
+    - room_name_1
+  - use: featured_property
+    params:
+      name: Sir Adam Hotel Amsterdam
+      city: Amsterdam
+      country: Netherlands
+      star_rating: 4
+      review_score: 8.6
+      review_count: 2780
+      price: 230.0
+      genius_discount_pct: 10
+      neighborhood: Noord
+      address: Overhoeksplein 7, 1031 KS Amsterdam
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Pool
+      popular_facilities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      rooms:
+      - name: Sir Room
+        price: 230.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+    outputs:
+    - prop_id_2
+    - prop_name_2
+    - room_id_2
+    - room_name_2
+  - use: featured_property
+    params:
+      name: Kimpton De Witt Amsterdam
+      city: Amsterdam
+      country: Netherlands
+      star_rating: 5
+      review_score: 9.2
+      review_count: 4120
+      price: 340.0
+      genius_discount_pct: 25
+      neighborhood: City Center
+      address: Nieuwezijds Voorburgwal 5, 1012 RC Amsterdam
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+      popular_facilities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      rooms:
+      - name: Standard King Room
+        price: 340.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+      - name: Deluxe King with Breakfast
+        price: 395.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: canal
+        room_size_sqm: 35.0
+    outputs:
+    - prop_id_3
+    - prop_name_3
+    - room_id_3
+    - room_name_3
+  - use: decoy_property
+    params:
+      name: DoubleTree by Hilton Amsterdam
+      city: Amsterdam
+      country: Netherlands
+      star_rating: 4
+      review_score: 8.4
+      review_count: 5670
+      price: 280.0
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Fitness center
+    outputs:
+    - decoy_property_id
+    - decoy_property_name
+  targets:
+    prop_id_1: '{output.prop_id_1}'
+    prop_name_1: '{output.prop_name_1}'
+    discount_1: '15'
+    prop_id_2: '{output.prop_id_2}'
+    prop_name_2: '{output.prop_name_2}'
+    discount_2: '10'
+    prop_id_3: '{output.prop_id_3}'
+    prop_name_3: '{output.prop_name_3}'
+    discount_3: '25'
+    deal_id: '{output.prop_id_3}'
+    deal_name: '{output.prop_name_3}'
+canonical_diff:
+  create:
+    - entity: Reservation
+      desc: Book the Kimpton De Witt (largest discount) Deluxe King with Breakfast room
+      properties:
+        property_id: {expr: "x == target['deal_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe King with Breakfast"}
+        check_in: {eq: "2026-07-20"}
+        check_out: {eq: "2026-07-25"}
+        nights: {eq: 5}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {expr: "x.type == 'free_cancellation'"}
+        confirmation_number: {any: true}
+        is_genius_deal: {eq: true}
+        genius_discount: {expr: "x > 0"}
+        meals_included: {eq: breakfast}
+        rating_submitted: {any: true}
+    - entity: SavedList
+      desc: Create Amsterdam Deals list with all three properties
+      properties:
+        name: {eq: "Amsterdam Deals"}
+        property_ids:
+          expr: "target['prop_id_1'] in x and target['prop_id_2'] in x and target['prop_id_3'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Message
+      desc: Send pre-arrival inquiry to booked property
+      properties:
+        property_id: {expr: "x == target['deal_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'pre-arrival' in x.lower() or 'early check-in' in x.lower()"}
+        body: {expr: "'early check-in' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['deal_id'] or a.check_in != '2026-07-20'"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Amsterdam Deals'"
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.property_id != target['deal_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent booked the largest-discount property with breakfast and free cancel
+      ref: create[0]
+      severity: critical
+    - name: Agent created Amsterdam Deals list with all three properties
+      ref: create[1]
+      severity: high
+    - name: Agent sent pre-arrival inquiry to booked property
+      ref: create[2]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify other saved lists
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify existing messages
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not create or modify reviews
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low

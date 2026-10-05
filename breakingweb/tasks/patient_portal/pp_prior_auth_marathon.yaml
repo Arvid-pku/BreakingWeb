@@ -1,0 +1,169 @@
+task_id: pp_prior_auth_marathon
+env_id: patient_portal
+title: Prior Authorization Marathon
+instruction_template: 'You need three procedures: 1) MRI (radiology department), 2)
+  Nerve conduction study (neurology department), 3) Cortisone injection (orthopedics
+  department). For each one, verify the referral is approved and that any required
+  pre-authorization is already cleared, then schedule exactly one NEW appointment with
+  that department using these exact reason strings: "MRI evaluation" for radiology,
+  "Nerve conduction study" for neurology, and "Cortisone injection" for orthopedics.
+  Any appointments that already exist in your schedule do not count toward this task —
+  you must create three new appointments. Do not send any messages and do not schedule
+  anything without an approved referral.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Herniated Disc
+      - Carpal Tunnel
+      - Shoulder Bursitis
+      insurance_tier: basic
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 8
+      specialties:
+      - pcp
+      - radiology
+      - neurology
+      - orthopedics
+      - cardiology
+      - billing
+      must_include:
+      - pcp
+      - radiology
+      - neurology
+      - orthopedics
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 3
+      pending_count: 0
+      with_prior_auth: true
+      must_have_specialties:
+      - radiology
+      - neurology
+      - orthopedics
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 4
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    radiology_provider_ids: '{output.providers_by_specialty.radiology}'
+    neurology_provider_ids: '{output.providers_by_specialty.neurology}'
+    ortho_provider_ids: '{output.providers_by_specialty.orthopedics}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one new radiology appointment linked to an approved radiology referral with pre-auth cleared. Verifying referral approval + pre-auth is read-only (backend gates the booking), so this create fires only after those prerequisites are satisfied."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['radiology_provider_ids']"
+        reason: {eq: "MRI evaluation"}
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'radiology' and r.status == 'approved' and (not r.prior_auth_required or r.prior_auth_status == 'approved') for r in initial.referrals)"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one new neurology appointment linked to an approved neurology referral with pre-auth cleared."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['neurology_provider_ids']"
+        reason: {eq: "Nerve conduction study"}
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'neurology' and r.status == 'approved' and (not r.prior_auth_required or r.prior_auth_status == 'approved') for r in initial.referrals)"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one new orthopedics appointment linked to an approved orthopedics referral with pre-auth cleared."
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['ortho_provider_ids']"
+        reason: {eq: "Cortisone injection"}
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'orthopedics' and r.status == 'approved' and (not r.prior_auth_required or r.prior_auth_status == 'approved') for r in initial.referrals)"
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

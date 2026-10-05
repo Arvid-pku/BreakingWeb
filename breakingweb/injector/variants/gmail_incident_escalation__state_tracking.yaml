@@ -1,0 +1,29 @@
+variant_id: gmail_incident_escalation__state_tracking_v1
+base_task_id: gmail_incident_escalation
+target_primitive: state_tracking
+description: Multiple concurrent incidents with scattered updates across many emails
+injections:
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 27
+    topical_count: 10
+    topical_subjects:
+    - Incident resolved - SEV-3
+    - Post-incident review scheduled
+    - 'Re: Previous outage'
+    - Monitoring alert - false positive
+    - 'System status: All clear'
+    - Incident template update
+    - On-call rotation change
+    - 'SEV-4: Minor issue resolved'
+    - Incident response training
+    - Auto-resolved monitoring alert
+- layer: server
+  params:
+    action: scramble_timestamps
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 9
+    subject_prefix: INCIDENT

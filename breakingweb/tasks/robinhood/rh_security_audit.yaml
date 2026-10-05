@@ -1,0 +1,57 @@
+task_id: rh_security_audit
+env_id: robinhood
+title: Audit Security Log and Enable 2FA
+instruction_template: Check your security log for any logins from outside the United
+  States. If you find any, enable two-factor authentication via authenticator app.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 7
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: security_log
+    params:
+      count: 8
+      include_suspicious: true
+    outputs: []
+  targets: {}
+canonical_diff:
+  # The only state change required is enabling 2FA via authenticator app —
+  # this is a singleton settings update. Every other check is converted to
+  # an unfiltered invariant; orders/transfers/watchlist/etc. preservation
+  # is enforced by the invariants below rather than by constraints.
+  update:
+  - entity: settings
+    desc: Two-factor authentication enabled via authenticator app
+    where: {id: {any: true}}
+    changes:
+      two_factor_method: {eq: authenticator}
+  invariant:
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+secondary_primitives: []

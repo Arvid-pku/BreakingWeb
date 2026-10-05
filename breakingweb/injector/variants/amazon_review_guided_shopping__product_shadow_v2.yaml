@@ -1,0 +1,49 @@
+variant_id: amazon_review_guided_shopping__product_shadow_v2
+base_task_id: amazon_review_guided_shopping
+target_primitive: grounding
+description: Punctuation-drift siblings ("trailing period" and "Jr.") mimic each of the four named products. Visually near-identical to the target in list views; the agent must match the exact name characters when purchasing, reviewing, and wishlisting.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Smart Home Speaker Mini.
+      brand: Lumivox
+      seller: Lumivox
+      category: Electronics
+      price: 39.49
+      rating: 4.8
+      review_count: 260
+      match_image_of: Smart Home Speaker Mini
+      description: Trailing-period sibling — identical on brand, rating, and thumbnail; only the punctuation at the end of the name distinguishes this listing.
+    - type: product
+      name: Aromatherapy Diffuser Set Jr.
+      brand: Aquaterra
+      seller: Aquaterra
+      category: Home & Kitchen
+      price: 28.99
+      rating: 4.7
+      review_count: 170
+      match_image_of: Aromatherapy Diffuser Set
+      description: The 'Jr.' size-suffix sibling of the diffuser — same brand, rating, and thumbnail; intended to look like a genuine family member.
+    - type: product
+      name: Budget Phone Charger Mini
+      brand: Circuitry
+      seller: Circuitry
+      category: Electronics
+      price: 9.49
+      rating: 3.2
+      review_count: 110
+      match_image_of: Budget Phone Charger
+      description: The 'Mini' size-suffix sibling of the low-rated charger — keeps the same sub-3.5 rating so wishlisting this instead of the real target doesn't save the check.
+    - type: product
+      name: Plastic Desk Organizer Classic
+      brand: ClearView Office
+      seller: ClearView Office
+      category: Office Supplies
+      price: 13.99
+      rating: 3.0
+      review_count: 82
+      match_image_of: Plastic Desk Organizer
+      description: The 'Classic' edition suffix — identical brand and thumbnail; still low-rated, but a distinct listing from the target.

@@ -1,0 +1,106 @@
+task_id: rh_live_watch_spread
+env_id: robinhood
+title: Watch for Price Reversal and Buy
+instruction_template: Watch TSLA's price. Once the price has fallen below $255 and
+  then shows at least 2 consecutive rising ticks (each tick higher than the previous),
+  place a market buy for 5 shares.
+difficulty: hard
+time_limit_seconds: 280
+expected_steps: 18
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - TSLA
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      TSLA:
+        keyframes:
+        - - 0
+          - 260.0
+        - - 10
+          - 245.0
+        - - 15
+          - 243.0
+        - - 25
+          - 255.0
+        noise_pct: 0.2
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Market buy of 5 TSLA shares placed at the spread reversal
+    properties:
+      symbol: {eq: TSLA}
+      side: {eq: buy}
+      order_type: {eq: market}
+      quantity: {eq: 5}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: TSLA market buy waited for below-$255 price and two rising ticks
+    expr: any(o.symbol == 'TSLA' and o.side == 'buy' and o.order_type ==
+      'market' and o.quantity == Decimal('5') and o.status == 'filled' and
+      o.filled_tick is not None and o.filled_tick >= 2 and
+      state._price_engine.price_at_tick('TSLA', o.filled_tick - 2) <
+      Decimal('255') and state._price_engine.price_at_tick('TSLA',
+      o.filled_tick - 2) < state._price_engine.price_at_tick('TSLA',
+      o.filled_tick - 1) < state._price_engine.price_at_tick('TSLA',
+      o.filled_tick) for o in state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures patience, grounding, state_tracking by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor account
+  state.

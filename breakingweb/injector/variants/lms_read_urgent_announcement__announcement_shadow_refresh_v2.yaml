@@ -1,0 +1,64 @@
+variant_id: lms_read_urgent_announcement__announcement_shadow_refresh_v2
+base_task_id: lms_read_urgent_announcement
+target_primitive: grounding
+description: >-
+  Adversarial near-duplicate announcements flood the feed with the most
+  recently posted urgent records and the most recently posted unread record,
+  none of which is the target. The agent must hold the urgent AND unread AND
+  latest-posted_at conjunction simultaneously against four salient recency
+  decoys instead of grabbing the newest-looking notice.
+injections:
+# ── SEED layer: near-duplicate urgent decoys (is_read:true so they do NOT enter
+# the base 'exactly N-1 urgent unread remain' count constraint) posted LATER
+# than the genuine target. They are the "newest urgent, but already read" trap:
+# an agent that drops the unread qualifier lands on one of these. multiplier:2
+# amplifies the near-duplicate pressure. ──
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - type: announcement
+      title: 'URGENT: Announcement 2 (updated)'
+      body: >-
+        URGENT UPDATE: this supersedes the earlier urgent announcement. Action
+        required now — read this latest version.
+      priority: urgent
+      is_read: true
+      posted_at: '2026-12-31T23:50:00+00:00'
+    - type: announcement
+      title: 'URGENT: action required'
+      body: >-
+        URGENT: final corrected notice. The previous urgent posts are out of
+        date; use this most recent one.
+      priority: urgent
+      is_read: true
+      posted_at: '2026-12-31T23:55:00+00:00'
+    # Normal-priority UNREAD decoy posted later than every urgent record. An
+    # agent that drops the urgent qualifier and grabs the globally-newest unread
+    # announcement lands here. Normal priority keeps it out of the urgent count.
+    - type: announcement
+      title: 'Latest update: please review'
+      body: >-
+        Most recent posting in your feed. General logistics update — read when
+        convenient.
+      priority: normal
+      is_read: false
+      posted_at: '2026-12-31T23:59:00+00:00'
+# ── SERVER layer: a globally-newest URGENT "correction" notice, but is_read:true
+# so it cannot enter the urgent-unread count constraint. posted_at defaults to
+# latest_timestamp + minutes_offset, making it the single most recently posted
+# urgent record in the entire feed — the killer recency trap. ──
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    id: ann_shadow_correction
+    title: 'URGENT Correction: use the latest LMS update'
+    body: >-
+      URGENT correction: the earlier LMS view was incomplete. This is the most
+      recent urgent posting — read this latest version before you finish.
+    priority: urgent
+    is_read: true
+    minutes_offset: 60
+    type: announcement

@@ -1,0 +1,118 @@
+task_id: reddit_settings_and_content_creation
+title: Full Settings Overhaul with Content Creation
+instruction_template: '1. Go to Settings. Set theme to "dark", enable compact view, disable show online status, set feed sort to "top", set comment sort to "controversial".
+
+  2. Disable all email notifications (replies, mentions, messages, digest).
+
+  3. Create a text post in r/Python with title exactly: "{target.post_title}" and body exactly: "{target.post_body}"
+
+  4. Subscribe to r/{target.join_sub}.
+
+
+  Do not change content settings (NSFW, language, country).'
+difficulty: expert
+time_limit_seconds: 540
+expected_steps: 40
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  targets:
+    post_title: 'Type hints in Python 3.13: what changed and what it means for your codebase'
+    post_body: Python 3.13 introduces several new typing features including TypeForm, type parameter defaults, and better generic syntax. Here is a practical migration guide.
+    join_sub: Piracy
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribed to the join_sub
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join_sub']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      compact_view: {eq: true}
+      show_online_status: {eq: false}
+      default_feed_sort: {eq: top}
+      default_comment_sort: {eq: controversial}
+      email_comment_reply: {eq: false}
+      email_post_reply: {eq: false}
+      email_mentions: {eq: false}
+      email_messages: {eq: false}
+  create:
+  - entity: Post
+    desc: Exact Python post created with required title and body
+    properties:
+      subreddit_name:
+        eq: Python
+      title:
+        expr: x == target['post_title']
+      body:
+        expr: x == target['post_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  invariant:
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent subscribed to r/Piracy
+    ref: update[0]
+    severity: high
+  - name: Agent created the exact Python post about type hints in 3.13
+    ref: create[0]
+    severity: high
+  - name: Agent did not subscribe to or unsubscribe from any other subreddit
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not modify existing posts beyond creating the required one
+    ref: invariant[1]
+    severity: medium
+  constraints:
+  - expr: state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.email_digest == initial.settings.email_digest and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

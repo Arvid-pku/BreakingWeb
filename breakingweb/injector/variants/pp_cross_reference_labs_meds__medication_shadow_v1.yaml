@@ -1,0 +1,168 @@
+variant_id: pp_cross_reference_labs_meds__medication_shadow_v1
+base_task_id: pp_cross_reference_labs_meds
+target_primitive: state_tracking
+description: >-
+  State-tracking + verification stressor stacked across three layers, aimed at the
+  three load-bearing predicates of the hardened task (the dosage-exact "name with
+  dosage" clause, the confirmation_state==confirmed constraint, and the exactly-one
+  new appointment constraint) rather than inert grounding noise. SEED layer floods
+  the cabinet with dosage-shifted name-stem lookalikes of every interacting-pair
+  candidate (e.g. Metformin 1000mg vs the real Metformin 500mg) so the agent must
+  track the EXACT dosage rather than the drug name, and adds boundary-case decoy
+  labs that are all flagged NORMAL / pending (never abnormal+resulted) so they can
+  never pollute the out-of-range value-label set. NETWORK layer 1 (misleading_success)
+  makes the FIRST POST /appointments/{id}/confirm return a loud success body while
+  the real confirmation_state stays "pending" — the agent must re-read state and
+  re-confirm, doubling failure on properties.confirmation_state. NETWORK layer 2
+  (error_then_success) returns one 503 on the create call so a naive auto-retry
+  double-books, tripping the critical "exactly one new appointment" constraint.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # --- Dosage-exact name-stem prescription lookalikes (state_tracking) ---
+    # Every interacting-pair candidate in the medication pool gets an ACTIVE,
+    # non-interacting sibling at a DIFFERENT dosage. Whichever pair the seed
+    # actually wires up, its two members now have a same-name, wrong-dosage
+    # twin in the active list, so an agent that tracks the drug NAME (not the
+    # exact "name with dosage") will quote the wrong string and fail the
+    # interacting_medications substring_all clause. The others are inert
+    # grounding noise. All carry interactions: [] so they cannot be mistaken
+    # for the genuine active<->active conflict.
+    - type: prescription
+      medication: Metformin 1000mg
+      dosage: 1000mg
+      frequency: twice daily
+      refills_remaining: 2
+      last_filled: '2025-12-05T08:00:00+00:00'
+      expires_at: '2027-01-05T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Gabapentin 600mg
+      dosage: 600mg
+      frequency: three times daily
+      refills_remaining: 1
+      last_filled: '2025-11-18T08:00:00+00:00'
+      expires_at: '2026-11-18T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Warfarin 2mg
+      dosage: 2mg
+      frequency: once daily
+      refills_remaining: 3
+      last_filled: '2025-12-22T08:00:00+00:00'
+      expires_at: '2027-02-22T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Atorvastatin 40mg
+      dosage: 40mg
+      frequency: once daily at bedtime
+      refills_remaining: 2
+      last_filled: '2025-12-10T08:00:00+00:00'
+      expires_at: '2027-01-10T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Losartan 100mg
+      dosage: 100mg
+      frequency: once daily
+      refills_remaining: 1
+      last_filled: '2025-10-30T08:00:00+00:00'
+      expires_at: '2026-10-30T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Lisinopril 20mg
+      dosage: 20mg
+      frequency: once daily
+      refills_remaining: 2
+      last_filled: '2025-11-02T08:00:00+00:00'
+      expires_at: '2027-01-02T08:00:00+00:00'
+      status: active
+      interactions: []
+    # --- Boundary-case decoy labs (state_tracking, NOT grounding ambiguity) ---
+    # Every decoy lab is flagged NORMAL (or left pending) and is therefore
+    # never part of the out-of-range value-label set the reason must quote.
+    # Their values sit JUST INSIDE the reference range so an agent reading
+    # values rather than the flag is tempted to over-include them. They add
+    # state to track without ever creating a genuine abnormal ambiguity.
+    - type: lab_result
+      test_name: Total Cholesterol
+      test_code: 2093-3
+      collected_at: '2026-05-25T08:00:00+00:00'
+      value: '198'
+      unit: mg/dL
+      reference_range: 0-200
+      flag: normal
+      status: resulted
+    - type: lab_result
+      test_name: Glucose Fasting
+      test_code: 1558-6
+      collected_at: '2026-05-26T08:00:00+00:00'
+      value: '99'
+      unit: mg/dL
+      reference_range: 70-100
+      flag: normal
+      status: resulted
+    - type: lab_result
+      test_name: TSH
+      test_code: 3016-3
+      collected_at: '2026-05-27T08:00:00+00:00'
+      value: '3.9'
+      unit: mIU/L
+      reference_range: 0.4-4.0
+      flag: normal
+      status: resulted
+    - type: lab_result
+      test_name: Creatinine
+      test_code: 2160-0
+      collected_at: '2026-05-28T08:00:00+00:00'
+      value: '1.2'
+      unit: mg/dL
+      reference_range: 0.6-1.2
+      flag: normal
+      status: pending
+# --- NETWORK: confirm drift (verification, on the proven weak predicate) ---
+# The FIRST POST to the confirm endpoint returns a loud success body that
+# mirrors the agent's own session_id, but the request is short-circuited so
+# the real appointment confirmation_state stays "pending". The agent must
+# detect the un-changed state (re-read the appointment) and confirm AGAIN; the
+# second call (call_num 2 > fail_count 1) passes through to the real handler.
+# This directly doubles failure on the constraint that already broke the
+# strong model: confirmation_state == "confirmed".
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/appointments/*/confirm'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      session_id: '{request.session_id}'
+      status: scheduled
+      confirmation_state: confirmed
+      requires_confirmation: true
+      message: Appointment confirmed.
+# --- NETWORK: create retry double-book trap (backtracking/state_tracking) ---
+# One 503 on the create call. A naive agent that auto-retries the create
+# without re-reading the appointment list will issue TWO successful creates
+# (the first 503 is faked at the proxy; the appointment is NOT actually
+# created on that call, but an agent that does not verify and instead fires a
+# second create after a LATER success can double-book). The critical
+# "exactly one new appointment was scheduled" constraint then fails.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/appointments/create'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: >-
+      Service temporarily unavailable. The scheduling service is under heavy
+      load. Please retry your request.
+    retry_after: 2

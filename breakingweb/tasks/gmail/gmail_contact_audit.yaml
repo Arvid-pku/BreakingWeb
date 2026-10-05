@@ -1,0 +1,123 @@
+task_id: gmail_contact_audit
+env_id: gmail
+title: Contact Audit
+instruction_template: Do a quarterly contact cleanup. Go to Labels & contacts (accessible
+  via the Labels link in the sidebar) and review
+  each entry — delete any contacts that have not been in touch for more than 30 days
+  (check the 'Last Contact' column). You may need to page through the list. Do not
+  delete {target.keep_contact_name}. Then search your inbox for emails from {target.new_contact_a_name}
+  and {target.new_contact_b_name}, and add them both as contacts using the information
+  from their emails. Mark {target.new_contact_a_name} as a VIP.
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 42
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: contact_audit
+    params: {}
+    outputs:
+    - stale_1_id
+    - stale_2_id
+    - stale_3_id
+    - stale_4_id
+    - near_id
+    - near_b_id
+    - keep_contact_name
+    - keep_contact_id
+    - new_contact_a_name
+    - new_contact_b_name
+    - new_a_email
+    - new_b_email
+  targets:
+    stale_1_id: '{output.stale_1_id}'
+    stale_2_id: '{output.stale_2_id}'
+    stale_3_id: '{output.stale_3_id}'
+    stale_4_id: '{output.stale_4_id}'
+    near_id: '{output.near_id}'
+    near_b_id: '{output.near_b_id}'
+    keep_contact_name: '{output.keep_contact_name}'
+    keep_contact_id: '{output.keep_contact_id}'
+    new_contact_a_name: '{output.new_contact_a_name}'
+    new_contact_b_name: '{output.new_contact_b_name}'
+    new_a_email: '{output.new_a_email}'
+    new_b_email: '{output.new_b_email}'
+canonical_diff:
+  create:
+    - entity: contacts
+      desc: Add new contact A as VIP
+      count: 1
+      properties:
+        email:
+          expr: "x == target['new_a_email']"
+        is_vip:
+          eq: true
+    - entity: contacts
+      desc: Add new contact B
+      count: 1
+      properties:
+        email:
+          expr: "x == target['new_b_email']"
+  delete:
+    - entity: contacts
+      desc: Delete first stale contact
+      where:
+        id:
+          expr: "x == target['stale_1_id']"
+    - entity: contacts
+      desc: Delete second stale contact
+      where:
+        id:
+          expr: "x == target['stale_2_id']"
+    - entity: contacts
+      desc: Delete third stale contact
+      where:
+        id:
+          expr: "x == target['stale_3_id']"
+    - entity: contacts
+      desc: Delete fourth stale contact
+      where:
+        id:
+          expr: "x == target['stale_4_id']"
+  invariant:
+    - collection: state.contacts
+      filter: "a.id not in [target['stale_1_id'], target['stale_2_id'], target['stale_3_id'], target['stale_4_id']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent added new contact A as VIP
+      ref: create[0]
+      severity: high
+    - name: Agent added new contact B
+      ref: create[1]
+      severity: high
+    - name: Agent deleted first stale contact
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted second stale contact
+      ref: delete[1]
+      severity: high
+    - name: Agent deleted third stale contact
+      ref: delete[2]
+      severity: high
+    - name: Agent deleted fourth stale contact
+      ref: delete[3]
+      severity: high
+    - name: Agent did not modify other contacts
+      ref: invariant[0]
+      severity: high

@@ -1,0 +1,167 @@
+task_id: booking_save_and_organize
+env_id: booking
+title: Create a Saved List and Add Properties
+instruction_template: 'Create a new saved list called "{target.list_name}". Then search
+  for hotels in "Rome" and add the property "{target.property1_name}" to the list.
+  Next, search for hotels in "Florence" and add the property "{target.property2_name}"
+  to the same list. The list should contain exactly these two properties when you
+  are done.
+
+  '
+difficulty: medium
+time_limit_seconds: 250
+expected_steps: 16
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Roma Colosseum View Hotel
+      city: Rome
+      country: Italy
+      star_rating: 4
+      review_score: 8.9
+      review_count: 2340
+      price: 230.0
+      property_type: Hotel
+      neighborhood: Monti
+      address: 15 Via dei Fori Imperiali, 00186 Rome
+      amenities:
+      - Free WiFi
+      - Rooftop restaurant
+      - Air conditioning
+      - Concierge
+      popular_facilities:
+      - Free WiFi
+      - Rooftop restaurant
+      - Concierge
+      distance_km: 0.4
+      rooms:
+      - name: Classic Double
+        price: 230.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: city
+    outputs:
+    - prop1_id
+    - prop1_name
+    - prop1_room_id
+    - prop1_room_name
+  - use: featured_property
+    params:
+      name: Firenze Ponte Vecchio Inn
+      city: Florence
+      country: Italy
+      star_rating: 3
+      review_score: 8.5
+      review_count: 1150
+      price: 175.0
+      property_type: Inn
+      neighborhood: Centro Storico
+      address: 8 Lungarno degli Acciaiuoli, 50123 Florence
+      amenities:
+      - Free WiFi
+      - Air conditioning
+      - Bar
+      popular_facilities:
+      - Free WiFi
+      - Bar
+      distance_km: 0.3
+      rooms:
+      - name: River View Room
+        price: 175.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: river
+    outputs:
+    - prop2_id
+    - prop2_name
+    - prop2_room_id
+    - prop2_room_name
+  - use: decoy_property
+    params:
+      name: Hotel Trastevere Charm
+      city: Rome
+      country: Italy
+      star_rating: 3
+      review_score: 7.8
+      review_count: 780
+      price: 145.0
+      property_type: Hotel
+      neighborhood: Trastevere
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      - Garden
+      distance_km: 1.8
+    outputs:
+    - decoy_property_id
+    - decoy_property_name
+  targets:
+    list_name: Italy Summer Trip
+    property1_id: '{output.prop1_id}'
+    property1_name: '{output.prop1_name}'
+    property2_id: '{output.prop2_id}'
+    property2_name: '{output.prop2_name}'
+canonical_diff:
+  create:
+    - entity: SavedList
+      desc: Create a saved list named Italy Summer Trip containing both target properties
+      properties:
+        name: {eq: "Italy Summer Trip"}
+        property_ids:
+          expr: "target['property1_id'] in x and target['property2_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+  invariant:
+    - collection: state.saved_lists
+      filter: "a.name != 'Italy Summer Trip'"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent created Italy Summer Trip list with both target properties
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other saved lists
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

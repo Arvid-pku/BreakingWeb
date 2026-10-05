@@ -1,0 +1,14 @@
+variant_id: pp_mark_all_read__messages_list_stale_v1
+base_task_id: pp_mark_all_read
+target_primitive: verification
+description: The first inbox fetch is stale and briefly hides the task-relevant thread. The agent must retry or revisit the mailbox rather than assume the message is missing.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/messages**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

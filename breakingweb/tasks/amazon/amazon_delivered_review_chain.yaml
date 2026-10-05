@@ -1,0 +1,252 @@
+task_id: amazon_delivered_review_chain
+env_id: amazon
+title: Review Delivered Products and Reorder a Favorite
+instruction_template: 'Open your order history. For each of the following delivered
+  products, click into the product page and use "Write a Review" to submit a review.
+  For ''{target.product_1}'', write a 5-star review with the title ''{target.review_title_1}''.
+  For ''{target.product_2}'', write a 3-star review with the title ''{target.review_title_2}''.
+  Then place a new order for ''{target.product_reorder}'' (you can navigate to its
+  product page from the order history or by searching).
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 40
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /orders
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Noise-Isolating Earbuds Pro
+      brand: SoundCore
+      category: Electronics
+      price: 49.99
+      rating: 4.5
+      features:
+      - Active noise isolation
+      - 8-hour battery
+      - IPX5 water resistance
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_r1
+    - product_name_r1
+    - product_price_r1
+  - use: featured_product
+    params:
+      name: Stainless Steel French Press
+      brand: Hearthway
+      category: Home & Kitchen
+      price: 32.99
+      rating: 4.4
+      features:
+      - 34 oz capacity
+      - Double-wall insulation
+      - Stainless steel filter
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_r2
+    - product_name_r2
+    - product_price_r2
+  - use: featured_product
+    params:
+      name: Trail Running Shoes
+      brand: SummitForge
+      category: Sports & Outdoors
+      price: 74.99
+      rating: 4.6
+      features:
+      - Vibram outsole
+      - Gore-Tex waterproof
+      - Cushioned midsole
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_reorder
+    - product_name_reorder
+    - product_price_reorder
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_r1}'
+      status: delivered
+      days_ago: 14
+    outputs:
+    - order_id_1
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_r2}'
+      status: delivered
+      days_ago: 10
+    outputs:
+    - order_id_2
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_reorder}'
+      status: delivered
+      days_ago: 7
+    outputs:
+    - order_id_3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    product_1: '{output.product_name_r1}'
+    review_pid_1: '{output.product_id_r1}'
+    product_2: '{output.product_name_r2}'
+    review_pid_2: '{output.product_id_r2}'
+    product_reorder: '{output.product_name_reorder}'
+    product_id_reorder: '{output.product_id_reorder}'
+    review_title_1: Impressive Sound Quality
+    review_title_2: Solid Kitchen Essential
+canonical_diff:
+  create:
+  - entity: Review
+    desc: 5-star review for product 1 with correct title
+    properties:
+      product_id: {expr: "x == target['review_pid_1']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['review_title_1']"}
+      body: {any: true}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  - entity: Review
+    desc: 3-star review for product 2 with correct title
+    properties:
+      product_id: {expr: "x == target['review_pid_2']"}
+      rating: {eq: 3}
+      title: {expr: "x == target['review_title_2']"}
+      body: {any: true}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  - entity: Order
+    desc: New confirmed order for the reorder product
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id_reorder']
+          and x[0]['quantity'] == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented for product 1 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['review_pid_1']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['review_pid_1'])
+          + 1"
+  - entity: Product
+    desc: Product review_count incremented for product 2 review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['review_pid_2']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['review_pid_2'])
+          + 1"
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id_reorder'] for it in
+      (a.items or []))"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['review_pid_1'] and a.product_id != target['review_pid_2']"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id != target['review_pid_1'] and a.id != target['review_pid_2']"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not write reviews for other products
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

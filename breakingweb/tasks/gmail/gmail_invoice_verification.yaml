@@ -1,0 +1,105 @@
+task_id: gmail_invoice_verification
+env_id: gmail
+title: Identify Mismatched PO Number Across Three Vendor Invoices
+instruction_template: 'Three vendors sent invoices referencing purchase orders. A
+  procurement confirmation email from procurement@company.com titled "PO Confirmation
+  - Q1 Vendor Orders" lists the correct PO numbers for each vendor. Read the procurement
+  confirmation and all three invoice emails. One invoice contains a PO number that
+  does not match its original PO. Find the mismatched invoice, reply to that vendor
+  requesting they reissue the invoice with the correct PO number (include the correct
+  PO number in the reply body). Star the two invoices that have correct PO numbers.
+  Do not star the mismatched invoice.'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: invoice_verification
+    params: {}
+    outputs:
+    - po_apex
+    - po_brightpath
+    - po_corwin
+    - mismatched_vendor_name
+    - mismatched_vendor_email
+    - correct_po_for_mismatched
+    - wrong_po_on_invoice
+    - mismatched_vendor_email_id
+    - valid_invoice_email_ids
+    - all_invoice_email_ids
+    - decoy_correction_email_id
+  targets:
+    po_apex: '{output.po_apex}'
+    po_brightpath: '{output.po_brightpath}'
+    po_corwin: '{output.po_corwin}'
+    mismatched_vendor_name: '{output.mismatched_vendor_name}'
+    mismatched_vendor_email: '{output.mismatched_vendor_email}'
+    correct_po_for_mismatched: '{output.correct_po_for_mismatched}'
+    wrong_po_on_invoice: '{output.wrong_po_on_invoice}'
+    mismatched_vendor_email_id: '{output.mismatched_vendor_email_id}'
+    valid_invoice_email_ids: '{output.valid_invoice_email_ids}'
+    all_invoice_email_ids: '{output.all_invoice_email_ids}'
+    decoy_correction_email_id: '{output.decoy_correction_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to mismatched vendor requesting reissue with correct PO number
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['mismatched_vendor_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['mismatched_vendor_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['correct_po_for_mismatched'] in x"
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star the two valid invoice emails
+      bijection:
+        over: "target['valid_invoice_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['valid_invoice_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to mismatched vendor with correct PO
+      ref: create[0]
+      severity: high
+    - name: Agent starred valid invoices
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify unrelated emails
+      ref: invariant[0]
+      severity: high

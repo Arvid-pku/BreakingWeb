@@ -1,0 +1,16 @@
+variant_id: amazon_cancel_order__cancel_retry
+base_task_id: amazon_cancel_order
+target_primitive: backtracking
+description: The first cancel request fails transiently. The agent must confirm the order still exists and retry the cancellation.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/amazon/orders/*/cancel'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

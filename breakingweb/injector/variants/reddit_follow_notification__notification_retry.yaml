@@ -1,0 +1,17 @@
+variant_id: reddit_follow_notification__notification_retry
+base_task_id: reddit_follow_notification
+target_primitive: backtracking
+description: The first notification-read action fails transiently. The agent must verify the notification state and retry
+  if it remains unread.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/reddit/notifications/**'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

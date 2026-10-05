@@ -1,0 +1,121 @@
+task_id: gmail_purchase_order_reconciliation
+env_id: gmail
+title: Match Six PO-Invoice Pairs and Report Discrepancies to CFO
+instruction_template: 'The finance team sent an alert email from finance-alerts@company.com
+  titled "PO-Invoice Discrepancy Alert - Q1 Audit" stating that three purchase order/invoice
+  pairs have dollar amount mismatches. Your inbox contains three purchase order emails
+  from procurement@company.com and three invoice emails from different vendors. Each
+  PO email has a PO number and approved amount; each invoice email references the
+  same PO number with a billed amount. Match each PO to its invoice by PO number,
+  calculate the exact dollar discrepancy for each pair (billed minus approved), then:
+  (1) Compose a NEW email to cfo@company.com with subject "Q1 PO-Invoice Reconciliation"
+  listing each PO number ({target.po_number_1}, {target.po_number_2}, {target.po_number_3}),
+  its approved amount, billed amount, and discrepancy. (2) Star the three invoice
+  emails. Do not star the PO emails.'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 48
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: purchase_order_reconciliation
+    params: {}
+    outputs:
+    - po_number_1
+    - po_number_2
+    - po_number_3
+    - approved_1
+    - approved_2
+    - approved_3
+    - billed_1
+    - billed_2
+    - billed_3
+    - discrepancy_1
+    - discrepancy_2
+    - discrepancy_3
+    - po_email_ids
+    - invoice_email_ids
+    - all_target_email_ids
+    - decoy_invoice_email_id
+    - decoy_forwarded_alert_id
+  targets:
+    po_number_1: '{output.po_number_1}'
+    po_number_2: '{output.po_number_2}'
+    po_number_3: '{output.po_number_3}'
+    approved_1: '{output.approved_1}'
+    approved_2: '{output.approved_2}'
+    approved_3: '{output.approved_3}'
+    billed_1: '{output.billed_1}'
+    billed_2: '{output.billed_2}'
+    billed_3: '{output.billed_3}'
+    discrepancy_1: '{output.discrepancy_1}'
+    discrepancy_2: '{output.discrepancy_2}'
+    discrepancy_3: '{output.discrepancy_3}'
+    po_email_ids: '{output.po_email_ids}'
+    invoice_email_ids: '{output.invoice_email_ids}'
+    all_target_email_ids: '{output.all_target_email_ids}'
+    decoy_invoice_email_id: '{output.decoy_invoice_email_id}'
+    decoy_forwarded_alert_id: '{output.decoy_forwarded_alert_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose Q1 PO-Invoice Reconciliation email to CFO with all PO numbers and discrepancies
+      count: 1
+      properties:
+        to:
+          expr: "x == ['cfo@company.com']"
+        subject:
+          eq: "Q1 PO-Invoice Reconciliation"
+        body:
+          expr: >-
+            target['po_number_1'] in x and target['po_number_2'] in x
+            and target['po_number_3'] in x and target['discrepancy_1'] in x
+            and target['discrepancy_2'] in x and target['discrepancy_3'] in x
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star all three invoice emails
+      bijection:
+        over: "target['invoice_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['invoice_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed reconciliation email to CFO
+      ref: create[0]
+      severity: high
+    - name: Agent starred all invoice emails
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify PO or other emails
+      ref: invariant[0]
+      severity: high

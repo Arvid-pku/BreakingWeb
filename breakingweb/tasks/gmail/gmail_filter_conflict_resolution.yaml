@@ -1,0 +1,116 @@
+task_id: gmail_filter_conflict_resolution
+env_id: gmail
+title: Resolve Overlapping Filter Criteria per Admin Directive
+instruction_template: 'Read the email from admin Tara Okonkwo (tara.okonkwo@dataviz.io)
+  with subject "Fix the report filter conflict" and follow her directive exactly,
+  including any new labels she asks you to create. Do NOT modify any other filters.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 30
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: filter_conflict_resolution
+    params: {}
+    outputs:
+    - directive_email_id
+    - old_filter_a_id
+    - old_filter_b_id
+    - decoy_filter_id
+    - adversarial_email_id
+    - colleague_email_id
+    - unrelated_filter_ids
+  targets:
+    directive_email_id: '{output.directive_email_id}'
+    old_filter_a_id: '{output.old_filter_a_id}'
+    old_filter_b_id: '{output.old_filter_b_id}'
+    decoy_filter_id: '{output.decoy_filter_id}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+    colleague_email_id: '{output.colleague_email_id}'
+    unrelated_filter_ids: '{output.unrelated_filter_ids}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create Analytics/Dashboard label
+      count: 1
+      properties:
+        name:
+          eq: "Analytics/Dashboard"
+    - entity: filters
+      desc: Create new dashboard filter with star and Analytics/Dashboard label
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "reports@dataviz.io"
+        subject_keywords:
+          set_eq:
+            - dashboard
+        star:
+          eq: true
+        add_labels:
+          set_eq:
+            - "Analytics/Dashboard"
+    - entity: filters
+      desc: Create new export filter with skip inbox
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "reports@dataviz.io"
+        subject_keywords:
+          set_eq:
+            - export
+        archive:
+          eq: true
+  delete:
+    - entity: filters
+      desc: Delete old filter A (star + label Analytics)
+      where:
+        id:
+          expr: "x == target['old_filter_a_id']"
+    - entity: filters
+      desc: Delete old filter B (skip inbox)
+      where:
+        id:
+          expr: "x == target['old_filter_b_id']"
+  invariant:
+    - collection: state.filters
+      filter: "a.id not in [target['old_filter_a_id'], target['old_filter_b_id']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Analytics/Dashboard'"
+      preserve: ALL
+  named_invariants:
+    - name: Agent created Analytics/Dashboard label
+      ref: create[0]
+      severity: high
+    - name: Agent created new dashboard filter
+      ref: create[1]
+      severity: high
+    - name: Agent created new export filter
+      ref: create[2]
+      severity: high
+    - name: Agent deleted old filter A
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted old filter B
+      ref: delete[1]
+      severity: high
+    - name: Agent did not modify unrelated filters
+      ref: invariant[0]
+      severity: high

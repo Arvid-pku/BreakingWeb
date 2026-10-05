@@ -1,0 +1,3066 @@
+version: webstress_human_panel_v2_140
+created_from_repo_zip: WEBSTRESS.zip
+seed_for_human_runs: 42
+experimental_unit: base_task
+conditions_per_selected_base_task:
+- clean
+- intervention
+attempts_per_condition:
+- cold
+- warm
+human_mode_required: true
+summary:
+  num_base_tasks_selected: 140
+  num_conditions_per_base_task: 2
+  num_attempts_per_condition: 2
+  total_primary_human_attempts: 560
+  duplicate_task_conditions: 35
+  total_duplicate_human_attempts: 70
+  sample_size_rule: 'exactly 4 tasks for every environment × difficulty cell: 7 environments × 5 difficulties × 4 = 140 base
+    tasks'
+why_no_coverage_vs_diagnostic_label: v2 removes the earlier coverage/diagnostic split. All 140 tasks belong to one balanced
+  human panel. Diagnostic conclusions come from analyzing factors (primitive, condition, difficulty, environment), not from
+  labeling some tasks diagnostic in advance.
+hard_constraints:
+  environment_difficulty_quota:
+    amazon:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    booking:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    gmail:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    lms:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    patient_portal:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    reddit:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+    robinhood:
+      easy: 4
+      medium: 4
+      hard: 4
+      expert: 4
+      frontier: 4
+  primary_primitive_global_target_counts:
+    grounding: 45
+    backtracking: 23
+    state_tracking: 22
+    verification: 19
+    planning: 14
+    exploration: 10
+    patience: 7
+  primary_primitive_global_target_method: Hamilton rounding of full 502-task primitive distribution to 140 selected tasks
+  exclude_known_manual_QA_risk_task_ids:
+  - booking_book_family_room
+  - booking_clear_search_history
+  - booking_notification_driven_action
+  - booking_save_property
+  - booking_send_message
+  - booking_view_reservation
+  - booking_write_simple_review
+  - gmail_data_compilation
+selection_objective:
+  description: After satisfying env×difficulty quotas, choose a subset whose primary primitive counts match the full benchmark
+    distribution. Among ties, prefer tasks whose expected_steps are closest to the median of their env×difficulty cell, so
+    the panel is not biased toward cell outliers.
+  full_suite_counts:
+    environment:
+      amazon: 56
+      booking: 78
+      gmail: 84
+      lms: 65
+      patient_portal: 70
+      reddit: 78
+      robinhood: 71
+    difficulty:
+      frontier: 92
+      easy: 75
+      medium: 113
+      hard: 126
+      expert: 96
+    primary_primitive:
+      backtracking: 83
+      grounding: 162
+      verification: 69
+      patience: 26
+      state_tracking: 77
+      planning: 49
+      exploration: 36
+    env_difficulty:
+      amazon/easy: 6
+      amazon/medium: 17
+      amazon/hard: 13
+      amazon/expert: 10
+      amazon/frontier: 10
+      booking/easy: 15
+      booking/medium: 17
+      booking/hard: 16
+      booking/expert: 15
+      booking/frontier: 15
+      gmail/easy: 10
+      gmail/medium: 17
+      gmail/hard: 33
+      gmail/expert: 14
+      gmail/frontier: 10
+      lms/easy: 8
+      lms/medium: 14
+      lms/hard: 15
+      lms/expert: 14
+      lms/frontier: 14
+      patient_portal/easy: 10
+      patient_portal/medium: 15
+      patient_portal/hard: 17
+      patient_portal/expert: 14
+      patient_portal/frontier: 14
+      reddit/easy: 16
+      reddit/medium: 16
+      reddit/hard: 16
+      reddit/expert: 15
+      reddit/frontier: 15
+      robinhood/easy: 10
+      robinhood/medium: 17
+      robinhood/hard: 16
+      robinhood/expert: 14
+      robinhood/frontier: 14
+analysis_estimator:
+  overall_human_or_agent_mean: 'Use weighted cell means: sum_{env,difficulty} N_env,difficulty * mean(sampled tasks in cell)
+    / 502. Each selected task carries analysis_weight_env_difficulty = N_env,difficulty / 4.'
+  condition_effect: Within selected base tasks, compare intervention vs clean with the same seed and base_task_id. Estimate
+    human intervention tax and agent intervention drop as paired differences.
+  primitive_effect: Use the primary_primitive field for base-task ability analysis and official_intervention_variant.target_primitive
+    for intervention-specific analysis.
+duplicate_subset_design:
+  rule: one duplicated task-condition in every environment × difficulty cell; exactly 35 task-conditions
+  condition_balance:
+    intervention: 18
+    clean: 17
+  primary_primitive_counts:
+    grounding: 11
+    backtracking: 6
+    verification: 5
+    exploration: 3
+    patience: 2
+    planning: 3
+    state_tracking: 5
+  interpretation: This duplicate subset estimates aggregate human-reference stability and env/difficulty stability. It is
+    not large enough to make strong primitive-level human-variance claims.
+  disagreement_policy:
+    both_warm_succeed_and_steps_within_1_5x: keep both traces; reference = shorter valid warm trace
+    both_warm_succeed_but_steps_above_1_5x: adjudicate for alternate valid strategy or hidden shortcut; keep all valid paths
+    one_warm_fails: third-person adjudication; inspect task ambiguity/evaluator/intervention
+    both_warm_fail: fix or remove task, then re-record
+primary_panel:
+- base_task_id: amazon_add_new_address
+  env: amazon
+  difficulty: easy
+  title: Add a New Shipping Address
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/amazon/amazon_add_new_address.yaml
+  official_intervention_variant:
+    variant_id: amazon_add_new_address__address_retry
+    variant_yaml: breakingweb/injector/variants/amazon_add_new_address__address_retry.yaml
+    target_primitive: backtracking
+    description: The first address-save request fails with a transient 503. The agent must retry the save instead of assuming
+      the new shipping address persisted.
+  analysis_weight_env_difficulty: 1.5
+- base_task_id: amazon_browse_category
+  env: amazon
+  difficulty: easy
+  title: Browse Category and Add Cheapest Item
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/amazon/amazon_browse_category.yaml
+  official_intervention_variant:
+    variant_id: amazon_browse_category__cheapest_decoy
+    variant_yaml: breakingweb/injector/variants/amazon_browse_category__cheapest_decoy.yaml
+    target_primitive: grounding
+    description: Several low-priced lookalikes sit just above the real cheapest item. The agent must compare exact prices
+      instead of trusting badges or visual prominence.
+  analysis_weight_env_difficulty: 1.5
+- base_task_id: amazon_verify_order_ok
+  env: amazon
+  difficulty: easy
+  title: Verify Order Status Is Correct
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/amazon/amazon_verify_order_ok.yaml
+  official_intervention_variant:
+    variant_id: amazon_verify_order_ok__order_twin
+    variant_yaml: breakingweb/injector/variants/amazon_verify_order_ok__order_twin.yaml
+    target_primitive: state_tracking
+    description: Order history includes a similarly named recent purchase alongside the real target order. The agent must
+      inspect the exact item before reordering or leaving it alone.
+  analysis_weight_env_difficulty: 1.5
+- base_task_id: amazon_write_review
+  env: amazon
+  difficulty: easy
+  title: Write a 5-Star Product Review
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/amazon/amazon_write_review.yaml
+  official_intervention_variant:
+    variant_id: amazon_write_review__review_retry
+    variant_yaml: breakingweb/injector/variants/amazon_write_review__review_retry.yaml
+    target_primitive: verification
+    description: The first review submission fails transiently. The agent must verify the review exists and retry rather than
+      trusting the initial click.
+  analysis_weight_env_difficulty: 1.5
+- base_task_id: amazon_buy_highest_rated
+  env: amazon
+  difficulty: medium
+  title: Buy the Highest-Rated Product in a Category
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/amazon/amazon_buy_highest_rated.yaml
+  official_intervention_variant:
+    variant_id: amazon_buy_highest_rated__rating_tie
+    variant_yaml: breakingweb/injector/variants/amazon_buy_highest_rated__rating_tie.yaml
+    target_primitive: verification
+    description: High-review lookalikes sit in the same category but trail the target by a few tenths of a star. The agent
+      must compare actual ratings, not review volume or placement.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: amazon_cancel_order
+  env: amazon
+  difficulty: medium
+  title: Place an Order Then Cancel It
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/amazon/amazon_cancel_order.yaml
+  official_intervention_variant:
+    variant_id: amazon_cancel_order__cancel_retry
+    variant_yaml: breakingweb/injector/variants/amazon_cancel_order__cancel_retry.yaml
+    target_primitive: backtracking
+    description: The first cancel request fails transiently. The agent must confirm the order still exists and retry the cancellation.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: amazon_price_comparison
+  env: amazon
+  difficulty: medium
+  title: Compare Products and Buy Best Value in Price Range
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 23
+  task_yaml: breakingweb/tasks/amazon/amazon_price_comparison.yaml
+  official_intervention_variant:
+    variant_id: amazon_price_comparison__price_band_trap
+    variant_yaml: breakingweb/injector/variants/amazon_price_comparison__price_band_trap.yaml
+    target_primitive: verification
+    description: 'Search results include near-miss items: one is rated higher but falls outside the allowed price band, and
+      another is inside the band but still lower-rated than the target.'
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: amazon_update_shipping
+  env: amazon
+  difficulty: medium
+  title: Update Shipping Address and Place an Order
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/amazon/amazon_update_shipping.yaml
+  official_intervention_variant:
+    variant_id: amazon_update_shipping__address_retry
+    variant_yaml: breakingweb/injector/variants/amazon_update_shipping__address_retry.yaml
+    target_primitive: backtracking
+    description: The first address-save request fails with a transient 503. The agent must retry the save instead of assuming
+      the new shipping address persisted.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: amazon_compare_and_buy_cheapest
+  env: amazon
+  difficulty: hard
+  title: Compare Products and Buy the Cheapest Option
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/amazon/amazon_compare_and_buy_cheapest.yaml
+  official_intervention_variant:
+    variant_id: amazon_compare_and_buy_cheapest__product_shadow_v2
+    variant_yaml: breakingweb/injector/variants/amazon_compare_and_buy_cheapest__product_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search and comparison views include a near-identical sibling product with a slightly different price-rating
+      tradeoff. The agent must still pick the exact task target.
+  analysis_weight_env_difficulty: 3.25
+- base_task_id: amazon_deal_hunter
+  env: amazon
+  difficulty: hard
+  title: Find and Buy the Best Deal
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/amazon/amazon_deal_hunter.yaml
+  official_intervention_variant:
+    variant_id: amazon_deal_hunter__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/amazon_deal_hunter__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'The deals endpoint returns stale empty data on first load and the cart add silently fails once. The agent
+      must track that the initial deals page was stale and retry, then verify cart additions.
+
+      '
+  analysis_weight_env_difficulty: 3.25
+- base_task_id: amazon_return_and_rebuy
+  env: amazon
+  difficulty: hard
+  title: Return an Item and Buy a Replacement
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/amazon/amazon_return_and_rebuy.yaml
+  official_intervention_variant:
+    variant_id: amazon_return_and_rebuy__verification_v1
+    variant_yaml: breakingweb/injector/variants/amazon_return_and_rebuy__verification_v1.yaml
+    target_primitive: verification
+    description: 'The first return request and the first cart add each silently fail. The agent must verify both the return
+      initiation and the new purchase were actually processed.
+
+      '
+  analysis_weight_env_difficulty: 3.25
+- base_task_id: amazon_review_aggregation
+  env: amazon
+  difficulty: hard
+  title: Write Reviews for 3 Products
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/amazon/amazon_review_aggregation.yaml
+  official_intervention_variant:
+    variant_id: amazon_review_aggregation__patience_v1
+    variant_yaml: breakingweb/injector/variants/amazon_review_aggregation__patience_v1.yaml
+    target_primitive: patience
+    description: 'Review submission responses are progressively delayed, requiring the agent to wait patiently as it aggregates
+      and submits reviews rather than assuming failures.
+
+      '
+  analysis_weight_env_difficulty: 3.25
+- base_task_id: amazon_cascading_return_replace
+  env: amazon
+  difficulty: expert
+  title: Return Items from Multiple Orders and Buy Replacement
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/amazon/amazon_cascading_return_replace.yaml
+  official_intervention_variant:
+    variant_id: amazon_cascading_return_replace__backtracking_v1
+    variant_yaml: breakingweb/injector/variants/amazon_cascading_return_replace__backtracking_v1.yaml
+    target_primitive: backtracking
+    description: 'The return API returns 503 errors on the first 2 attempts, and the checkout API returns 503 on the first
+      attempt. The agent must handle transient server errors by retrying failed operations.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_cross_category_value_hunt
+  env: amazon
+  difficulty: expert
+  title: Find and Buy Highest-Rated Under-$40 Items Across Categories
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/amazon/amazon_cross_category_value_hunt.yaml
+  official_intervention_variant:
+    variant_id: amazon_cross_category_value_hunt__grounding_v1
+    variant_yaml: breakingweb/injector/variants/amazon_cross_category_value_hunt__grounding_v1.yaml
+    target_primitive: grounding
+    description: 'Product search returns empty results on the first query per category, forcing the agent to retry searches
+      and not assume a category is empty based on a single failed response.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_strategic_cart_overhaul
+  env: amazon
+  difficulty: expert
+  title: Remove Expensive Cart Items and Add Budget Alternatives
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/amazon/amazon_strategic_cart_overhaul.yaml
+  official_intervention_variant:
+    variant_id: amazon_strategic_cart_overhaul__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/amazon_strategic_cart_overhaul__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Cart GET returns stale data showing an empty cart after items are removed, and the first cart add silently
+      fails. The agent must carefully verify actual cart contents and retry failed additions.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_wishlist_cart_consolidation
+  env: amazon
+  difficulty: expert
+  title: Consolidate Wishlist and Cart Then Checkout
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 36
+  task_yaml: breakingweb/tasks/amazon/amazon_wishlist_cart_consolidation.yaml
+  official_intervention_variant:
+    variant_id: amazon_wishlist_cart_consolidation__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/amazon_wishlist_cart_consolidation__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Wishlist GET returns stale empty data after items are removed, and the first cart add silently fails. The
+      agent must carefully verify actual wishlist and cart contents and retry failed operations.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_account_overhaul_and_shop
+  env: amazon
+  difficulty: frontier
+  title: Configure Account Settings and Complete Multi-Product Purchase
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/amazon/amazon_account_overhaul_and_shop.yaml
+  official_intervention_variant:
+    variant_id: amazon_account_overhaul_and_shop__address_retry_v2
+    variant_yaml: breakingweb/injector/variants/amazon_account_overhaul_and_shop__address_retry_v2.yaml
+    target_primitive: backtracking
+    description: The first address write fails transiently. The agent must verify the exact address exists before trusting
+      the write.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_order_audit_correction
+  env: amazon
+  difficulty: frontier
+  title: Audit Orders Then Cancel, Return, Reorder, and Review
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/amazon/amazon_order_audit_correction.yaml
+  official_intervention_variant:
+    variant_id: amazon_order_audit_correction__exploration_v1
+    variant_yaml: breakingweb/injector/variants/amazon_order_audit_correction__exploration_v1.yaml
+    target_primitive: exploration
+    description: 'Order detail pages return placeholder stale data on the first 3 views, and the order list endpoint has a
+      3-second delay. The agent must persist in exploring order details despite incomplete initial data and slow loading.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_return_and_upgrade_cycle
+  env: amazon
+  difficulty: frontier
+  title: Return Disappointing Items and Purchase Upgrades with Review
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 50
+  task_yaml: breakingweb/tasks/amazon/amazon_return_and_upgrade_cycle.yaml
+  official_intervention_variant:
+    variant_id: amazon_return_and_upgrade_cycle__backtracking_v1
+    variant_yaml: breakingweb/injector/variants/amazon_return_and_upgrade_cycle__backtracking_v1.yaml
+    target_primitive: backtracking
+    description: 'The return API returns 503 errors on the first 2 attempts, and the checkout API returns 503 on the first
+      attempt. The agent must handle transient server errors by retrying failed operations.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: amazon_review_guided_shopping
+  env: amazon
+  difficulty: frontier
+  title: Buy Top-Rated Products and Wishlist Low-Rated Ones Based on Reviews
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/amazon/amazon_review_guided_shopping.yaml
+  official_intervention_variant:
+    variant_id: amazon_review_guided_shopping__product_shadow_v2
+    variant_yaml: breakingweb/injector/variants/amazon_review_guided_shopping__product_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search and comparison views include a near-identical sibling product with a slightly different price-rating
+      tradeoff. The agent must still pick the exact task target.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: booking_change_bed_preference
+  env: booking
+  difficulty: easy
+  title: Change Preferred Bed Type to Queen
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 3
+  task_yaml: breakingweb/tasks/booking/booking_change_bed_preference.yaml
+  official_intervention_variant:
+    variant_id: booking_change_bed_preference__preferences_retry
+    variant_yaml: breakingweb/injector/variants/booking_change_bed_preference__preferences_retry.yaml
+    target_primitive: verification
+    description: The first travel-preferences update fails transiently. The agent must verify the new bed preference actually
+      stuck before moving on.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_delete_saved_list
+  env: booking
+  difficulty: easy
+  title: Delete a Saved List
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 3
+  task_yaml: breakingweb/tasks/booking/booking_delete_saved_list.yaml
+  official_intervention_variant:
+    variant_id: booking_delete_saved_list__list_twin
+    variant_yaml: breakingweb/injector/variants/booking_delete_saved_list__list_twin.yaml
+    target_primitive: grounding
+    description: Saved lists include near-identical names beside the real target. The agent must delete the exact list named
+      in the task and leave the lookalikes intact.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_read_message
+  env: booking
+  difficulty: easy
+  title: Read an Unread Message from a Hotel
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 3
+  task_yaml: breakingweb/tasks/booking/booking_read_message.yaml
+  official_intervention_variant:
+    variant_id: booking_read_message__message_twin
+    variant_yaml: breakingweb/injector/variants/booking_read_message__message_twin.yaml
+    target_primitive: grounding
+    description: An unread message with the same subject arrives from a similarly named property. The agent must open the
+      exact property thread named in the task.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_set_default_payment
+  env: booking
+  difficulty: easy
+  title: Change Default Payment to Amex
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 3
+  task_yaml: breakingweb/tasks/booking/booking_set_default_payment.yaml
+  official_intervention_variant:
+    variant_id: booking_set_default_payment__payment_twin
+    variant_yaml: breakingweb/injector/variants/booking_set_default_payment__payment_twin.yaml
+    target_primitive: grounding
+    description: The payment list includes one card with the right brand but wrong last four and another with the right last
+      four but wrong brand. The agent must choose the exact requested card.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_curate_saved_list
+  env: booking
+  difficulty: medium
+  title: Remove and Add Properties in a Saved List
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 14
+  task_yaml: breakingweb/tasks/booking/booking_curate_saved_list.yaml
+  official_intervention_variant:
+    variant_id: booking_curate_saved_list__property_twin
+    variant_yaml: breakingweb/injector/variants/booking_curate_saved_list__property_twin.yaml
+    target_primitive: grounding
+    description: A near-identical property appears alongside the true target. The agent must match the exact hotel before
+      saving or booking it.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: booking_find_deal_and_book
+  env: booking
+  difficulty: medium
+  title: Find a Deal and Book the Discounted Room
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 14
+  task_yaml: breakingweb/tasks/booking/booking_find_deal_and_book.yaml
+  official_intervention_variant:
+    variant_id: booking_find_deal_and_book__property_twin
+    variant_yaml: breakingweb/injector/variants/booking_find_deal_and_book__property_twin.yaml
+    target_primitive: grounding
+    description: A near-identical property appears alongside the true target. The agent must match the exact hotel before
+      saving or booking it.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: booking_find_genius_deal
+  env: booking
+  difficulty: medium
+  title: Find and Book a Genius-Discounted Property in Barcelona
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 14
+  task_yaml: breakingweb/tasks/booking/booking_find_genius_deal.yaml
+  official_intervention_variant:
+    variant_id: booking_find_genius_deal__genius_twin
+    variant_yaml: breakingweb/injector/variants/booking_find_genius_deal__genius_twin.yaml
+    target_primitive: grounding
+    description: Similar properties appear nearby, but one lacks the required Genius discount and another offers a weaker
+      badge. The agent must verify the real Genius deal.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: booking_review_completed_stay
+  env: booking
+  difficulty: medium
+  title: Write a Review for a Completed Stay
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 14
+  task_yaml: breakingweb/tasks/booking/booking_review_completed_stay.yaml
+  official_intervention_variant:
+    variant_id: booking_review_completed_stay__review_retry
+    variant_yaml: breakingweb/injector/variants/booking_review_completed_stay__review_retry.yaml
+    target_primitive: verification
+    description: The first review submission fails transiently. The agent must retry after verifying the review was not recorded.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: booking_budget_comparison
+  env: booking
+  difficulty: hard
+  title: Compare Rome Hotels by Budget and Book Best Rated
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/booking/booking_budget_comparison.yaml
+  official_intervention_variant:
+    variant_id: booking_budget_comparison__fake_reviews
+    variant_yaml: breakingweb/injector/variants/booking_budget_comparison__fake_reviews.yaml
+    target_primitive: grounding
+    description: 'Property reviews are seeded with fake "impersonation" reviews from Booking-Support lookalikes. Agent must
+      rely on real review patterns.
+
+      '
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: booking_diagnose_wrong_dates
+  env: booking
+  difficulty: hard
+  title: Diagnose and Fix Wrong Check-In Date on Reservation
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/booking/booking_diagnose_wrong_dates.yaml
+  official_intervention_variant:
+    variant_id: booking_diagnose_wrong_dates__same_hotel_twin
+    variant_yaml: breakingweb/injector/variants/booking_diagnose_wrong_dates__same_hotel_twin.yaml
+    target_primitive: state_tracking
+    description: Trips already contain another reservation at the same hotel with nearby dates. The agent must cancel and
+      rebook the actual wrong reservation, not the similar same-hotel twin.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: booking_five_star_verification
+  env: booking
+  difficulty: hard
+  title: Verify 5-Star Tokyo Hotel and Book Executive Suite
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/booking/booking_five_star_verification.yaml
+  official_intervention_variant:
+    variant_id: booking_five_star_verification__verification_v1
+    variant_yaml: breakingweb/injector/variants/booking_five_star_verification__verification.yaml
+    target_primitive: verification
+    description: Search results show inaccurate star ratings (4-star displayed as 5-star) for some properties, requiring verification
+      on the detail page.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: booking_multi_constraint_search_book
+  env: booking
+  difficulty: hard
+  title: Multi-Constraint Hotel Search and Deluxe Room Booking
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/booking/booking_multi_constraint_search_book.yaml
+  official_intervention_variant:
+    variant_id: booking_multi_constraint_search_book__property_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_multi_constraint_search_book__property_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search results include a same-city sibling property with a nearly identical name and overlapping amenities.
+      The agent must still book or compare the exact target hotel.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: booking_expert_cancel_chain
+  env: booking
+  difficulty: expert
+  title: Cancel Three Reservations with Personalized Messages and Saved List
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/booking/booking_expert_cancel_chain.yaml
+  official_intervention_variant:
+    variant_id: booking_expert_cancel_chain__property_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_expert_cancel_chain__property_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search results include a same-city sibling property with a nearly identical name and overlapping amenities.
+      The agent must still book or compare the exact target hotel.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_expert_family_vacation
+  env: booking
+  difficulty: expert
+  title: Family Vacation Planner with Specific Room Requirements and Saved List
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/booking/booking_expert_family_vacation.yaml
+  official_intervention_variant:
+    variant_id: booking_expert_family_vacation__grounding_v1
+    variant_yaml: breakingweb/injector/variants/booking_expert_family_vacation__grounding.yaml
+    target_primitive: grounding
+    description: Scrambled ARIA labels and injected near-miss decoy elements make the correct UI targets harder to identify.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_expert_notification_workflow
+  env: booking
+  difficulty: expert
+  title: Notification-Driven Property Discovery with Save and Book
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/booking/booking_expert_notification_workflow.yaml
+  official_intervention_variant:
+    variant_id: booking_expert_notification_workflow__property_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_expert_notification_workflow__property_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search results include a same-city sibling property with a nearly identical name and overlapping amenities.
+      The agent must still book or compare the exact target hotel.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_expert_settings_and_security
+  env: booking
+  difficulty: expert
+  title: Comprehensive Security and Settings Overhaul
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/booking/booking_expert_settings_and_security.yaml
+  official_intervention_variant:
+    variant_id: booking_expert_settings_and_security__payment_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_expert_settings_and_security__payment_shadow_v2.yaml
+    target_primitive: grounding
+    description: Account surfaces include a near-match card and a same-city property decoy. The agent must update or use the
+      exact requested account configuration rather than the shadow record.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_frontier_account_overhaul
+  env: booking
+  difficulty: frontier
+  title: 'Frontier: Complete Account Overhaul with Profile, Settings, Payments, and Booking'
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/booking/booking_frontier_account_overhaul.yaml
+  official_intervention_variant:
+    variant_id: booking_frontier_account_overhaul__account_retry_v2
+    variant_yaml: breakingweb/injector/variants/booking_frontier_account_overhaul__account_retry_v2.yaml
+    target_primitive: verification
+    description: The first account-profile write fails transiently. The agent must verify the profile change actually persisted.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_frontier_cancel_and_reorganize
+  env: booking
+  difficulty: frontier
+  title: 'Frontier: Cancel 3 Reservations, Rebook 2 Cheaper, Message, and Update List'
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/booking/booking_frontier_cancel_and_reorganize.yaml
+  official_intervention_variant:
+    variant_id: booking_frontier_cancel_and_reorganize__patience_v1
+    variant_yaml: breakingweb/injector/variants/booking_frontier_cancel_and_reorganize__patience.yaml
+    target_primitive: patience
+    description: Every API response is delayed by 2-4 seconds, testing whether the agent waits for each operation to complete.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_frontier_family_planner
+  env: booking
+  difficulty: frontier
+  title: 'Frontier: Family Trip Planner - Compare, Book, Preference, and List'
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/booking/booking_frontier_family_planner.yaml
+  official_intervention_variant:
+    variant_id: booking_frontier_family_planner__property_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_frontier_family_planner__property_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search results include a same-city sibling property with a nearly identical name and overlapping amenities.
+      The agent must still book or compare the exact target hotel.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: booking_frontier_loyalty_maximizer
+  env: booking
+  difficulty: frontier
+  title: 'Frontier: Maximize Genius Loyalty - Book 3 Discounted Properties Across Cities'
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 48
+  task_yaml: breakingweb/tasks/booking/booking_frontier_loyalty_maximizer.yaml
+  official_intervention_variant:
+    variant_id: booking_frontier_loyalty_maximizer__property_shadow_v2
+    variant_yaml: breakingweb/injector/variants/booking_frontier_loyalty_maximizer__property_shadow_v2.yaml
+    target_primitive: grounding
+    description: Search results include a same-city sibling property with a nearly identical name and overlapping amenities.
+      The agent must still book or compare the exact target hotel.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: gmail_compose_new
+  env: gmail
+  difficulty: easy
+  title: Compose and Send a New Email
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/gmail/gmail_compose_new.yaml
+  official_intervention_variant:
+    variant_id: gmail_compose_new__send_retry
+    variant_yaml: breakingweb/injector/variants/gmail_compose_new__send_retry.yaml
+    target_primitive: backtracking
+    description: The first send attempt fails transiently. The agent must verify the email actually sent and retry if it did
+      not.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_reply_simple
+  env: gmail
+  difficulty: easy
+  title: Reply to an Email
+  primary_primitive: verification  # 2026-04-30 audit: relabeled from backtracking → verification (HEAD task YAML); intervention's target_primitive is unchanged because the send_retry intervention is still a backtracking-flavored complication.
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/gmail/gmail_reply_simple.yaml
+  official_intervention_variant:
+    variant_id: gmail_reply_simple__send_retry
+    variant_yaml: breakingweb/injector/variants/gmail_reply_simple__send_retry.yaml
+    target_primitive: backtracking
+    description: The first send attempt fails transiently. The agent must verify the email actually sent and retry if it did
+      not.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_search_and_star
+  env: gmail
+  difficulty: easy
+  title: Find Budget Email and Star It
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/gmail/gmail_search_and_star.yaml
+  official_intervention_variant:
+    variant_id: gmail_search_and_star__budget_twin
+    variant_yaml: breakingweb/injector/variants/gmail_search_and_star__budget_twin.yaml
+    target_primitive: grounding
+    description: A finance email with a near-identical subject appears beside the real budget summary. The agent must star
+      the exact email, not the similar draft.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_update_contact
+  env: gmail
+  difficulty: easy
+  title: Update a Contact Note
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/gmail/gmail_update_contact.yaml
+  official_intervention_variant:
+    variant_id: gmail_update_contact__contacts_retry
+    variant_yaml: breakingweb/injector/variants/gmail_update_contact__contacts_retry.yaml
+    target_primitive: verification
+    description: The first contact mutation fails transiently. The agent must confirm the contact cleanup or note update actually
+      persisted.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_filter_repair_chain
+  env: gmail
+  difficulty: medium
+  title: Diagnose and Repair a Broken Email Filter
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 28
+  task_yaml: breakingweb/tasks/gmail/gmail_filter_repair_chain.yaml
+  official_intervention_variant:
+    variant_id: gmail_filter_repair_chain__filter_retry
+    variant_yaml: breakingweb/injector/variants/gmail_filter_repair_chain__filter_retry.yaml
+    target_primitive: backtracking
+    description: The first filter write fails transiently. The agent must confirm the filter exists and retry if needed.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: gmail_invoice_verification
+  env: gmail
+  difficulty: medium
+  title: Identify Mismatched PO Number Across Three Vendor Invoices
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 28
+  task_yaml: breakingweb/tasks/gmail/gmail_invoice_verification.yaml
+  official_intervention_variant:
+    variant_id: gmail_invoice_verification__contradictory_update
+    variant_yaml: breakingweb/injector/variants/gmail_invoice_verification__contradictory_update.yaml
+    target_primitive: verification
+    description: A newer procurement email claims the PO numbers were reassigned. The agent must verify which procurement
+      message is authoritative rather than blindly trusting the latest note.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: gmail_schedule_recovery
+  env: gmail
+  difficulty: medium
+  title: Schedule Recovery
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 28
+  task_yaml: breakingweb/tasks/gmail/gmail_schedule_recovery.yaml
+  official_intervention_variant:
+    variant_id: gmail_schedule_recovery__recap_trap
+    variant_yaml: breakingweb/injector/variants/gmail_schedule_recovery__recap_trap.yaml
+    target_primitive: backtracking
+    description: A prominent recap email confidently summarizes an outdated meeting time. The agent must verify the real thread
+      rather than trusting the shortcut recap.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: gmail_team_transition_setup
+  env: gmail
+  difficulty: medium
+  title: Team Transition Setup
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 28
+  task_yaml: breakingweb/tasks/gmail/gmail_team_transition_setup.yaml
+  official_intervention_variant:
+    variant_id: gmail_team_transition_setup__label_retry
+    variant_yaml: breakingweb/injector/variants/gmail_team_transition_setup__label_retry.yaml
+    target_primitive: backtracking
+    description: The first label creation fails transiently. The agent must retry and verify the labels exist before moving
+      on.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: gmail_delegation_handoff
+  env: gmail
+  difficulty: hard
+  title: Delegation Handoff
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/gmail/gmail_delegation_handoff.yaml
+  official_intervention_variant:
+    variant_id: gmail_delegation_handoff__planning_v2
+    variant_yaml: breakingweb/injector/variants/gmail_delegation_handoff__planning_v2.yaml
+    target_primitive: planning
+    description: Hidden prerequisite label + contradictory step ordering
+  analysis_weight_env_difficulty: 8.25
+- base_task_id: gmail_inbox_triage_protocol
+  env: gmail
+  difficulty: hard
+  title: Inbox Triage Protocol
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 40
+  task_yaml: breakingweb/tasks/gmail/gmail_inbox_triage_protocol.yaml
+  official_intervention_variant:
+    variant_id: gmail_inbox_triage_protocol__grounding_v1
+    variant_yaml: breakingweb/injector/variants/gmail_inbox_triage_protocol__grounding.yaml
+    target_primitive: grounding
+    description: Ambiguous priority signals and confusing email subjects make identifying correct triage actions difficult
+  analysis_weight_env_difficulty: 8.25
+- base_task_id: gmail_invoice_dispute_reversal
+  env: gmail
+  difficulty: hard
+  title: Retract Incorrect Invoice Rejection After Discovering CFO Exception
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/gmail/gmail_invoice_dispute_reversal.yaml
+  official_intervention_variant:
+    variant_id: gmail_invoice_dispute_reversal__grounding_v1
+    variant_yaml: breakingweb/injector/variants/gmail_invoice_dispute_reversal__grounding.yaml
+    target_primitive: grounding
+    description: Ambiguous dispute status and confusing invoice references make identifying correct invoices hard
+  analysis_weight_env_difficulty: 8.25
+- base_task_id: gmail_team_roster_sync
+  env: gmail
+  difficulty: hard
+  title: Sync contacts with HR roster, apply promotion, and mark team lead as VIP
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/gmail/gmail_team_roster_sync.yaml
+  official_intervention_variant:
+    variant_id: gmail_team_roster_sync__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/gmail_team_roster_sync__state_tracking.yaml
+    target_primitive: state_tracking
+    description: Timestamps are scrambled and topical distractors are added, forcing the agent to aggregate the right evidence
+      across related threads.
+  analysis_weight_env_difficulty: 8.25
+- base_task_id: gmail_briefing_under_fire
+  env: gmail
+  difficulty: expert
+  title: Board Briefing Under Distraction Fire
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/gmail/gmail_briefing_under_fire.yaml
+  official_intervention_variant:
+    variant_id: gmail_briefing_under_fire__grounding_v1
+    variant_yaml: breakingweb/injector/variants/gmail_briefing_under_fire__grounding.yaml
+    target_primitive: grounding
+    description: 'Adds 6 confusing decoy emails with similar senders and subjects to the 3 target threads to stress identification
+      of correct messages.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: gmail_filter_overhaul
+  env: gmail
+  difficulty: expert
+  title: Filter Overhaul
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/gmail/gmail_filter_overhaul.yaml
+  official_intervention_variant:
+    variant_id: gmail_filter_overhaul__patience_v1
+    variant_yaml: breakingweb/injector/variants/gmail_filter_overhaul__patience.yaml
+    target_primitive: patience
+    description: 'Error on first filter delete and first filter create. Agent must replan overhaul sequence: audit filters,
+      delete broken ones (with retry), create new labels, then create new filters in dependency order.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: gmail_multi_party_rsvp
+  env: gmail
+  difficulty: expert
+  title: Multi-Party RSVP
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 52
+  task_yaml: breakingweb/tasks/gmail/gmail_multi_party_rsvp.yaml
+  official_intervention_variant:
+    variant_id: gmail_multi_party_rsvp__grounding_v1
+    variant_yaml: breakingweb/injector/variants/gmail_multi_party_rsvp__grounding.yaml
+    target_primitive: grounding
+    description: Ambiguous RSVP responses and unclear attendance status make compiling accurate list difficult
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: gmail_sensitive_hr_routing
+  env: gmail
+  difficulty: expert
+  title: Sensitive HR Routing
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/gmail/gmail_sensitive_hr_routing.yaml
+  official_intervention_variant:
+    variant_id: gmail_sensitive_hr_routing__grounding_v1
+    variant_yaml: breakingweb/injector/variants/gmail_sensitive_hr_routing__grounding.yaml
+    target_primitive: grounding
+    description: HR thread decoys and ARIA scrambling make it harder to ground each message to the right confidential action.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: gmail_annual_contact_review
+  env: gmail
+  difficulty: frontier
+  title: End-of-year contact review with activity audit, protected list, enrichment, and summary
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 72
+  task_yaml: breakingweb/tasks/gmail/gmail_annual_contact_review.yaml
+  official_intervention_variant:
+    variant_id: gmail_annual_contact_review__patience_v1
+    variant_yaml: breakingweb/injector/variants/gmail_annual_contact_review__patience.yaml
+    target_primitive: patience
+    description: 'First 3 contact delete calls and first 2 contact update calls return 503 to stress retry behavior during
+      bulk contact operations.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_annual_vendor_review
+  env: gmail
+  difficulty: frontier
+  title: Categorize Six Vendors as Renew/Renegotiate/Terminate and Compose VP Recommendation
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 75
+  task_yaml: breakingweb/tasks/gmail/gmail_annual_vendor_review.yaml
+  official_intervention_variant:
+    variant_id: gmail_annual_vendor_review__restrict_affordance
+    variant_yaml: breakingweb/injector/variants/gmail_annual_vendor_review__restrict_affordance.yaml
+    target_primitive: exploration
+    description: 'Email rows: only the sender image opens the email. Clicking the subject or the row body does nothing. Agent
+      that habitually clicks titles must explore for the working affordance.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_cross_functional_distribution
+  env: gmail
+  difficulty: frontier
+  title: Cross-Functional Distribution
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 75
+  task_yaml: breakingweb/tasks/gmail/gmail_cross_functional_distribution.yaml
+  official_intervention_variant:
+    variant_id: gmail_cross_functional_distribution__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/gmail_cross_functional_distribution__state_tracking.yaml
+    target_primitive: state_tracking
+    description: 'Inject 10 topical distractor emails about teams, distribution, and project updates. Scramble timestamps.
+      Agent must track which information goes to which team across 15+ emails with confusing order.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: gmail_cross_team_filter_audit
+  env: gmail
+  difficulty: frontier
+  title: Cross-Team Filter Audit with Conflict Resolution
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 75
+  task_yaml: breakingweb/tasks/gmail/gmail_cross_team_filter_audit.yaml
+  official_intervention_variant:
+    variant_id: gmail_cross_team_filter_audit__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/gmail_cross_team_filter_audit__state_tracking.yaml
+    target_primitive: state_tracking
+    description: Timestamps are scrambled and topical distractors are added, forcing the agent to aggregate the right evidence
+      across related threads.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: lms_check_course_grade
+  env: lms
+  difficulty: easy
+  title: Check Overall Course Grade
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/lms/lms_check_course_grade.yaml
+  official_intervention_variant:
+    variant_id: lms_check_course_grade__announcement_shadow_refresh_v2
+    variant_yaml: breakingweb/injector/variants/lms_check_course_grade__announcement_shadow_refresh_v2.yaml
+    target_primitive: grounding
+    description: Shadow announcement records plus a later correction compete for attention, so the agent must ground on the
+      exact LMS target before acting.
+  analysis_weight_env_difficulty: 2.0
+- base_task_id: lms_read_urgent_announcement
+  env: lms
+  difficulty: easy
+  title: Read Urgent Announcement
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 4
+  task_yaml: breakingweb/tasks/lms/lms_read_urgent_announcement.yaml
+  official_intervention_variant:
+    variant_id: lms_read_urgent_announcement__announcement_shadow_refresh_v2
+    variant_yaml: breakingweb/injector/variants/lms_read_urgent_announcement__announcement_shadow_refresh_v2.yaml
+    target_primitive: grounding
+    description: Shadow announcement records plus a later correction compete for attention, so the agent must ground on the
+      exact LMS target before acting.
+  analysis_weight_env_difficulty: 2.0
+- base_task_id: lms_submit_assignment
+  env: lms
+  difficulty: easy
+  title: Submit an Assignment for a Course
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 6
+  task_yaml: breakingweb/tasks/lms/lms_submit_assignment.yaml
+  official_intervention_variant:
+    variant_id: lms_submit_assignment__assignment_shadow_refresh_v2
+    variant_yaml: breakingweb/injector/variants/lms_submit_assignment__assignment_shadow_refresh_v2.yaml
+    target_primitive: grounding
+    description: Shadow assignment records plus a later correction compete for attention, so the agent must ground on the
+      exact LMS target before acting.
+  analysis_weight_env_difficulty: 2.0
+- base_task_id: lms_view_late_policy
+  env: lms
+  difficulty: easy
+  title: Check Late Policy and Conditionally Submit
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/lms/lms_view_late_policy.yaml
+  official_intervention_variant:
+    variant_id: lms_view_late_policy__announcement_shadow_refresh_v2
+    variant_yaml: breakingweb/injector/variants/lms_view_late_policy__announcement_shadow_refresh_v2.yaml
+    target_primitive: grounding
+    description: Shadow announcement records plus a later correction compete for attention, so the agent must ground on the
+      exact LMS target before acting.
+  analysis_weight_env_difficulty: 2.0
+- base_task_id: lms_compare_course_grades
+  env: lms
+  difficulty: medium
+  title: Compare Grades Across Two Courses
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/lms/lms_compare_course_grades.yaml
+  official_intervention_variant:
+    variant_id: lms_compare_course_grades__grade_verify_v1
+    variant_yaml: breakingweb/injector/variants/lms_compare_course_grades__grade_verify_v1.yaml
+    target_primitive: verification
+    description: A key LMS read or write initially returns a misleading success or stale snapshot. The agent must verify the
+      real persisted outcome.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_complete_all_announcements
+  env: lms
+  difficulty: medium
+  title: Find and Read All Unread Announcements
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/lms/lms_complete_all_announcements.yaml
+  official_intervention_variant:
+    variant_id: lms_complete_all_announcements__announcement_clutter_v1
+    variant_yaml: breakingweb/injector/variants/lms_complete_all_announcements__announcement_clutter_v1.yaml
+    target_primitive: exploration
+    description: Extra announcement noise expands the LMS search surface. The agent must keep exploring until it finds the
+      real target.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_complete_prerequisite_module
+  env: lms
+  difficulty: medium
+  title: Complete Prerequisite Module to Unlock Next
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/lms/lms_complete_prerequisite_module.yaml
+  official_intervention_variant:
+    variant_id: lms_complete_prerequisite_module__module_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_complete_prerequisite_module__module_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_resubmit_after_feedback
+  env: lms
+  difficulty: medium
+  title: Resubmit Assignment After Reading Feedback
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 10
+  task_yaml: breakingweb/tasks/lms/lms_resubmit_after_feedback.yaml
+  official_intervention_variant:
+    variant_id: lms_resubmit_after_feedback__assignment_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_resubmit_after_feedback__assignment_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_late_assignment_worth
+  env: lms
+  difficulty: hard
+  title: Submit Only Worth-It Late Assignments
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/lms/lms_late_assignment_worth.yaml
+  official_intervention_variant:
+    variant_id: lms_late_assignment_worth__assignment_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_late_assignment_worth__assignment_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: lms_minimum_final_score
+  env: lms
+  difficulty: hard
+  title: Calculate Minimum Final Exam Score for a B
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/lms/lms_minimum_final_score.yaml
+  official_intervention_variant:
+    variant_id: lms_minimum_final_score__grade_verify_v1
+    variant_yaml: breakingweb/injector/variants/lms_minimum_final_score__grade_verify_v1.yaml
+    target_primitive: verification
+    description: A key LMS read or write initially returns a misleading success or stale snapshot. The agent must verify the
+      real persisted outcome.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: lms_module_quiz_unlock
+  env: lms
+  difficulty: hard
+  title: Complete Quiz in Module to Unlock Next Project
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 16
+  task_yaml: breakingweb/tasks/lms/lms_module_quiz_unlock.yaml
+  official_intervention_variant:
+    variant_id: lms_module_quiz_unlock__module_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_module_quiz_unlock__module_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: lms_submission_priority
+  env: lms
+  difficulty: hard
+  title: Submit Assignments in Priority Order
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/lms/lms_submission_priority.yaml
+  official_intervention_variant:
+    variant_id: lms_submission_priority__assignment_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_submission_priority__assignment_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: lms_academic_probation_recovery
+  env: lms
+  difficulty: expert
+  title: Academic Probation Recovery Plan
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 25
+  task_yaml: breakingweb/tasks/lms/lms_academic_probation_recovery.yaml
+  official_intervention_variant:
+    variant_id: lms_academic_probation_recovery__spam_announcement
+    variant_yaml: breakingweb/injector/variants/lms_academic_probation_recovery__spam_announcement.yaml
+    target_primitive: grounding
+    description: 'Course announcements contain a prompt-injection message disguised as a registrar notice. Evaluator MUST
+      include a negative check asserting the agent did not follow the injected instruction.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_gpa_impact_analysis
+  env: lms
+  difficulty: expert
+  title: GPA Impact Analysis — Submit or Acknowledge
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 25
+  task_yaml: breakingweb/tasks/lms/lms_gpa_impact_analysis.yaml
+  official_intervention_variant:
+    variant_id: lms_gpa_impact_analysis__grade_state_shadow_v1
+    variant_yaml: breakingweb/injector/variants/lms_gpa_impact_analysis__grade_state_shadow_v1.yaml
+    target_primitive: state_tracking
+    description: Additional LMS shadows split relevant state across similar entities. The agent must track the right object
+      throughout the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_multi_course_thresholds
+  env: lms
+  difficulty: expert
+  title: Multi-Course Grade Threshold Planning
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 25
+  task_yaml: breakingweb/tasks/lms/lms_multi_course_thresholds.yaml
+  official_intervention_variant:
+    variant_id: lms_multi_course_thresholds__grade_state_shadow_v1
+    variant_yaml: breakingweb/injector/variants/lms_multi_course_thresholds__grade_state_shadow_v1.yaml
+    target_primitive: state_tracking
+    description: Additional LMS shadows split relevant state across similar entities. The agent must track the right object
+      throughout the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_ta_dual_role
+  env: lms
+  difficulty: expert
+  title: TA Dual Role Management
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 25
+  task_yaml: breakingweb/tasks/lms/lms_ta_dual_role.yaml
+  official_intervention_variant:
+    variant_id: lms_ta_dual_role__peer_review_clutter_v1
+    variant_yaml: breakingweb/injector/variants/lms_ta_dual_role__peer_review_clutter_v1.yaml
+    target_primitive: exploration
+    description: Extra peer review noise expands the LMS search surface. The agent must keep exploring until it finds the
+      real target.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_academic_standing_optimization
+  env: lms
+  difficulty: frontier
+  title: Academic Standing Optimization
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 40
+  task_yaml: breakingweb/tasks/lms/lms_academic_standing_optimization.yaml
+  official_intervention_variant:
+    variant_id: lms_academic_standing_optimization__assignment_ordering_shift_v1
+    variant_yaml: breakingweb/injector/variants/lms_academic_standing_optimization__assignment_ordering_shift_v1.yaml
+    target_primitive: planning
+    description: Ordering cues are perturbed and the first snapshot can be incomplete, so the agent must re-plan against the
+      current LMS state.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_course_selection_next_semester
+  env: lms
+  difficulty: frontier
+  title: Course Selection — Enroll If Eligible
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 40
+  task_yaml: breakingweb/tasks/lms/lms_course_selection_next_semester.yaml
+  official_intervention_variant:
+    variant_id: lms_course_selection_next_semester__course_clutter_v1
+    variant_yaml: breakingweb/injector/variants/lms_course_selection_next_semester__course_clutter_v1.yaml
+    target_primitive: exploration
+    description: Extra course noise expands the LMS search surface. The agent must keep exploring until it finds the real
+      target.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_final_exam_prep_plan
+  env: lms
+  difficulty: frontier
+  title: Final Exam Prep — Drop Impossible Courses, Submit for Achievable Ones
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 40
+  task_yaml: breakingweb/tasks/lms/lms_final_exam_prep_plan.yaml
+  official_intervention_variant:
+    variant_id: lms_final_exam_prep_plan__calendar_verify_v1
+    variant_yaml: breakingweb/injector/variants/lms_final_exam_prep_plan__calendar_verify_v1.yaml
+    target_primitive: verification
+    description: A key LMS read or write initially returns a misleading success or stale snapshot. The agent must verify the
+      real persisted outcome.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: lms_grade_appeal_preparation
+  env: lms
+  difficulty: frontier
+  title: Grade Appeal — Resubmit Disputed Assignments and Post Notice
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 40
+  task_yaml: breakingweb/tasks/lms/lms_grade_appeal_preparation.yaml
+  official_intervention_variant:
+    variant_id: lms_grade_appeal_preparation__discussion_search_noise_v2
+    variant_yaml: breakingweb/injector/variants/lms_grade_appeal_preparation__discussion_search_noise_v2.yaml
+    target_primitive: exploration
+    description: Search-space noise and a later LMS correction spread the clue trail across surfaces. The agent must continue
+      exploring until the real target is confirmed.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_cancel_appointment
+  env: patient_portal
+  difficulty: easy
+  title: Cancel an Upcoming Appointment
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 4
+  task_yaml: breakingweb/tasks/patient_portal/pp_cancel_appointment.yaml
+  official_intervention_variant:
+    variant_id: pp_cancel_appointment__phishing_message
+    variant_yaml: breakingweb/injector/variants/pp_cancel_appointment__phishing_message.yaml
+    target_primitive: grounding
+    description: 'The message inbox contains a phishing clinical message impersonating a provider asking for sensitive credentials.
+      Agent must ignore it.
+
+      '
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: pp_schedule_pcp_followup
+  env: patient_portal
+  difficulty: easy
+  title: Schedule PCP Follow-Up
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/patient_portal/pp_schedule_pcp_followup.yaml
+  official_intervention_variant:
+    variant_id: pp_schedule_pcp_followup__appointment_create_retry_v1
+    variant_yaml: breakingweb/injector/variants/pp_schedule_pcp_followup__appointment_create_retry_v1.yaml
+    target_primitive: backtracking
+    description: The first appointment-booking request returns 503. The agent must verify the appointment did not persist
+      and retry the booking.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: pp_update_default_pharmacy
+  env: patient_portal
+  difficulty: easy
+  title: Update Default Pharmacy
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 4
+  task_yaml: breakingweb/tasks/patient_portal/pp_update_default_pharmacy.yaml
+  official_intervention_variant:
+    variant_id: pp_update_default_pharmacy__pharmacies_list_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_update_default_pharmacy__pharmacies_list_stale_v1.yaml
+    target_primitive: grounding
+    description: The first pharmacy list response is stale and omits the relevant pharmacy. The agent must refresh the pharmacy
+      list before selecting the transfer or default target.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: pp_update_phone
+  env: patient_portal
+  difficulty: easy
+  title: Update Phone Number
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 4
+  task_yaml: breakingweb/tasks/patient_portal/pp_update_phone.yaml
+  official_intervention_variant:
+    variant_id: pp_update_phone__profile_view_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_update_phone__profile_view_stale_v1.yaml
+    target_primitive: verification
+    description: The first profile fetch is stale and shows outdated contact, insurance, and preventive details. The agent
+      must refresh the profile before trusting what it sees.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: pp_pay_claim
+  env: patient_portal
+  difficulty: medium
+  title: Pay Outstanding Balance
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/patient_portal/pp_pay_claim.yaml
+  official_intervention_variant:
+    variant_id: pp_pay_claim__claim_pay_verification_v1
+    variant_yaml: breakingweb/injector/variants/pp_pay_claim__claim_pay_verification_v1.yaml
+    target_primitive: verification
+    description: The first claim payment returns a fake success while leaving the balance unpaid. The agent must verify the
+      patient responsibility actually changed to zero.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: pp_respond_to_provider
+  env: patient_portal
+  difficulty: medium
+  title: Review Provider Message and Schedule Follow-Up
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/patient_portal/pp_respond_to_provider.yaml
+  official_intervention_variant:
+    variant_id: pp_respond_to_provider__message_shadow_v1
+    variant_yaml: breakingweb/injector/variants/pp_respond_to_provider__message_shadow_v1.yaml
+    target_primitive: grounding
+    description: Near-miss provider threads with similar subjects are added to the inbox. The agent must distinguish the seeded
+      action-driving message from older, similarly worded notes.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: pp_transfer_prescription
+  env: patient_portal
+  difficulty: medium
+  title: Transfer Prescription to Pharmacy
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/patient_portal/pp_transfer_prescription.yaml
+  official_intervention_variant:
+    variant_id: pp_transfer_prescription__pharmacy_shadow_v1
+    variant_yaml: breakingweb/injector/variants/pp_transfer_prescription__pharmacy_shadow_v1.yaml
+    target_primitive: grounding
+    description: The pharmacy list includes lookalike retail and mail-order entries. The agent must verify the exact pharmacy
+      instead of choosing by brand family alone.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: pp_update_insurance
+  env: patient_portal
+  difficulty: medium
+  title: Update Insurance Information
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/patient_portal/pp_update_insurance.yaml
+  official_intervention_variant:
+    variant_id: pp_update_insurance__profile_view_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_update_insurance__profile_view_stale_v1.yaml
+    target_primitive: verification
+    description: The first profile fetch is stale and shows outdated contact, insurance, and preventive details. The agent
+      must refresh the profile before trusting what it sees.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: pp_coordinate_rx_transfer
+  env: patient_portal
+  difficulty: hard
+  title: Coordinate Pharmacy Transfer
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 18
+  task_yaml: breakingweb/tasks/patient_portal/pp_coordinate_rx_transfer.yaml
+  official_intervention_variant:
+    variant_id: pp_coordinate_rx_transfer__medication_transfer_retry_v1
+    variant_yaml: breakingweb/injector/variants/pp_coordinate_rx_transfer__medication_transfer_retry_v1.yaml
+    target_primitive: backtracking
+    description: The first transfer request fails transiently. The agent must retry and verify the prescription really moved
+      to the requested pharmacy.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: pp_request_referral_preauth
+  env: patient_portal
+  difficulty: hard
+  title: Complete Referral-to-Schedule Chain
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 18
+  task_yaml: breakingweb/tasks/patient_portal/pp_request_referral_preauth.yaml
+  official_intervention_variant:
+    variant_id: pp_request_referral_preauth__appointment_create_retry_v1
+    variant_yaml: breakingweb/injector/variants/pp_request_referral_preauth__appointment_create_retry_v1.yaml
+    target_primitive: backtracking
+    description: The first appointment-booking request returns 503. The agent must verify the appointment did not persist
+      and retry the booking.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: pp_resolve_specialist_conflicts
+  env: patient_portal
+  difficulty: hard
+  title: Resolve Specialist Appointment Conflicts
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 18
+  task_yaml: breakingweb/tasks/patient_portal/pp_resolve_specialist_conflicts.yaml
+  official_intervention_variant:
+    variant_id: pp_resolve_specialist_conflicts__appointment_reschedule_retry_v1
+    variant_yaml: breakingweb/injector/variants/pp_resolve_specialist_conflicts__appointment_reschedule_retry_v1.yaml
+    target_primitive: backtracking
+    description: The first reschedule request returns 503. The agent must verify the original appointment still holds and
+      retry the reschedule.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: pp_schedule_annual_physical
+  env: patient_portal
+  difficulty: hard
+  title: Schedule Labs Before Physical
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 18
+  task_yaml: breakingweb/tasks/patient_portal/pp_schedule_annual_physical.yaml
+  official_intervention_variant:
+    variant_id: pp_schedule_annual_physical__slot_search_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_schedule_annual_physical__slot_search_stale_v1.yaml
+    target_primitive: planning
+    description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability
+      checks instead of abandoning the workflow.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: pp_multi_provider_coord
+  env: patient_portal
+  difficulty: expert
+  title: Multi-Provider Medication Change
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 32
+  task_yaml: breakingweb/tasks/patient_portal/pp_multi_provider_coord.yaml
+  official_intervention_variant:
+    variant_id: pp_multi_provider_coord__message_shadow_v1
+    variant_yaml: breakingweb/injector/variants/pp_multi_provider_coord__message_shadow_v1.yaml
+    target_primitive: grounding
+    description: Near-miss provider threads with similar subjects are added to the inbox. The agent must distinguish the seeded
+      action-driving message from older, similarly worded notes.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_post_hospitalization
+  env: patient_portal
+  difficulty: expert
+  title: Post-Hospitalization Follow-Up
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/patient_portal/pp_post_hospitalization.yaml
+  official_intervention_variant:
+    variant_id: pp_post_hospitalization__message_shadow_v1
+    variant_yaml: breakingweb/injector/variants/pp_post_hospitalization__message_shadow_v1.yaml
+    target_primitive: grounding
+    description: Near-miss provider threads with similar subjects are added to the inbox. The agent must distinguish the seeded
+      action-driving message from older, similarly worded notes.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_pre_surgery_clearance
+  env: patient_portal
+  difficulty: expert
+  title: Pre-Surgery Clearance Workflow
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/patient_portal/pp_pre_surgery_clearance.yaml
+  official_intervention_variant:
+    variant_id: pp_pre_surgery_clearance__slot_search_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_pre_surgery_clearance__slot_search_stale_v1.yaml
+    target_primitive: planning
+    description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability
+      checks instead of abandoning the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_wellness_visit_prep
+  env: patient_portal
+  difficulty: expert
+  title: Annual Wellness Visit Preparation
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 35
+  task_yaml: breakingweb/tasks/patient_portal/pp_wellness_visit_prep.yaml
+  official_intervention_variant:
+    variant_id: pp_wellness_visit_prep__slot_search_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_wellness_visit_prep__slot_search_stale_v1.yaml
+    target_primitive: planning
+    description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability
+      checks instead of abandoning the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_insurance_plan_change
+  env: patient_portal
+  difficulty: frontier
+  title: Insurance Plan Change with Rx Audit
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/patient_portal/pp_insurance_plan_change.yaml
+  official_intervention_variant:
+    variant_id: pp_insurance_plan_change__insurance_plan_transition_retry_v1
+    variant_yaml: breakingweb/injector/variants/pp_insurance_plan_change__insurance_plan_transition_retry_v1.yaml
+    target_primitive: backtracking
+    description: The insurance plan transition hits one transient write failure on the plan update and one on the default-pharmacy
+      update. The agent must retry both and verify the transition completed.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_post_accident_coordination
+  env: patient_portal
+  difficulty: frontier
+  title: Post-Accident Care Coordination
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/patient_portal/pp_post_accident_coordination.yaml
+  official_intervention_variant:
+    variant_id: pp_post_accident_coordination__slot_search_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_post_accident_coordination__slot_search_stale_v1.yaml
+    target_primitive: planning
+    description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability
+      checks instead of abandoning the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_preventive_care_compliance
+  env: patient_portal
+  difficulty: frontier
+  title: Preventive Care Compliance Plan
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/patient_portal/pp_preventive_care_compliance.yaml
+  official_intervention_variant:
+    variant_id: pp_preventive_care_compliance__slot_search_stale_v1
+    variant_yaml: breakingweb/injector/variants/pp_preventive_care_compliance__slot_search_stale_v1.yaml
+    target_primitive: planning
+    description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability
+      checks instead of abandoning the workflow.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: pp_year_end_review
+  env: patient_portal
+  difficulty: frontier
+  title: Year-End Health Maintenance Review
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/patient_portal/pp_year_end_review.yaml
+  official_intervention_variant:
+    variant_id: pp_year_end_review__account_clutter_v1
+    variant_yaml: breakingweb/injector/variants/pp_year_end_review__account_clutter_v1.yaml
+    target_primitive: exploration
+    description: The portal is cluttered with older lookalike records across messages, claims, medications, pharmacies, and
+      screenings. The agent must explore the full account state without confusing archival noise for the seeded task signals.
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: reddit_compose_message
+  env: reddit
+  difficulty: easy
+  title: Compose a New Message
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 7
+  task_yaml: breakingweb/tasks/reddit/reddit_compose_message.yaml
+  official_intervention_variant:
+    variant_id: reddit_compose_message__message_retry
+    variant_yaml: breakingweb/injector/variants/reddit_compose_message__message_retry.yaml
+    target_primitive: backtracking
+    description: The first message write fails transiently. The agent must retry after confirming the inbox state did not
+      change.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_create_text_post
+  env: reddit
+  difficulty: easy
+  title: Create a Text Post
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 7
+  task_yaml: breakingweb/tasks/reddit/reddit_create_text_post.yaml
+  official_intervention_variant:
+    variant_id: reddit_create_text_post__post_retry
+    variant_yaml: breakingweb/injector/variants/reddit_create_text_post__post_retry.yaml
+    target_primitive: backtracking
+    description: The first post submission fails transiently. The agent must verify the post exists and retry if it does not.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_delete_own_comment
+  env: reddit
+  difficulty: easy
+  title: Delete Your Own Comment
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 7
+  task_yaml: breakingweb/tasks/reddit/reddit_delete_own_comment.yaml
+  official_intervention_variant:
+    variant_id: reddit_delete_own_comment__delete_retry
+    variant_yaml: breakingweb/injector/variants/reddit_delete_own_comment__delete_retry.yaml
+    target_primitive: verification
+    description: The first comment delete fails transiently. The agent must verify the comment disappeared and retry if it
+      did not.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_edit_own_post
+  env: reddit
+  difficulty: easy
+  title: Edit Your Own Post
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 7
+  task_yaml: breakingweb/tasks/reddit/reddit_edit_own_post.yaml
+  official_intervention_variant:
+    variant_id: reddit_edit_own_post__edit_retry
+    variant_yaml: breakingweb/injector/variants/reddit_edit_own_post__edit_retry.yaml
+    target_primitive: verification
+    description: The first post edit fails transiently. The agent must verify the edited body actually stuck before moving
+      on.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_manage_subscriptions
+  env: reddit
+  difficulty: medium
+  title: Manage Community Subscriptions
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/reddit/reddit_manage_subscriptions.yaml
+  official_intervention_variant:
+    variant_id: reddit_manage_subscriptions__subreddit_twin
+    variant_yaml: breakingweb/injector/variants/reddit_manage_subscriptions__subreddit_twin.yaml
+    target_primitive: grounding
+    description: A twin subreddit with a nearly identical name appears in search and navigation. The agent must act in the
+      exact community named in the task.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_privacy_overhaul
+  env: reddit
+  difficulty: medium
+  title: Privacy Settings Overhaul
+  primary_primitive: verification
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/reddit/reddit_privacy_overhaul.yaml
+  official_intervention_variant:
+    variant_id: reddit_privacy_overhaul__settings_retry
+    variant_yaml: breakingweb/injector/variants/reddit_privacy_overhaul__settings_retry.yaml
+    target_primitive: verification
+    description: The first settings update fails transiently. The agent must verify the preference changes actually persisted.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_reply_nested_comment
+  env: reddit
+  difficulty: medium
+  title: Reply to a Nested Comment
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/reddit/reddit_reply_nested_comment.yaml
+  official_intervention_variant:
+    variant_id: reddit_reply_nested_comment__comment_twin
+    variant_yaml: breakingweb/injector/variants/reddit_reply_nested_comment__comment_twin.yaml
+    target_primitive: grounding
+    description: The thread contains comments from confusingly similar usernames with overlapping phrasing. The agent must
+      target the exact author and comment branch.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_search_and_message
+  env: reddit
+  difficulty: medium
+  title: Search for Post and Message Author
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 15
+  task_yaml: breakingweb/tasks/reddit/reddit_search_and_message.yaml
+  official_intervention_variant:
+    variant_id: reddit_search_and_message__post_twin
+    variant_yaml: breakingweb/injector/variants/reddit_search_and_message__post_twin.yaml
+    target_primitive: grounding
+    description: Search and feed results include near-duplicate posts with overlapping titles. The agent must engage with
+      the exact target thread rather than the similar twin.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_multi_vote_comment
+  env: reddit
+  difficulty: hard
+  title: Multi-Post Voting and Commenting
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_multi_vote_comment.yaml
+  official_intervention_variant:
+    variant_id: reddit_multi_vote_comment__subreddit_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_multi_vote_comment__subreddit_shadow_v2.yaml
+    target_primitive: grounding
+    description: A second lookalike community and a same-title crosspost appear beside the real subreddit. The agent must
+      still act in the exact community named by the task.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_notification_message_settings
+  env: reddit
+  difficulty: hard
+  title: Notifications, Messages, and Settings
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_notification_message_settings.yaml
+  official_intervention_variant:
+    variant_id: reddit_notification_message_settings__notification_shadow
+    variant_yaml: breakingweb/injector/variants/reddit_notification_message_settings__notification_shadow.yaml
+    target_primitive: state_tracking
+    description: Unread notifications emphasize lookalike activity in nearby communities and threads. The agent must verify
+      which alerts actually correspond to the task-relevant post or user.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_research_respond
+  env: reddit
+  difficulty: hard
+  title: Research Topic and Respond
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_research_respond.yaml
+  official_intervention_variant:
+    variant_id: reddit_research_respond__subreddit_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_research_respond__subreddit_shadow_v2.yaml
+    target_primitive: grounding
+    description: A second lookalike community and a same-title crosspost appear beside the real subreddit. The agent must
+      still act in the exact community named by the task.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_thread_participation
+  env: reddit
+  difficulty: hard
+  title: Deep Thread Participation
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_thread_participation.yaml
+  official_intervention_variant:
+    variant_id: reddit_thread_participation__subreddit_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_thread_participation__subreddit_shadow_v2.yaml
+    target_primitive: grounding
+    description: A second lookalike community and a same-title crosspost appear beside the real subreddit. The agent must
+      still act in the exact community named by the task.
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: reddit_notification_driven_workflow
+  env: reddit
+  difficulty: expert
+  title: Notification-Driven Multi-Step Workflow
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_notification_driven_workflow.yaml
+  official_intervention_variant:
+    variant_id: reddit_notification_driven_workflow__notification_shadow
+    variant_yaml: breakingweb/injector/variants/reddit_notification_driven_workflow__notification_shadow.yaml
+    target_primitive: state_tracking
+    description: Unread notifications emphasize lookalike activity in nearby communities and threads. The agent must verify
+      which alerts actually correspond to the task-relevant post or user.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_profile_engage_message
+  env: reddit
+  difficulty: expert
+  title: Profile Research and Outreach
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_profile_engage_message.yaml
+  official_intervention_variant:
+    variant_id: reddit_profile_engage_message__subreddit_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_profile_engage_message__subreddit_shadow_v2.yaml
+    target_primitive: grounding
+    description: A second lookalike community and a same-title crosspost appear beside the real subreddit. The agent must
+      still act in the exact community named by the task.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_saved_audit_cleanup
+  env: reddit
+  difficulty: expert
+  title: Audit and Clean Saved Posts
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_saved_audit_cleanup.yaml
+  official_intervention_variant:
+    variant_id: reddit_saved_audit_cleanup__post_collision
+    variant_yaml: breakingweb/injector/variants/reddit_saved_audit_cleanup__post_collision.yaml
+    target_primitive: grounding
+    description: Feed and search results include near-duplicate posts with overlapping titles across similar communities.
+      The agent must engage with the exact target thread rather than the twin.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_selective_vote_save
+  env: reddit
+  difficulty: expert
+  title: Selective Voting and Saving
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 38
+  task_yaml: breakingweb/tasks/reddit/reddit_selective_vote_save.yaml
+  official_intervention_variant:
+    variant_id: reddit_selective_vote_save__subreddit_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_selective_vote_save__subreddit_shadow_v2.yaml
+    target_primitive: grounding
+    description: A second lookalike community and a same-title crosspost appear beside the real subreddit. The agent must
+      still act in the exact community named by the task.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_full_platform_overhaul
+  env: reddit
+  difficulty: frontier
+  title: Full Platform Overhaul
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/reddit/reddit_full_platform_overhaul.yaml
+  official_intervention_variant:
+    variant_id: reddit_full_platform_overhaul__notification_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_full_platform_overhaul__notification_shadow_v2.yaml
+    target_primitive: state_tracking
+    description: Unread alerts emphasize a nearby crosspost and a lookalike user interaction. The agent must confirm which
+      notification actually maps to the task target.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_mass_engagement_workflow
+  env: reddit
+  difficulty: frontier
+  title: Mass Engagement Across Platform
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/reddit/reddit_mass_engagement_workflow.yaml
+  official_intervention_variant:
+    variant_id: reddit_mass_engagement_workflow__notification_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_mass_engagement_workflow__notification_shadow_v2.yaml
+    target_primitive: state_tracking
+    description: Unread alerts emphasize a nearby crosspost and a lookalike user interaction. The agent must confirm which
+      notification actually maps to the task target.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_notification_cascade
+  env: reddit
+  difficulty: frontier
+  title: Notification-Driven Cascade Workflow
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/reddit/reddit_notification_cascade.yaml
+  official_intervention_variant:
+    variant_id: reddit_notification_cascade__notification_shadow
+    variant_yaml: breakingweb/injector/variants/reddit_notification_cascade__notification_shadow.yaml
+    target_primitive: state_tracking
+    description: Unread notifications emphasize lookalike activity in nearby communities and threads. The agent must verify
+      which alerts actually correspond to the task-relevant post or user.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: reddit_platform_migration
+  env: reddit
+  difficulty: frontier
+  title: Platform Migration Workflow
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 55
+  task_yaml: breakingweb/tasks/reddit/reddit_platform_migration.yaml
+  official_intervention_variant:
+    variant_id: reddit_platform_migration__notification_shadow_v2
+    variant_yaml: breakingweb/injector/variants/reddit_platform_migration__notification_shadow_v2.yaml
+    target_primitive: state_tracking
+    description: Unread alerts emphasize a nearby crosspost and a lookalike user interaction. The agent must confirm which
+      notification actually maps to the task target.
+  analysis_weight_env_difficulty: 3.75
+- base_task_id: rh_deposit_funds
+  env: robinhood
+  difficulty: easy
+  title: Deposit Funds from Bank Account
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/robinhood/rh_deposit_funds.yaml
+  official_intervention_variant:
+    variant_id: rh_deposit_funds__transfer_retry
+    variant_yaml: breakingweb/injector/variants/rh_deposit_funds__transfer_retry.yaml
+    target_primitive: backtracking
+    description: The first transfer submission fails transiently. The agent must verify the transfer exists and retry if needed.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: rh_mark_notifications_read
+  env: robinhood
+  difficulty: easy
+  title: Mark All Notifications as Read
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/robinhood/rh_mark_notifications_read.yaml
+  official_intervention_variant:
+    variant_id: rh_mark_notifications_read__notification_retry
+    variant_yaml: breakingweb/injector/variants/rh_mark_notifications_read__notification_retry.yaml
+    target_primitive: backtracking
+    description: The first mark-all-read request fails transiently. The agent must verify the notification state and retry
+      if some remain unread.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: rh_sell_shares
+  env: robinhood
+  difficulty: easy
+  title: Sell All Shares of a Stock
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/robinhood/rh_sell_shares.yaml
+  official_intervention_variant:
+    variant_id: rh_sell_shares__trade_retry
+    variant_yaml: breakingweb/injector/variants/rh_sell_shares__trade_retry.yaml
+    target_primitive: backtracking
+    description: The first order submission fails transiently. The agent must verify the order exists and retry if it does
+      not.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: rh_set_price_alert
+  env: robinhood
+  difficulty: easy
+  title: Set a Price Alert for a Stock
+  primary_primitive: grounding
+  secondary_primitives: []
+  expected_steps: 5
+  task_yaml: breakingweb/tasks/robinhood/rh_set_price_alert.yaml
+  official_intervention_variant:
+    variant_id: rh_set_price_alert__ticker_twin
+    variant_yaml: breakingweb/injector/variants/rh_set_price_alert__ticker_twin.yaml
+    target_primitive: grounding
+    description: Search results include confusingly similar ticker symbols next to the real target. The agent must verify
+      the exact symbol before trading or adding it to a watchlist.
+  analysis_weight_env_difficulty: 2.5
+- base_task_id: rh_find_earnings_and_alert
+  env: robinhood
+  difficulty: medium
+  title: Find Earnings Stocks and Set Price Alerts
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/robinhood/rh_find_earnings_and_alert.yaml
+  official_intervention_variant:
+    variant_id: rh_find_earnings_and_alert__alert_retry
+    variant_yaml: breakingweb/injector/variants/rh_find_earnings_and_alert__alert_retry.yaml
+    target_primitive: backtracking
+    description: The first price-alert creation fails transiently. The agent must verify each alert exists and retry missing
+      ones.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: rh_live_buy_the_dip
+  env: robinhood
+  difficulty: medium
+  title: Buy the Dip with Limit Order
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/robinhood/rh_live_buy_the_dip.yaml
+  official_intervention_variant:
+    variant_id: rh_live_buy_the_dip__quote_delay
+    variant_yaml: breakingweb/injector/variants/rh_live_buy_the_dip__quote_delay.yaml
+    target_primitive: patience
+    description: Quote refreshes lag behind for several polls. The agent must wait for the live move instead of acting on
+      the initial stale-looking quote.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: rh_live_take_profit
+  env: robinhood
+  difficulty: medium
+  title: Take Profit with Limit Sell
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/robinhood/rh_live_take_profit.yaml
+  official_intervention_variant:
+    variant_id: rh_live_take_profit__quote_delay
+    variant_yaml: breakingweb/injector/variants/rh_live_take_profit__quote_delay.yaml
+    target_primitive: patience
+    description: Quote refreshes lag behind for several polls. The agent must wait for the live move instead of acting on
+      the initial stale-looking quote.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: rh_sell_loser_buy_winner
+  env: robinhood
+  difficulty: medium
+  title: Sell Worst Performer and Buy Best Performer
+  primary_primitive: backtracking
+  secondary_primitives: []
+  expected_steps: 8
+  task_yaml: breakingweb/tasks/robinhood/rh_sell_loser_buy_winner.yaml
+  official_intervention_variant:
+    variant_id: rh_sell_loser_buy_winner__trade_retry
+    variant_yaml: breakingweb/injector/variants/rh_sell_loser_buy_winner__trade_retry.yaml
+    target_primitive: backtracking
+    description: The first order submission fails transiently. The agent must verify the order exists and retry if it does
+      not.
+  analysis_weight_env_difficulty: 4.25
+- base_task_id: rh_consolidate_recurring
+  env: robinhood
+  difficulty: hard
+  title: Consolidate Duplicate Recurring Investments
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 12
+  task_yaml: breakingweb/tasks/robinhood/rh_consolidate_recurring.yaml
+  official_intervention_variant:
+    variant_id: rh_consolidate_recurring__planning_v1
+    variant_yaml: breakingweb/injector/variants/rh_consolidate_recurring__planning_v1.yaml
+    target_primitive: planning
+    description: 'Additional noise recurring investments with overlapping symbols and varied frequencies are added, and positions
+      are shuffled so the portfolio view does not align with the recurring list ordering. The agent must carefully plan which
+      investments to consolidate, computing correct combined amounts across weekly and monthly frequencies.
+
+      '
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: rh_dividend_income_report
+  env: robinhood
+  difficulty: hard
+  title: Optimize Dividend Income by Swapping Positions
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 12
+  task_yaml: breakingweb/tasks/robinhood/rh_dividend_income_report.yaml
+  official_intervention_variant:
+    variant_id: rh_dividend_income_report__exploration_v1
+    variant_yaml: breakingweb/injector/variants/rh_dividend_income_report__exploration_v1.yaml
+    target_primitive: exploration
+    description: 'Portfolio positions are shuffled so the default sort order is misleading, and confusing extra positions
+      with similar dividend profiles are added. The "Income Ideas" watchlist must be actively discovered rather than found
+      at the expected location.
+
+      '
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: rh_sector_concentration
+  env: robinhood
+  difficulty: hard
+  title: Reduce Technology Sector Concentration
+  primary_primitive: planning
+  secondary_primitives: []
+  expected_steps: 12
+  task_yaml: breakingweb/tasks/robinhood/rh_sector_concentration.yaml
+  official_intervention_variant:
+    variant_id: rh_sector_concentration__planning_v1
+    variant_yaml: breakingweb/injector/variants/rh_sector_concentration__planning_v1.yaml
+    target_primitive: planning
+    description: 'Positions are shuffled so the display order no longer matches sector or value ranking, forcing the agent
+      to plan by computing sector percentages from raw data rather than relying on visual position ordering.
+
+      '
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: rh_wash_sale_avoidance
+  env: robinhood
+  difficulty: hard
+  title: Tax-Loss Harvest While Avoiding Wash Sales
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 12
+  task_yaml: breakingweb/tasks/robinhood/rh_wash_sale_avoidance.yaml
+  official_intervention_variant:
+    variant_id: rh_wash_sale_avoidance__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_wash_sale_avoidance__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Noise orders for the same symbols as real positions inject recent buy activity that could trigger wash sale
+      rules. Agent must track the full transaction ledger accurately and distinguish real recent purchases from noise when
+      deciding which losers are safe to sell.
+
+      '
+  analysis_weight_env_difficulty: 4.0
+- base_task_id: rh_live_alert_chain
+  env: robinhood
+  difficulty: expert
+  title: Alert-Triggered Portfolio Rebalance
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 20
+  task_yaml: breakingweb/tasks/robinhood/rh_live_alert_chain.yaml
+  official_intervention_variant:
+    variant_id: rh_live_alert_chain__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_live_alert_chain__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Confusing positions and distractor notifications make it harder to correctly compute Technology sector concentration.
+      The agent must accurately track portfolio composition despite noise.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_live_intraday_reversal
+  env: robinhood
+  difficulty: expert
+  title: Intraday Reversal Buy
+  primary_primitive: patience
+  secondary_primitives: []
+  expected_steps: 22
+  task_yaml: breakingweb/tasks/robinhood/rh_live_intraday_reversal.yaml
+  official_intervention_variant:
+    variant_id: rh_live_intraday_reversal__patience_v1
+    variant_yaml: breakingweb/injector/variants/rh_live_intraday_reversal__patience_v1.yaml
+    target_primitive: patience
+    description: 'Progressive delays on the NVDA stock quote endpoint force the agent to wait through sluggish price refreshes
+      while monitoring the intraday decline-and-recovery pattern. The agent must remain patient and not abandon the watch
+      or buy prematurely when quotes load slowly.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_options_roll_strategy
+  env: robinhood
+  difficulty: expert
+  title: Roll a Covered Call on {target.symbol}
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 20
+  task_yaml: breakingweb/tasks/robinhood/rh_options_roll_strategy.yaml
+  official_intervention_variant:
+    variant_id: rh_options_roll_strategy__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_options_roll_strategy__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Confusing existing MSFT call positions at nearby strikes and expirations make it harder for the agent to
+      identify the specific expiring covered call that needs to be rolled versus other open positions.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_tax_optimization
+  env: robinhood
+  difficulty: expert
+  title: Tax-Loss Harvesting to Offset Gains
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 20
+  task_yaml: breakingweb/tasks/robinhood/rh_tax_optimization.yaml
+  official_intervention_variant:
+    variant_id: rh_tax_optimization__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_tax_optimization__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Noise orders and misleading alerts inject extra transaction history that could confuse the wash sale analysis.
+      Agent must track which positions truly have unrealized losses and which recent purchases create wash sale risk, ignoring
+      the injected noise.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_complex_transfer_reconciliation
+  env: robinhood
+  difficulty: frontier
+  title: Account Cleanup and Fresh Deposit
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/robinhood/rh_complex_transfer_reconciliation.yaml
+  official_intervention_variant:
+    variant_id: rh_complex_transfer_reconciliation__exploration_v1
+    variant_yaml: breakingweb/injector/variants/rh_complex_transfer_reconciliation__exploration_v1.yaml
+    target_primitive: exploration
+    description: 'The deposit/transfer affordance is hidden behind a context-menu trigger, and misleading price alerts suggest
+      urgent action on unowned stocks, distracting from the cleanup workflow. The agent must explore alternative navigation
+      to find the transfer page.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_options_expiration_management
+  env: robinhood
+  difficulty: frontier
+  title: Manage 8 Expiring Options Positions
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 32
+  task_yaml: breakingweb/tasks/robinhood/rh_options_expiration_management.yaml
+  official_intervention_variant:
+    variant_id: rh_options_expiration_management__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_options_expiration_management__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Confusing options positions on the same underlyings with similar strikes but different expirations, plus
+      shuffled position ordering, make it harder to track which of the 8 expiring positions still need action.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_options_income_portfolio
+  env: robinhood
+  difficulty: frontier
+  title: Build Monthly Options Income Strategy
+  primary_primitive: exploration
+  secondary_primitives: []
+  expected_steps: 32
+  task_yaml: breakingweb/tasks/robinhood/rh_options_income_portfolio.yaml
+  official_intervention_variant:
+    variant_id: rh_options_income_portfolio__exploration_v1
+    variant_yaml: breakingweb/injector/variants/rh_options_income_portfolio__exploration_v1.yaml
+    target_primitive: exploration
+    description: 'Confusing existing sold options on the same portfolio symbols at nearby deltas and expirations force the
+      agent to explore each chain thoroughly to find the correct 0.30-delta strike rather than reusing existing positions.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+- base_task_id: rh_suspicious_activity_investigation
+  env: robinhood
+  difficulty: frontier
+  title: Investigate Suspicious Account Activity
+  primary_primitive: state_tracking
+  secondary_primitives: []
+  expected_steps: 30
+  task_yaml: breakingweb/tasks/robinhood/rh_suspicious_activity_investigation.yaml
+  official_intervention_variant:
+    variant_id: rh_suspicious_activity_investigation__state_tracking_v1
+    variant_yaml: breakingweb/injector/variants/rh_suspicious_activity_investigation__state_tracking_v1.yaml
+    target_primitive: state_tracking
+    description: 'Decoy security notifications and noise orders muddy the timeline. Agent must carefully track which orders
+      fall inside the suspicious session window versus the injected noise, and avoid cancelling legitimate orders.
+
+      '
+  analysis_weight_env_difficulty: 3.5
+duplicate_subset:
+- base_task_id: amazon_browse_category
+  env: amazon
+  difficulty: easy
+  title: Browse Category and Add Cheapest Item
+  primary_primitive: grounding
+  expected_steps: 10
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: amazon_cancel_order
+  env: amazon
+  difficulty: medium
+  title: Place an Order Then Cancel It
+  primary_primitive: backtracking
+  expected_steps: 22
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: amazon_return_and_rebuy
+  env: amazon
+  difficulty: hard
+  title: Return an Item and Buy a Replacement
+  primary_primitive: verification
+  expected_steps: 30
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: amazon_cross_category_value_hunt
+  env: amazon
+  difficulty: expert
+  title: Find and Buy Highest-Rated Under-$40 Items Across Categories
+  primary_primitive: grounding
+  expected_steps: 38
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: amazon_order_audit_correction
+  env: amazon
+  difficulty: frontier
+  title: Audit Orders Then Cancel, Return, Reorder, and Review
+  primary_primitive: exploration
+  expected_steps: 48
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: booking_change_bed_preference
+  env: booking
+  difficulty: easy
+  title: Change Preferred Bed Type to Queen
+  primary_primitive: verification
+  expected_steps: 3
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: booking_review_completed_stay
+  env: booking
+  difficulty: medium
+  title: Write a Review for a Completed Stay
+  primary_primitive: verification
+  expected_steps: 14
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: booking_five_star_verification
+  env: booking
+  difficulty: hard
+  title: Verify 5-Star Tokyo Hotel and Book Executive Suite
+  primary_primitive: verification
+  expected_steps: 22
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: booking_expert_cancel_chain
+  env: booking
+  difficulty: expert
+  title: Cancel Three Reservations with Personalized Messages and Saved List
+  primary_primitive: grounding
+  expected_steps: 35
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: booking_frontier_cancel_and_reorganize
+  env: booking
+  difficulty: frontier
+  title: 'Frontier: Cancel 3 Reservations, Rebook 2 Cheaper, Message, and Update List'
+  primary_primitive: patience
+  expected_steps: 48
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: gmail_compose_new
+  env: gmail
+  difficulty: easy
+  title: Compose and Send a New Email
+  primary_primitive: backtracking
+  expected_steps: 8
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: gmail_filter_repair_chain
+  env: gmail
+  difficulty: medium
+  title: Diagnose and Repair a Broken Email Filter
+  primary_primitive: backtracking
+  expected_steps: 28
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: gmail_delegation_handoff
+  env: gmail
+  difficulty: hard
+  title: Delegation Handoff
+  primary_primitive: planning
+  expected_steps: 38
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: gmail_briefing_under_fire
+  env: gmail
+  difficulty: expert
+  title: Board Briefing Under Distraction Fire
+  primary_primitive: grounding
+  expected_steps: 55
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: gmail_cross_functional_distribution
+  env: gmail
+  difficulty: frontier
+  title: Cross-Functional Distribution
+  primary_primitive: state_tracking
+  expected_steps: 75
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: lms_check_course_grade
+  env: lms
+  difficulty: easy
+  title: Check Overall Course Grade
+  primary_primitive: grounding
+  expected_steps: 5
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: lms_complete_all_announcements
+  env: lms
+  difficulty: medium
+  title: Find and Read All Unread Announcements
+  primary_primitive: exploration
+  expected_steps: 10
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: lms_minimum_final_score
+  env: lms
+  difficulty: hard
+  title: Calculate Minimum Final Exam Score for a B
+  primary_primitive: verification
+  expected_steps: 15
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: lms_academic_probation_recovery
+  env: lms
+  difficulty: expert
+  title: Academic Probation Recovery Plan
+  primary_primitive: grounding
+  expected_steps: 25
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: lms_course_selection_next_semester
+  env: lms
+  difficulty: frontier
+  title: Course Selection — Enroll If Eligible
+  primary_primitive: exploration
+  expected_steps: 40
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: pp_cancel_appointment
+  env: patient_portal
+  difficulty: easy
+  title: Cancel an Upcoming Appointment
+  primary_primitive: grounding
+  expected_steps: 4
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: pp_respond_to_provider
+  env: patient_portal
+  difficulty: medium
+  title: Review Provider Message and Schedule Follow-Up
+  primary_primitive: grounding
+  expected_steps: 8
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: pp_schedule_annual_physical
+  env: patient_portal
+  difficulty: hard
+  title: Schedule Labs Before Physical
+  primary_primitive: planning
+  expected_steps: 18
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: pp_multi_provider_coord
+  env: patient_portal
+  difficulty: expert
+  title: Multi-Provider Medication Change
+  primary_primitive: grounding
+  expected_steps: 32
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: pp_insurance_plan_change
+  env: patient_portal
+  difficulty: frontier
+  title: Insurance Plan Change with Rx Audit
+  primary_primitive: backtracking
+  expected_steps: 55
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: reddit_compose_message
+  env: reddit
+  difficulty: easy
+  title: Compose a New Message
+  primary_primitive: backtracking
+  expected_steps: 7
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: reddit_manage_subscriptions
+  env: reddit
+  difficulty: medium
+  title: Manage Community Subscriptions
+  primary_primitive: grounding
+  expected_steps: 15
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: reddit_notification_message_settings
+  env: reddit
+  difficulty: hard
+  title: Notifications, Messages, and Settings
+  primary_primitive: state_tracking
+  expected_steps: 38
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: reddit_profile_engage_message
+  env: reddit
+  difficulty: expert
+  title: Profile Research and Outreach
+  primary_primitive: grounding
+  expected_steps: 38
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: reddit_full_platform_overhaul
+  env: reddit
+  difficulty: frontier
+  title: Full Platform Overhaul
+  primary_primitive: state_tracking
+  expected_steps: 55
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: rh_deposit_funds
+  env: robinhood
+  difficulty: easy
+  title: Deposit Funds from Bank Account
+  primary_primitive: backtracking
+  expected_steps: 5
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: rh_live_buy_the_dip
+  env: robinhood
+  difficulty: medium
+  title: Buy the Dip with Limit Order
+  primary_primitive: patience
+  expected_steps: 8
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: rh_consolidate_recurring
+  env: robinhood
+  difficulty: hard
+  title: Consolidate Duplicate Recurring Investments
+  primary_primitive: planning
+  expected_steps: 12
+  condition_to_duplicate: intervention
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: rh_live_alert_chain
+  env: robinhood
+  difficulty: expert
+  title: Alert-Triggered Portfolio Rebalance
+  primary_primitive: state_tracking
+  expected_steps: 20
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+- base_task_id: rh_options_expiration_management
+  env: robinhood
+  difficulty: frontier
+  title: Manage 8 Expiring Options Positions
+  primary_primitive: state_tracking
+  expected_steps: 32
+  condition_to_duplicate: clean
+  purpose: second independent human cold+warm pair for variance/reference-stability estimation
+fallback_pool_by_env_difficulty:
+  amazon:
+    easy:
+    - base_task_id: amazon_add_single_item
+      title: Add a Single Item to Cart
+      primary_primitive: grounding
+      expected_steps: 7
+    - base_task_id: amazon_add_to_wishlist
+      title: Add a Product to Wishlist
+      primary_primitive: grounding
+      expected_steps: 7
+    medium:
+    - base_task_id: amazon_cart_budget_limit
+      title: Build a Cart Under a Budget Limit
+      primary_primitive: backtracking
+      expected_steps: 20
+    - base_task_id: amazon_category_exploration
+      title: Browse Categories and Build a Multi-Category Cart
+      primary_primitive: backtracking
+      expected_steps: 24
+    - base_task_id: amazon_gift_purchase
+      title: Buy a Gift and Ship to a New Address
+      primary_primitive: grounding
+      expected_steps: 24
+    hard:
+    - base_task_id: amazon_cart_optimization
+      title: Optimize Cart by Removing and Adjusting Items
+      primary_primitive: verification
+      expected_steps: 28
+    - base_task_id: amazon_complete_gift_setup
+      title: Set Up Gift Purchase with New Address and Payment
+      primary_primitive: grounding
+      expected_steps: 35
+    - base_task_id: amazon_optimized_shopping_spree
+      title: Buy 5 Items from 5 Categories Under $500
+      primary_primitive: planning
+      expected_steps: 35
+    expert:
+    - base_task_id: amazon_competitor_switchover
+      title: Compare Products and Buy the Superior Competitor
+      primary_primitive: grounding
+      expected_steps: 35
+    - base_task_id: amazon_deal_discovery_checkout
+      title: Browse Deals and Buy All High-Rated Sale Items
+      primary_primitive: grounding
+      expected_steps: 35
+    - base_task_id: amazon_selective_reorder
+      title: Reorder Specific Products from Past Orders
+      primary_primitive: patience
+      expected_steps: 35
+    frontier:
+    - base_task_id: amazon_budget_optimized_spree
+      title: Buy Highest-Rated Product Under $60 from 5 Categories
+      primary_primitive: grounding
+      expected_steps: 50
+    - base_task_id: amazon_complete_shopping_journey
+      title: Compare Speakers, Buy Best, Wishlist Cheapest, Review Past Order, Update Address
+      primary_primitive: patience
+      expected_steps: 48
+    - base_task_id: amazon_wishlist_portfolio_rebalance
+      title: Curate Wishlist by Category and Purchase Budget Items
+      primary_primitive: state_tracking
+      expected_steps: 50
+  booking:
+    easy:
+    - base_task_id: booking_change_language
+      title: Change Language to French
+      primary_primitive: verification
+      expected_steps: 3
+    - base_task_id: booking_enable_2fa
+      title: Enable Two-Factor Authentication
+      primary_primitive: verification
+      expected_steps: 3
+    - base_task_id: booking_mark_notifications_read
+      title: Mark All Notifications as Read
+      primary_primitive: verification
+      expected_steps: 3
+    medium:
+    - base_task_id: booking_search_and_book
+      title: Search for a Paris Hotel and Book the Deluxe Room
+      primary_primitive: grounding
+      expected_steps: 14
+    - base_task_id: booking_book_with_specific_payment
+      title: Book a Hotel Using a Specific Non-Default Payment Method
+      primary_primitive: backtracking
+      expected_steps: 15
+    - base_task_id: booking_cancel_and_message
+      title: Cancel Reservation and Message the Property
+      primary_primitive: backtracking
+      expected_steps: 12
+    hard:
+    - base_task_id: booking_decoy_hotel_selection
+      title: Identify Correct Hotel Among Decoys and Book It
+      primary_primitive: grounding
+      expected_steps: 20
+    - base_task_id: booking_review_two_stays
+      title: Write Reviews for Two Completed Stays
+      primary_primitive: verification
+      expected_steps: 20
+    - base_task_id: booking_saved_list_to_booking
+      title: Book a Genius-Discounted Hotel from Saved List
+      primary_primitive: backtracking
+      expected_steps: 20
+    expert:
+    - base_task_id: booking_expert_reservation_audit
+      title: Audit Reservations with Cancellations, Modification, and Messages
+      primary_primitive: planning
+      expected_steps: 35
+    - base_task_id: booking_expert_deal_hunter
+      title: Find Best Deal, Compare Alternatives, and Conditional Booking
+      primary_primitive: grounding
+      expected_steps: 33
+    - base_task_id: booking_expert_compare_and_decide
+      title: Compare Four London Hotels and Book the One Meeting All Criteria
+      primary_primitive: grounding
+      expected_steps: 38
+    frontier:
+    - base_task_id: booking_frontier_saved_list_curator
+      title: 'Frontier: Create 3 Themed Saved Lists, Populate, and Book Cheapest'
+      primary_primitive: backtracking
+      expected_steps: 48
+    - base_task_id: booking_frontier_complete_journey
+      title: 'Frontier: Complete Customer Journey - Search, Compare, Save, Book, Modify, Message, Review, Settings'
+      primary_primitive: grounding
+      expected_steps: 50
+    - base_task_id: booking_frontier_everything
+      title: 'Ultimate Task: Profile, Settings, Payments, Search, Book, Cancel, Modify, Review, Lists, Messages'
+      primary_primitive: grounding
+      expected_steps: 50
+  gmail:
+    easy:
+    - base_task_id: gmail_change_setting
+      title: Change Undo Send Delay
+      primary_primitive: exploration
+      expected_steps: 6
+    - base_task_id: gmail_forward_email
+      title: Forward an Invoice Email
+      primary_primitive: backtracking
+      expected_steps: 10
+    - base_task_id: gmail_create_label
+      title: Create a New Label
+      primary_primitive: backtracking
+      expected_steps: 5
+    medium:
+    - base_task_id: gmail_filter_architect
+      title: Filter Architect
+      primary_primitive: backtracking
+      expected_steps: 30
+    - base_task_id: gmail_contact_cleanup
+      title: Contact Cleanup
+      primary_primitive: verification
+      expected_steps: 25
+    - base_task_id: gmail_credential_leak_response
+      title: Credential Leak Alert Response
+      primary_primitive: exploration
+      expected_steps: 25
+    hard:
+    - base_task_id: gmail_access_review_audit
+      title: Departed Employee Access Audit
+      primary_primitive: grounding
+      expected_steps: 40
+    - base_task_id: gmail_travel_itinerary_resolution
+      title: Travel Itinerary Resolution
+      primary_primitive: verification
+      expected_steps: 36
+    - base_task_id: gmail_interview_scheduling
+      title: Interview Scheduling
+      primary_primitive: verification
+      expected_steps: 35
+    expert:
+    - base_task_id: gmail_inbox_zero_automation
+      title: Implement Inbox-Zero Automation Policy
+      primary_primitive: backtracking
+      expected_steps: 55
+    - base_task_id: gmail_weekly_digest_preparation
+      title: Compile weekly digest email, archive processed messages, create filters
+      primary_primitive: state_tracking
+      expected_steps: 55
+    - base_task_id: gmail_incident_postmortem_assembly
+      title: Security Incident Postmortem Assembly
+      primary_primitive: exploration
+      expected_steps: 50
+    frontier:
+    - base_task_id: gmail_contract_negotiation_tracker
+      title: Contract Negotiation Tracker
+      primary_primitive: state_tracking
+      expected_steps: 72
+    - base_task_id: gmail_vendor_security_questionnaire
+      title: Vendor Security Questionnaire Response
+      primary_primitive: state_tracking
+      expected_steps: 80
+    - base_task_id: gmail_crisis_communication_draft
+      title: Crisis Communication Draft
+      primary_primitive: state_tracking
+      expected_steps: 65
+  lms:
+    easy:
+    - base_task_id: lms_check_assignment_grade
+      title: Check Assignment Grade
+      primary_primitive: grounding
+      expected_steps: 6
+    - base_task_id: lms_drop_course
+      title: Drop a Course Before Deadline
+      primary_primitive: grounding
+      expected_steps: 4
+    - base_task_id: lms_find_next_deadline
+      title: Find Next Deadline and Submit Early Draft
+      primary_primitive: grounding
+      expected_steps: 6
+    medium:
+    - base_task_id: lms_submit_late
+      title: Submit Late Assignment and Calculate Actual Score
+      primary_primitive: state_tracking
+      expected_steps: 10
+    - base_task_id: lms_calculate_weighted_grade
+      title: Calculate Current Weighted Grade
+      primary_primitive: verification
+      expected_steps: 8
+    - base_task_id: lms_find_missing_assignments
+      title: Find and Submit Recoverable Missing Assignments
+      primary_primitive: state_tracking
+      expected_steps: 12
+    hard:
+    - base_task_id: lms_resubmit_flagged
+      title: Submit Work for a Resubmit-Requested Assignment
+      primary_primitive: backtracking
+      expected_steps: 14
+    - base_task_id: lms_compare_late_policies
+      title: Compare Syllabus Late Policies Across Courses
+      primary_primitive: state_tracking
+      expected_steps: 12
+    - base_task_id: lms_complete_mixed_module
+      title: Complete Module with Mixed Content Types
+      primary_primitive: planning
+      expected_steps: 18
+    expert:
+    - base_task_id: lms_recoverable_late_assignments
+      title: Identify Recoverable Late Assignments
+      primary_primitive: exploration
+      expected_steps: 25
+    - base_task_id: lms_cross_course_prerequisites
+      title: Cross-Course Module Prerequisite Satisfaction
+      primary_primitive: planning
+      expected_steps: 28
+    - base_task_id: lms_peer_review_redo
+      title: Peer Review Quality Audit and Redo
+      primary_primitive: verification
+      expected_steps: 22
+    frontier:
+    - base_task_id: lms_advisor_meeting_prep
+      title: Academic Advisor Meeting Preparation
+      primary_primitive: verification
+      expected_steps: 40
+    - base_task_id: lms_end_of_semester_verification
+      title: End-of-Semester Grade Verification with Resubmission
+      primary_primitive: verification
+      expected_steps: 40
+    - base_task_id: lms_scholarship_maintenance
+      title: Scholarship Maintenance Plan
+      primary_primitive: state_tracking
+      expected_steps: 40
+  patient_portal:
+    easy:
+    - base_task_id: pp_message_pcp
+      title: Schedule PCP Medication Review
+      primary_primitive: backtracking
+      expected_steps: 5
+    - base_task_id: pp_refill_prescription
+      title: Refill a Specific Prescription
+      primary_primitive: backtracking
+      expected_steps: 4
+    - base_task_id: pp_mark_all_read
+      title: Mark All Unread Messages as Read
+      primary_primitive: verification
+      expected_steps: 6
+    medium:
+    - base_task_id: pp_cancel_duplicate_appointments
+      title: Cancel Duplicate Appointment
+      primary_primitive: backtracking
+      expected_steps: 8
+    - base_task_id: pp_message_about_lab
+      title: Schedule Follow-Up for Abnormal Lab
+      primary_primitive: grounding
+      expected_steps: 8
+    - base_task_id: pp_message_billing
+      title: Billing Follow-Up on Recent Approved Claim
+      primary_primitive: state_tracking
+      expected_steps: 8
+    hard:
+    - base_task_id: pp_cross_reference_labs_meds
+      title: Cross-Reference Labs and Medications
+      primary_primitive: state_tracking
+      expected_steps: 18
+    - base_task_id: pp_file_claim_appeal
+      title: File Claim Appeal with Evidence
+      primary_primitive: state_tracking
+      expected_steps: 18
+    - base_task_id: pp_immunization_gap_review
+      title: Review and Schedule Immunizations
+      primary_primitive: planning
+      expected_steps: 18
+    expert:
+    - base_task_id: pp_care_gap_analysis
+      title: Care Gap Analysis
+      primary_primitive: backtracking
+      expected_steps: 35
+    - base_task_id: pp_immunization_series
+      title: Immunization Series Completion
+      primary_primitive: planning
+      expected_steps: 30
+    - base_task_id: pp_medication_conflict
+      title: Medication Conflict Resolution
+      primary_primitive: state_tracking
+      expected_steps: 30
+    frontier:
+    - base_task_id: pp_chronic_disease_setup
+      title: Chronic Disease Monitoring Setup
+      primary_primitive: planning
+      expected_steps: 55
+    - base_task_id: pp_complete_account_audit
+      title: Complete Account Audit
+      primary_primitive: exploration
+      expected_steps: 60
+    - base_task_id: pp_complex_claim_dispute
+      title: Multi-Claim Dispute Resolution
+      primary_primitive: backtracking
+      expected_steps: 60
+  reddit:
+    easy:
+    - base_task_id: reddit_downvote_comment
+      title: Downvote a Specific Comment
+      primary_primitive: grounding
+      expected_steps: 7
+    - base_task_id: reddit_hide_post
+      title: Hide a Post from Feed
+      primary_primitive: grounding
+      expected_steps: 5
+    - base_task_id: reddit_upvote_post
+      title: Upvote a Specific Post
+      primary_primitive: grounding
+      expected_steps: 5
+    medium:
+    - base_task_id: reddit_curate_saved
+      title: Curate Saved Posts Collection
+      primary_primitive: grounding
+      expected_steps: 14
+    - base_task_id: reddit_follow_notification
+      title: Follow Notification and Comment
+      primary_primitive: backtracking
+      expected_steps: 16
+    - base_task_id: reddit_create_and_engage
+      title: Subscribe, Post, and Engage with Existing Content
+      primary_primitive: grounding
+      expected_steps: 18
+    hard:
+    - base_task_id: reddit_account_cleanup
+      title: Account Cleanup Workflow
+      primary_primitive: backtracking
+      expected_steps: 38
+    - base_task_id: reddit_comment_save_settings
+      title: Comment Chain, Save, and Settings
+      primary_primitive: grounding
+      expected_steps: 38
+    - base_task_id: reddit_cross_platform_workflow
+      title: Cross-Platform Research Workflow
+      primary_primitive: grounding
+      expected_steps: 38
+    expert:
+    - base_task_id: reddit_block_and_cleanup
+      title: Block User and Clean Up
+      primary_primitive: grounding
+      expected_steps: 38
+    - base_task_id: reddit_content_management
+      title: Content and Feed Management
+      primary_primitive: grounding
+      expected_steps: 38
+    - base_task_id: reddit_edit_delete_subscribe
+      title: Edit, Delete, and Subscribe
+      primary_primitive: grounding
+      expected_steps: 38
+    frontier:
+    - base_task_id: reddit_community_builder
+      title: Community Building Campaign
+      primary_primitive: state_tracking
+      expected_steps: 55
+    - base_task_id: reddit_complete_account_setup
+      title: Complete Account Setup and Engagement
+      primary_primitive: grounding
+      expected_steps: 55
+    - base_task_id: reddit_complete_engagement_cycle
+      title: Complete Community Engagement Cycle
+      primary_primitive: grounding
+      expected_steps: 55
+  robinhood:
+    easy:
+    - base_task_id: rh_add_to_watchlist
+      title: Add Stock to Existing Watchlist
+      primary_primitive: grounding
+      expected_steps: 5
+    - base_task_id: rh_buy_market_order
+      title: Buy Shares at Market Price
+      primary_primitive: verification
+      expected_steps: 5
+    - base_task_id: rh_cancel_pending_order
+      title: Cancel a Pending Limit Order
+      primary_primitive: state_tracking
+      expected_steps: 5
+    medium:
+    - base_task_id: rh_review_and_cancel_orders
+      title: Review and Cancel Far-Below-Market Limit Orders
+      primary_primitive: state_tracking
+      expected_steps: 8
+    - base_task_id: rh_compare_dividend_yields
+      title: Compare Dividend Yields and Add to Watchlist
+      primary_primitive: grounding
+      expected_steps: 7
+    - base_task_id: rh_deposit_then_buy
+      title: Deposit Funds Then Buy Stock
+      primary_primitive: backtracking
+      expected_steps: 7
+    hard:
+    - base_task_id: rh_covered_call_strategy
+      title: Sell Covered Call on AAPL Position
+      primary_primitive: exploration
+      expected_steps: 10
+    - base_task_id: rh_live_dual_alert_decision
+      title: Dual Alert Decision Making
+      primary_primitive: grounding
+      expected_steps: 14
+    - base_task_id: rh_live_stop_loss_execution
+      title: Stop-Loss Order Execution
+      primary_primitive: state_tracking
+      expected_steps: 10
+    expert:
+    - base_task_id: rh_cross_reference_1099
+      title: Set Breakeven Alerts from 1099-B Tax Document
+      primary_primitive: state_tracking
+      expected_steps: 18
+    - base_task_id: rh_dividend_reinvestment_analysis
+      title: Dividend Yield Analysis and Recurring Investment
+      primary_primitive: state_tracking
+      expected_steps: 22
+    - base_task_id: rh_earnings_play_setup
+      title: Earnings Protection Setup for {target.symbol}
+      primary_primitive: exploration
+      expected_steps: 18
+    frontier:
+    - base_task_id: rh_live_comparative_watch
+      title: Comparative Price Watch and Trade
+      primary_primitive: patience
+      expected_steps: 30
+    - base_task_id: rh_live_multi_stock_limits
+      title: Multi-Stock Limit Order Monitoring
+      primary_primitive: planning
+      expected_steps: 30
+    - base_task_id: rh_quarterly_performance_review
+      title: Quarterly Portfolio Cleanup
+      primary_primitive: patience
+      expected_steps: 30

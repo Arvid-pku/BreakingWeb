@@ -1,0 +1,10 @@
+variant_id: lms_course_load_analysis__course_ordering_shift_v1
+base_task_id: lms_course_load_analysis
+target_primitive: planning
+description: Timestamp cues are perturbed and extra enrollment/announcement noise is
+  inserted, so the agent must re-plan against the current LMS state.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 42

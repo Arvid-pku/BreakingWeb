@@ -1,0 +1,82 @@
+task_id: booking_set_default_payment
+env_id: booking
+title: "Change Default Payment to Amex"
+instruction_template: >
+  Go to settings and change the default payment method to the American Express
+  card ending in 1234.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 3
+primary_primitives:
+  - grounding
+start_path: /settings
+seed:
+  distractors: 3
+  actors: {}
+  steps: []
+  targets: {}
+canonical_diff:
+  # ACTION task: the user wants the default payment switched to the Amex
+  # card ending in 1234. The backend updates both the settings pointer and
+  # the PaymentMethod.is_default flags, so each expected side effect is listed.
+  update:
+    - entity: settings
+      desc: Default payment switched to the Amex card ending in 1234
+      where: {id: {any: true}}
+      changes:
+        default_payment_id:
+          expr: "any(pm.id == x and pm.card_type == 'Amex' and pm.last_four == '1234' for pm in state.payment_methods)"
+    - entity: PaymentMethod
+      desc: Previously-default card loses default status
+      where:
+        id: {expr: "x == initial.settings.default_payment_id"}
+      changes:
+        is_default: {eq: false}
+    - entity: PaymentMethod
+      desc: Amex card ending in 1234 becomes default
+      where:
+        id:
+          expr: >-
+            any(
+              pm.id == x and pm.card_type == 'Amex' and pm.last_four == '1234'
+              for pm in initial.payment_methods
+            )
+      changes:
+        is_default: {eq: true}
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not create or modify notifications
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not delete or alter unrelated saved payment methods
+      ref: invariant[6]
+      severity: high

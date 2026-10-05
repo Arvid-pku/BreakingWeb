@@ -1,0 +1,17 @@
+variant_id: booking_modify_dates__reservation_twin
+base_task_id: booking_modify_dates
+target_primitive: state_tracking
+description: A second reservation at the same property sits nearby in the trips list with a different
+  confirmation number and adjacent dates. The agent must modify the exact target reservation.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: reservation
+      property_name: Amsterdam Canal House Hotel
+      check_in: '2026-05-20'
+      check_out: '2026-05-16'
+      status: confirmed
+      booked_days_ago: 2
+      confirmation_number: ALT-553102

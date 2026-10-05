@@ -1,0 +1,14 @@
+variant_id: lms_advisor_meeting_prep__input_corruption
+base_task_id: lms_advisor_meeting_prep
+target_primitive: verification
+description: >
+  Every 7th character typed into text inputs is silently dropped. Agent
+  that does not verify the field's final value submits corrupted data.
+injections:
+  - layer: client
+    params:
+      action: input_corruption
+      selector: "input[type=text], textarea"
+      mode: drop_every_n
+      n: 7
+      behavior: { mode: persistent }

@@ -1,0 +1,92 @@
+task_id: gmail_interview_scheduling
+env_id: gmail
+title: Interview Scheduling
+instruction_template: 'HR coordinator {target.lisa_name} sent an email with subject
+  "Interview Slots — Backend Engineer" listing 5 available times. Three interviewers
+  each sent emails stating which slots they cannot attend: {target.marco_singh_name}
+  (subject "My availability — Backend interviews"), {target.priya_name} (in a thread
+  with subject "Re: Panel schedule update"), and {target.avery_name} (subject "Scheduling
+  conflicts this week"). Find the one slot where all three interviewers are available.
+  Reply to {target.lisa_name}''s email with the selected slot written as "Confirmed:
+  Wednesday, 2:00 PM" and CC {target.marco_singh_email}, {target.priya_email}, and
+  {target.avery_email}.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: interview_scheduling
+    params: {}
+    outputs:
+    - lisa_name
+    - lisa_email
+    - marco_singh_name
+    - marco_singh_email
+    - priya_name
+    - priya_email
+    - avery_name
+    - avery_email
+    - marco_santos_name
+    - marco_santos_email
+    - hr_slots_email_id
+    - hr_frontend_decoy_email_id
+  targets:
+    lisa_name: '{output.lisa_name}'
+    lisa_email: '{output.lisa_email}'
+    marco_singh_name: '{output.marco_singh_name}'
+    marco_singh_email: '{output.marco_singh_email}'
+    priya_name: '{output.priya_name}'
+    priya_email: '{output.priya_email}'
+    avery_name: '{output.avery_name}'
+    avery_email: '{output.avery_email}'
+    marco_santos_name: '{output.marco_santos_name}'
+    marco_santos_email: '{output.marco_santos_email}'
+    hr_slots_email_id: '{output.hr_slots_email_id}'
+    hr_frontend_decoy_email_id: '{output.hr_frontend_decoy_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to Lisa's slots email confirming Wednesday 2PM with all interviewers CC'd
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['hr_slots_email_id']"
+        to:
+          expr: "x == [target['lisa_email']]"
+        cc:
+          expr: "sorted(x) == sorted([target['marco_singh_email'], target['priya_email'], target['avery_email']]) and len(x) == 3"
+        bcc:
+          eq: []
+        body:
+          substring: "Confirmed: Wednesday, 2:00 PM"
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to Lisa with confirmed slot and CC'd all interviewers
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox
+      ref: invariant[0]
+      severity: high

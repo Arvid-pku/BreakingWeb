@@ -1,0 +1,17 @@
+variant_id: gmail_forward_email__forward_retry
+base_task_id: gmail_forward_email
+target_primitive: backtracking
+description: The first forward attempt fails transiently. The agent must verify the forward succeeded and retry if it did
+  not.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/emails/*/forward'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

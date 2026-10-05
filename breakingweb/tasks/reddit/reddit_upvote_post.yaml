@@ -1,0 +1,93 @@
+task_id: reddit_upvote_post
+env_id: reddit
+title: Upvote a Specific Post
+instruction_template: >
+  Navigate to r/{target.subreddit_name} and find the post titled
+  "{target.post_title}". Upvote that post. Do not vote on any other posts.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: technology
+      title: "FCC Votes 3-2 to Reinstate Net Neutrality Rules Nationwide"
+      body: "The Federal Communications Commission voted along party lines to restore net neutrality protections that were repealed in 2017."
+      score: 18340
+      flair_text: "Net Neutrality"
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: decoy_posts
+    params:
+      subreddit: technology
+      count: 3
+      title_pattern: "FCC announces {topic} regarding broadband"
+      score_range: [5000, 12000]
+    outputs:
+    - decoy_post_ids
+  targets:
+    post_id: "{output.post_id}"
+    post_title: "{output.post_title}"
+    subreddit_name: "{output.subreddit_name}"
+    decoy_post_ids: "{output.decoy_post_ids}"
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Upvote the target post
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      vote_direction:
+        eq: 1
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent upvoted the target post
+    ref: update[0]
+    severity: high
+  - name: Agent did not vote on or modify any other posts
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify subreddits
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify messages
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low

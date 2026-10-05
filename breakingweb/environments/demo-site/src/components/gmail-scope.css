@@ -1,0 +1,61 @@
+/*
+ * Scope Gmail design tokens to .gmail-scope container only.
+ * This prevents Gmail's :root overrides from bleeding into the demo site.
+ * We re-declare the same variables but under a class selector.
+ */
+
+.gmail-scope {
+  --color-primary: #1a73e8;
+  --color-primary-soft: rgba(26, 115, 232, 0.08);
+  --color-bg: #f6f8fc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #edf2fc;
+  --color-text: #202124;
+  --color-text-muted: #5f6368;
+  --color-border: #e0e0e0;
+  --color-border-strong: #c4c7c5;
+  --color-danger: #c5221f;
+  --color-danger-soft: rgba(197, 34, 31, 0.08);
+  --color-success: #188038;
+  --font-ui: "Google Sans", "Product Sans", Roboto, sans-serif;
+  --font-body: Roboto, "Google Sans", sans-serif;
+  --shadow-soft: none;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+/* Override Gmail's .gmail-shell min-height inside the scoped container */
+.gmail-scope .gmail-shell {
+  min-height: 0;
+  height: 100%;
+}
+
+/* Ensure gmail-scope fills its parent and content scrolls properly */
+.gmail-scope {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* The main content column needs to scroll */
+.gmail-scope .gmail-main-column {
+  overflow-y: auto;
+}
+
+/* Undo any Tailwind preflight interference with Gmail link styles */
+.gmail-scope a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/* Email rows must be clickable */
+.gmail-scope .gmail-email-row {
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}

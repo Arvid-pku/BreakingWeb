@@ -1,0 +1,96 @@
+task_id: rh_transfer_history_audit
+env_id: robinhood
+title: Deposit and Set Up Auto-Invest
+instruction_template: Review your transfer history from the past 6 months (ending
+  today, 4/21/2026). Calculate your total deposits and total withdrawals for that
+  period. If total deposits exceed total withdrawals, set up a recurring weekly investment
+  of $200 in VTI to put your surplus to work. If withdrawals exceed or equal deposits,
+  first deposit $3,000 from your default linked bank, then set up the recurring weekly
+  $200 VTI investment.
+difficulty: hard
+time_limit_seconds: 220
+expected_steps: 8
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - AAPL
+      - MSFT
+      - VTI
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  - use: transfers_history
+    params:
+      count: 10
+      age_range_days:
+      - 1
+      - 180
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      quantities:
+      - '10'
+      - '5'
+      cost_bases:
+      - '180.00'
+      - '390.00'
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: recurring_investments
+    desc: Active weekly $200 VTI recurring investment
+    properties:
+      symbol: {eq: VTI}
+      frequency: {eq: weekly}
+      amount: {eq: 200}
+      status: {eq: active}
+  - entity: transfers
+    desc: $3,000 deposit when initial withdrawals exceeded deposits
+    bijection:
+      over: "['NEEDED'] if initial.total_transferred('withdrawal') >= initial.total_transferred('deposit') else []"
+      variable: tag
+    properties:
+      direction: {eq: deposit}
+      amount: {eq: 3000}
+      status: {any: true}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  invariant:
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, planning by requiring the
+  agent to analyze transfer history and take conditional action based on the findings.

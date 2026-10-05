@@ -1,0 +1,70 @@
+variant_id: pp_resolve_specialist_conflicts__appointment_reschedule_retry_v1
+base_task_id: pp_resolve_specialist_conflicts
+target_primitive: backtracking
+description: >-
+  Mid-task re-route under repeated transient failures. Every conflict-resolution
+  write (reschedule, create, cancel, confirm) returns two consecutive 503s before
+  succeeding, so whichever branch the agent picks must retry each leg. After the
+  first write conflict, a 409 "modified by another session" response carries a
+  misleading latest snapshot in which the later-booked conflict already appears
+  moved to the provider's globally-earliest slot — which is the WRONG (telehealth)
+  visit type. The agent must reload, detect that the apparent destination is the
+  wrong type, reject the "someone already fixed it" state, and re-route to the
+  correct type-matched in-person slot. A confirm that 503s also returns a forged
+  success body, forcing the agent to re-read confirmation_state. Pure backtracking
+  + verification of the destination after each failure.
+injections:
+# Layer 1 — repeated transient 503s on EVERY conflict-resolution write so the
+# agent cannot blindly retry once; each leg of either branch (reschedule OR
+# cancel+create+confirm) fails twice before it succeeds.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/**'
+    methods:
+    - POST
+    error_count: 2
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+# Layer 2 — concurrent-modification 409 on the first write attempt carrying a
+# misleading "latest" snapshot: the later-booked conflict appears ALREADY moved
+# to the provider's globally-earliest slot (the wrong-type telehealth decoy).
+# The agent must reconcile, recognise the apparent destination is the wrong
+# visit type, and re-route to the correct type-matched slot rather than trusting
+# the snapshot.
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/patient_portal/appointments/*/reschedule'
+    methods:
+    - POST
+    conflict_count: 1
+    conflict_message: >-
+      This appointment was modified by another session and now appears to have
+      been moved. Reload and verify the destination before retrying.
+    latest_snapshot:
+      id: '{target.later_booked_apt_id}'
+      provider_id: '{target.later_booked_provider_id}'
+      status: scheduled
+      type: telehealth
+      datetime: '{target.bare_earliest_slot}'
+      location: Telehealth
+      note: Auto-rescheduled to earliest open slot by scheduling assistant.
+# Layer 3 — a confirm that hits the 503 window also returns a forged success
+# body, so a single confirm that "looked" successful is not enough: the agent
+# must re-read confirmation_state and re-issue the confirm if Branch B was taken.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/confirm'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      id: '{target.later_booked_apt_id}'
+      confirmation_state: confirmed
+      status: scheduled
+    behavior:
+      mode: once

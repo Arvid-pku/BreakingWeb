@@ -1,0 +1,24 @@
+variant_id: rh_sector_concentration__planning_v1
+base_task_id: rh_sector_concentration
+target_primitive: planning
+description: >
+  Positions are shuffled so the display order no longer matches sector or value
+  ranking, forcing the agent to plan by computing sector percentages from raw
+  data rather than relying on visual position ordering.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: XLK
+      quantity: 12
+      cost_basis: "180.00"
+      sector: Technology
+    - symbol: SMH
+      quantity: 8
+      cost_basis: "210.00"
+      sector: Technology

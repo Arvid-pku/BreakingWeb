@@ -1,0 +1,20 @@
+variant_id: rh_live_stop_loss_execution__state_tracking_v1
+base_task_id: rh_live_stop_loss_execution
+target_primitive: state_tracking
+description: >
+  Confusing positions for similar-sounding symbols and noise orders
+  clutter the account. The agent must correctly identify the 5-share
+  NVDA position and calculate 8% below current price without being
+  misled by distractor holdings.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    symbols: ["NVDS", "NVAX", "AMD"]
+    quantities: [5, 10, 8]
+- layer: seed
+  params:
+    action: add_noise_orders
+    symbols: ["AAPL", "MSFT"]
+    count: 5

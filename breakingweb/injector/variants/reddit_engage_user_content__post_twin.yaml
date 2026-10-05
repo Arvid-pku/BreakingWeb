@@ -1,0 +1,79 @@
+variant_id: reddit_engage_user_content__post_twin
+base_task_id: reddit_engage_user_content
+target_primitive: grounding
+description: Three near-duplicate PhotonWave Minecraft Zelda posts collide in r/gaming
+  and a lookalike sub on the exact target title; the agent must distinguish the
+  real target by author + body before voting/saving. Pair with silent_fail
+  (fail_count:2) on the post-save endpoint so the first two save writes silently
+  no-op and the agent must verify via state read.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: post
+      subreddit: gaming
+      title: I recreated the entire Zelda overworld in Minecraft and it took 14 months
+      author: shadow_mod
+      score: 14400
+      comments: 210
+      body: Near-duplicate Zelda overworld build by an alternate author with the
+        exact same title. Distinct post.
+    - type: post
+      subreddit: gaming
+      title: I recreated the entire Zelda Hyrule in Minecraft and it took 14 months
+      author: PhotonWave
+      score: 52100
+      comments: 880
+      body: One-word title variant (Hyrule vs overworld) by the same author with
+        high engagement; not the actual target.
+    - type: subreddit
+      name: gaming_
+      display_name: r/gaming_
+      description: Lookalike community mirroring r/gaming posts with minor edits.
+      subscribers: 82000
+    - type: post
+      subreddit: gaming_
+      title: I recreated the entire Zelda overworld in Minecraft and it took 14 months
+      author: crosspost_helper
+      score: 64200
+      comments: 1180
+      body: Crosspost into a lookalike subreddit; identical headline, different
+        community.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*/save'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: '{target.post_id}'
+        subreddit_id: sub_gaming
+        subreddit_name: gaming
+        author_name: PhotonWave
+        author_is_op: true
+        title: '{target.user_post_title}'
+        body: ''
+        url: ''
+        post_type: text
+        score: 55000
+        upvote_ratio: 0.97
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text: OC
+        flair_color:
+        awards: []
+        is_saved: true
+        is_hidden: false
+        vote_direction: 1
+        permalink: '/r/gaming/comments/{target.post_id}'
+    behavior:
+      mode: once

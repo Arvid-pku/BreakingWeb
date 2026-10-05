@@ -1,0 +1,68 @@
+task_id: rh_multi_leg_options
+env_id: robinhood
+title: Execute an Iron Condor on {target.symbol}
+instruction_template: 'Execute an iron condor on {target.symbol}: sell a call and
+  a put at strikes 5% above and below current price, and buy protective legs 2% further
+  out, all expiring in approximately 45 days.'
+difficulty: expert
+time_limit_seconds: 400
+expected_steps: 22
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - SPY
+      - QQQ
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: SPY
+      expirations_count: 4
+      strikes_per_expiration: 20
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - QQQ
+      - AAPL
+      quantities:
+      - '50'
+      - '20'
+      cost_bases:
+      - '380.00'
+      - '175.00'
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    symbol: SPY
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: 4-leg iron condor with proper call/put structure and ~45-day expiry
+    properties:
+      strategy: {eq: iron_condor}
+      status: {in: [pending, filled]}
+      legs: {expr: "len(x) == 4 and all(leg['underlying_symbol'] == target['symbol'] and leg['quantity'] == 1 for leg in x) and len(set(leg['expiration'] for leg in x)) == 1 and all(state.days_until(leg['expiration']) >= 35 and state.days_until(leg['expiration']) <= 55 for leg in x) and len([leg for leg in x if leg['option_type'] == 'call' and leg['side'] == 'sell' and abs((leg['strike'] / state.get_stock(target['symbol']).price) - Decimal('1.05')) <= Decimal('0.03')]) == 1 and len([leg for leg in x if leg['option_type'] == 'put' and leg['side'] == 'sell' and abs((leg['strike'] / state.get_stock(target['symbol']).price) - Decimal('0.95')) <= Decimal('0.03')]) == 1 and len([leg for leg in x if leg['option_type'] == 'call' and leg['side'] == 'buy' and abs((leg['strike'] / state.get_stock(target['symbol']).price) - Decimal('1.07')) <= Decimal('0.03')]) == 1 and len([leg for leg in x if leg['option_type'] == 'put' and leg['side'] == 'buy' and abs((leg['strike'] / state.get_stock(target['symbol']).price) - Decimal('0.93')) <= Decimal('0.03')]) == 1 and max(leg['strike'] for leg in x if leg['option_type'] == 'put' and leg['side'] == 'buy') < min(leg['strike'] for leg in x if leg['option_type'] == 'put' and leg['side'] == 'sell') and min(leg['strike'] for leg in x if leg['option_type'] == 'call' and leg['side'] == 'buy') > max(leg['strike'] for leg in x if leg['option_type'] == 'call' and leg['side'] == 'sell')"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures planning, state_tracking, exploration, grounding by requiring
+  exact completion of the requested Robinhood workflow while ignoring distractor account
+  state.

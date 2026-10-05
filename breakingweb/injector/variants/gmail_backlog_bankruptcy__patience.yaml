@@ -1,0 +1,31 @@
+variant_id: gmail_backlog_bankruptcy__patience_v1
+base_task_id: gmail_backlog_bankruptcy
+target_primitive: patience
+description: >
+  First email list call returns 503, first 2 forward calls return 503, and first delete call returns 503 to stress retry during bulk processing.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/emails"
+    methods: [POST, PUT, PATCH, DELETE]
+    error_status: 503
+    error_count: 1
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/send"
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/emails/*/delete"
+    error_status: 503
+    error_count: 1
+    behavior:
+      mode: once

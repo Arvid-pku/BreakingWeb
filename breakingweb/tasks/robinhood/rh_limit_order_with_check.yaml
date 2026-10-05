@@ -1,0 +1,70 @@
+task_id: rh_limit_order_with_check
+env_id: robinhood
+title: Check Price Then Place Limit Buy Order
+instruction_template: Check AMZN's current price, then place a limit buy order for
+  10 shares at 5% below current price, good-till-cancelled.
+difficulty: medium
+time_limit_seconds: 150
+expected_steps: 6
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AMZN
+      - AAPL
+      - MSFT
+      - GOOGL
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      quantities:
+      - '15'
+      - '10'
+      cost_bases:
+      - '180.00'
+      - '370.00'
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Exactly one AMZN pending GTC limit buy order for 10 shares at 5% below market
+    properties:
+      symbol: {eq: AMZN}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      quantity: {eq: 10}
+      time_in_force: {eq: gtc}
+      status: {eq: pending}
+      limit_price: {expr: "abs(float(x) - float(state.get_stock('AMZN').price * Decimal('0.95'))) <= 0.5"}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "(a.side == 'buy' and a.symbol != 'AMZN') or a.side == 'sell'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+secondary_primitives: []

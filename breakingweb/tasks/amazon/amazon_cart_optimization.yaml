@@ -1,0 +1,180 @@
+task_id: amazon_cart_optimization
+env_id: amazon
+title: Optimize Cart by Removing and Adjusting Items
+instruction_template: 'Your cart has 6 items. Remove "{target.remove_item1}" and "{target.remove_item2}"
+  from the cart, change the quantity of "{target.qty_item1}" to {target.qty1} and
+  "{target.qty_item2}" to {target.qty2}, then complete checkout using the shipping
+  address for Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- verification
+start_path: /cart
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Mechanical Gaming Keyboard
+        price: 149.99
+        quantity: 1
+      - name: Wireless Gaming Mouse
+        price: 79.99
+        quantity: 1
+      - name: USB Desk Fan
+        price: 19.99
+        quantity: 1
+      - name: LED Monitor Light Bar
+        price: 44.99
+        quantity: 1
+      - name: 4K Webcam Pro
+        price: 129.99
+        quantity: 1
+      - name: Cable Management Kit
+        price: 14.99
+        quantity: 1
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  targets:
+    remove_item1: Mechanical Gaming Keyboard
+    remove_item2: 4K Webcam Pro
+    qty_item1: USB Desk Fan
+    qty1: '3'
+    qty_item2: LED Monitor Light Bar
+    qty2: '2'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed with the four kept cart items (removed items absent,
+      updated quantities correct)
+    properties:
+      items:
+        expr: "len(x) == 4 and any(it['product_name'] == target['qty_item1'] and it['quantity']
+          == int(target['qty1']) for it in x) and any(it['product_name'] == target['qty_item2']
+          and it['quantity'] == int(target['qty2']) for it in x) and any(it['product_name']
+          == 'Wireless Gaming Mouse' and it['quantity'] == 1 for it in x) and any(it['product_name']
+          == 'Cable Management Kit' and it['quantity'] == 1 for it in x) and not any(it['product_name']
+          == target['remove_item1'] for it in x) and not any(it['product_name'] ==
+          target['remove_item2'] for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id: {expr: "any(a.id == x and a.full_name == 'Jordan Parker'
+          and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"}
+      payment_method_id: {expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four
+          == '4242' for p in state.payment_methods)"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  delete:
+  - entity: CartItem
+    desc: Mechanical Gaming Keyboard removed from cart (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {expr: "x == target['remove_item1']"}
+  - entity: CartItem
+    desc: 4K Webcam Pro removed from cart (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {expr: "x == target['remove_item2']"}
+  - entity: CartItem
+    desc: USB Desk Fan consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {expr: "x == target['qty_item1']"}
+  - entity: CartItem
+    desc: LED Monitor Light Bar consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {expr: "x == target['qty_item2']"}
+  - entity: CartItem
+    desc: Wireless Gaming Mouse consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {eq: Wireless Gaming Mouse}
+  - entity: CartItem
+    desc: Cable Management Kit consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_name: {eq: Cable Management Kit}
+  invariant:
+  - collection: state.orders
+    filter: "not (any(it.get('product_name') == target['qty_item1'] for it in (a.items
+      or [])) and any(it.get('product_name') == target['qty_item2'] for it in (a.items
+      or [])))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

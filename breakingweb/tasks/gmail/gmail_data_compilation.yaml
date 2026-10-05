@@ -1,0 +1,95 @@
+task_id: gmail_data_compilation
+env_id: gmail
+title: Data Compilation
+instruction_template: The CFO asked you to compile Q1 numbers. Three department heads
+  — {target.dept_a_name}, {target.dept_b_name}, and {target.dept_c_name} — each sent
+  an email with their department's quarterly figures. Find all three emails (they
+  may be in different inbox tabs or require scrolling). Extract the budget number
+  from each and compose a new email to {target.exec_email} with a subject line 'Q1
+  Budget Summary'. List all three numbers in the body, labeled by department. CC all
+  three department heads.
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 40
+primary_primitives:
+- exploration
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: data_compilation
+    params: {}
+    outputs:
+    - exec_email
+    - dept_emails
+    - dept_a_name
+    - dept_b_name
+    - dept_c_name
+    - dept_a_dept
+    - dept_b_dept
+    - dept_c_dept
+    - number_a
+    - number_b
+    - number_c
+    - wrong_numbers
+  targets:
+    exec_email: '{output.exec_email}'
+    dept_emails: '{output.dept_emails}'
+    dept_a_name: '{output.dept_a_name}'
+    dept_b_name: '{output.dept_b_name}'
+    dept_c_name: '{output.dept_c_name}'
+    dept_a_dept: '{output.dept_a_dept}'
+    dept_b_dept: '{output.dept_b_dept}'
+    dept_c_dept: '{output.dept_c_dept}'
+    number_a: '{output.number_a}'
+    number_b: '{output.number_b}'
+    number_c: '{output.number_c}'
+    wrong_numbers: '{output.wrong_numbers}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose Q1 Budget Summary email to exec with all dept numbers
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['exec_email']]"
+        subject:
+          substring_all:
+            - Q1 Budget Summary
+        body:
+          expr: "target['number_a'] in x and target['number_b'] in x and target['number_c'] in x"
+        cc:
+          expr: "sorted(x) == sorted(target['dept_emails']) and len(x) == len(target['dept_emails'])"
+        bcc:
+          eq: []
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the Q1 Budget Summary to exec with all numbers
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent sent exactly one email
+      ref: create[0]
+      severity: high

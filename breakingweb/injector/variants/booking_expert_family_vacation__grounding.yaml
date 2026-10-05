@@ -1,0 +1,51 @@
+variant_id: booking_expert_family_vacation__grounding_v1
+base_task_id: booking_expert_family_vacation
+target_primitive: grounding
+description: >
+  Two near-miss decoy family hotels in Barcelona share the target's name prefix
+  and amenities so the agent must compare exact names/locations to pick the
+  correct property. Card layouts are shuffled and a misleading booking tip
+  banner nudges toward review_count, the wrong grounding signal. Previously
+  this used `scramble_aria` which is dead code in the current client runtime —
+  a visual agent felt nothing beyond the two seed decoys.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Hotel del Mar Barcelona Beachfront
+      city: Barcelona
+      country: Spain
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.5
+      review_count: 3120
+      price: 218.0
+      description: Nearly identical property name with slightly different review profile and price.
+    - type: property
+      name: Hotel del Mar Barceloneta Suites
+      city: Barcelona
+      country: Spain
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.6
+      review_count: 4180
+      price: 205.0
+      description: Same name prefix and neighborhood; tempts a name-only match.
+- layer: client
+  params:
+    action: false_banner
+    style: plain
+    message: "Family travel tip: when several similarly-named hotels appear, the one with the highest review count is usually the most family-friendly choice."
+    css_class: bk-platform-banner
+    insert_before: ".bk-search-layout"
+    behavior:
+      mode: persistent
+- layer: client
+  params:
+    action: inject_visual_noise
+    mutations:
+    - selector: '.bk-card-body'
+      behavior: shuffle_child_order
+      probability: 0.3

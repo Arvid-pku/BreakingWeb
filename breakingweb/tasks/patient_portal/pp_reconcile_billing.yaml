@@ -1,0 +1,126 @@
+task_id: pp_reconcile_billing
+env_id: patient_portal
+title: Reconcile Claims to Appointments
+instruction_template: Identify completed appointments from the last 90 days that have
+  no matching insurance claim on file. The Billing page shows each claim's linked
+  appointment ID. Once you have found at least one uncovered completed appointment,
+  schedule exactly one billing-department appointment in the next available slot with
+  the reason exactly "Missing claim review". Do not send any messages, do not appeal
+  or pay any claims, and do not cancel any existing appointments.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /billing
+seed:
+  distractors: 12
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - orthopedics
+      - endocrinology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 4
+      cancelled_count: 1
+    outputs:
+    - upcoming_ids
+    - completed_ids
+    - cancelled_ids
+  - use: insurance_claims
+    params:
+      approved_count: 1
+      denied_count: 1
+      processing_count: 1
+      with_eob: true
+    outputs:
+    - approved_claim_ids
+    - denied_claim_ids
+    - processing_claim_ids
+  targets:
+    billing_provider_ids: '{output.providers_by_specialty.billing}'
+    upcoming_ids: '{output.upcoming_ids}'
+    completed_ids: '{output.completed_ids}'
+    approved_claim_ids: '{output.approved_claim_ids}'
+    denied_claim_ids: '{output.denied_claim_ids}'
+    processing_claim_ids: '{output.processing_claim_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one billing-department appointment at the next available billing slot with the exact reason 'Missing claim review'"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Missing claim review"}
+        provider_id:
+          expr: "x in target['billing_provider_ids']"
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['billing_provider_ids']
+                     for s in p.available_slots)
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not appeal, pay, or otherwise modify existing claims"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

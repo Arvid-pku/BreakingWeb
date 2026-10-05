@@ -1,0 +1,70 @@
+task_id: booking_change_language
+env_id: booking
+title: Change Language to French
+instruction_template: 'Go to settings and change the language preference to French,
+  then save.
+
+  '
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 3
+primary_primitives:
+- verification
+start_path: /settings
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: set_settings
+    params:
+      language: English
+    outputs:
+    - updated
+  targets: {}
+canonical_diff:
+  update:
+    - entity: settings
+      desc: Language preference set to French
+      where: { id: { any: true } }
+      changes:
+        language: { eq: French }
+        currency: { expr: "x == initial.settings.currency" }
+        two_factor_enabled: { expr: "x == initial.settings.two_factor_enabled" }
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

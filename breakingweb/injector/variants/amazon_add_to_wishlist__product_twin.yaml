@@ -1,0 +1,49 @@
+variant_id: amazon_add_to_wishlist__product_twin
+base_task_id: amazon_add_to_wishlist
+target_primitive: grounding
+description: "Three near-duplicate SKUs share the target's brand, price, rating, and thumbnail; sort-by-price/rating fails to disambiguate. The first two wishlist-add calls silently no-op so the agent must verify the wishlist actually changed."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Noise Cancelling Headphones - Pro Edition"
+      brand: AudioPeak
+      seller: AudioPeak
+      category: Electronics
+      price: 149.99
+      rating: 4.6
+      review_count: 820
+      match_image_of: Noise Cancelling Headphones
+      description: "Pro-edition sibling with identical brand, price, and thumbnail; distinct SKU."
+    - type: product
+      name: "Noise Cancelling Headphones 2-Pack"
+      brand: AudioPeak
+      seller: AudioPeak
+      category: Electronics
+      price: 149.99
+      rating: 4.6
+      review_count: 580
+      match_image_of: Noise Cancelling Headphones
+      description: "Two-unit bundle with same listing branding; not the single-unit target."
+    - type: product
+      name: "Noise Cancelling Headphones Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 149.99
+      rating: 4.6
+      review_count: 410
+      match_image_of: Noise Cancelling Headphones
+      description: "Marketplace refurbished listing; sells alongside the target with identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/wishlist/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      ok: true
+      product_id: '{request.product_id}'
+    behavior: { mode: once }

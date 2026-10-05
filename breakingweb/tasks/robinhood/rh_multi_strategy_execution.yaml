@@ -1,0 +1,167 @@
+task_id: rh_multi_strategy_execution
+env_id: robinhood
+title: Execute Three Simultaneous Strategies
+instruction_template: 'Execute three strategies simultaneously: (a) Tax-loss harvest
+  any position with more than $500 in unrealized losses, checking for wash sale conflicts;
+  (b) Set up a protective collar on your largest position by buying a put and selling
+  a call; (c) Start a weekly $100 recurring investment into each of the 3 stocks on
+  your "{target.watchlist_name}" watchlist. Important: do not sell a stock in strategy
+  (a) that you are protecting in strategy (b).'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 38
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - TSLA
+      - INTC
+      - BA
+      - MSFT
+      - NVDA
+      - AMZN
+      - SQ
+      - PLTR
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 7
+      include_losers: true
+      loser_count: 3
+      large_position_stock: AAPL
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: AAPL
+      expirations_count: 2
+      strikes_per_expiration: 15
+    outputs: []
+  - use: watchlist
+    params:
+      name: Growth Picks
+      symbols:
+      - SQ
+      - PLTR
+      - NVDA
+    outputs: []
+  - use: transaction_ledger
+    params:
+      months: 3
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    watchlist_name: Growth Picks
+canonical_diff:
+  create:
+  - entity: recurring_investments
+    desc: Weekly $100 recurring investment for SQ
+    properties:
+      symbol: {eq: SQ}
+      amount: {expr: "float(x) == 100.0"}
+      frequency: {eq: weekly}
+      status: {eq: active}
+      next_execution_date: {any: true}
+      history: {any: true}
+  - entity: recurring_investments
+    desc: Weekly $100 recurring investment for PLTR
+    properties:
+      symbol: {eq: PLTR}
+      amount: {expr: "float(x) == 100.0"}
+      frequency: {eq: weekly}
+      status: {eq: active}
+      next_execution_date: {any: true}
+      history: {any: true}
+  - entity: recurring_investments
+    desc: Weekly $100 recurring investment for NVDA
+    properties:
+      symbol: {eq: NVDA}
+      amount: {expr: "float(x) == 100.0"}
+      frequency: {eq: weekly}
+      status: {eq: active}
+      next_execution_date: {any: true}
+      history: {any: true}
+  - entity: orders
+    desc: At least one sell order placed for tax-loss harvesting (not on AAPL)
+    properties:
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      symbol: {expr: "x != 'AAPL'"}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: options_orders
+    desc: Protective put leg on AAPL (collar component)
+    properties:
+      status: {in: [filled, pending]}
+      legs: {expr: "any(leg['side'] == 'buy' and leg['option_type'] == 'put' and leg['underlying_symbol']
+          == 'AAPL' for leg in x)"}
+      strategy: {any: true}
+  - entity: options_orders
+    desc: Covered call leg on AAPL (collar component)
+    properties:
+      status: {in: [filled, pending]}
+      legs: {expr: "any(leg['side'] == 'sell' and leg['option_type'] == 'call' and
+          leg['underlying_symbol'] == 'AAPL' for leg in x)"}
+      strategy: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'sell' and a.symbol == 'AAPL'"
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.options_orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.options_positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: Tax-loss harvesting stock sells filled
+    expr: all(o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders if o.side == 'sell' and o.id not in [io.id for io in
+      initial.orders]) and any(o.side == 'sell' and o.id not in [io.id for io in
+      initial.orders] for o in state.orders)
+    severity: critical
+secondary_primitives: []

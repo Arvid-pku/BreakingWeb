@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Desk organizer">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <path d="M80 128h240v164c0 17-13 30-30 30H110c-17 0-30-13-30-30z" fill="#ffffff" stroke="#cbd5e1" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M80 176h240M154 128v194M246 128v194" fill="none" stroke="#94a3b8" stroke-width="6"/>
+  <path d="M106 108h188c14 0 26 12 26 26v42H80v-42c0-14 12-26 26-26z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="6"/>
+  <rect x="104" y="204" width="62" height="86" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="6"/>
+  <rect x="216" y="204" width="80" height="32" rx="6" fill="#e2e8f0" stroke="#94a3b8" stroke-width="6"/>
+  <rect x="216" y="258" width="80" height="32" rx="6" fill="#e2e8f0" stroke="#94a3b8" stroke-width="6"/>
+  <path d="M130 102V74M158 102V62M186 102V78" stroke="#232f3e" stroke-width="10" stroke-linecap="round"/>
+  <path d="M116 300h168" stroke="#ff9900" stroke-width="10" stroke-linecap="round"/>
+</svg>

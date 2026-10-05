@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: oklch(10% 0.01 260);
+  --surface: oklch(16% 0.012 260);
+  --surface-raised: oklch(20% 0.015 260);
+  --border: oklch(28% 0.015 260);
+  --text-primary: oklch(95% 0.005 250);
+  --text-secondary: oklch(75% 0.01 255);
+  --text-tertiary: oklch(55% 0.012 260);
+  --accent: oklch(76% 0.14 250);
+  --green: oklch(78% 0.14 155);
+  --red: oklch(72% 0.15 25);
+  --amber: oklch(75% 0.13 85);
+  --shadow: oklch(0% 0 0 / 0.5);
+  --card-bg: oklch(14% 0.011 260);
+  --card-hover: oklch(17% 0.012 260);
+  --pill-active-bg: oklch(20% 0.015 260);
+  --pill-active-shadow: 0 1px 3px oklch(0% 0 0 / 0.12);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: oklch(98% 0.003 260);
+    --surface: oklch(95% 0.003 260);
+    --surface-raised: oklch(100% 0 0);
+    --border: oklch(85% 0.005 260);
+    --text-primary: oklch(10% 0.005 260);
+    --text-secondary: oklch(35% 0.01 260);
+    --text-tertiary: oklch(50% 0.008 260);
+    --accent: oklch(45% 0.15 250);
+    --green: oklch(45% 0.12 155);
+    --red: oklch(50% 0.14 25);
+    --amber: oklch(52% 0.13 85);
+    --shadow: oklch(0% 0 0 / 0.08);
+    --card-bg: oklch(98% 0.003 260);
+    --card-hover: oklch(95% 0.006 260);
+    --pill-active-bg: oklch(86% 0.008 260);
+    --pill-active-shadow: none;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: oklch(98% 0.003 260);
+  --surface: oklch(95% 0.003 260);
+  --surface-raised: oklch(100% 0 0);
+  --border: oklch(85% 0.005 260);
+  --text-primary: oklch(10% 0.005 260);
+  --text-secondary: oklch(35% 0.01 260);
+  --text-tertiary: oklch(50% 0.008 260);
+  --accent: oklch(45% 0.15 250);
+  --green: oklch(45% 0.12 155);
+  --red: oklch(50% 0.14 25);
+  --amber: oklch(52% 0.13 85);
+  --shadow: oklch(0% 0 0 / 0.08);
+  --card-bg: oklch(98% 0.003 260);
+  --card-hover: oklch(95% 0.006 260);
+  --pill-active-bg: oklch(86% 0.008 260);
+  --pill-active-shadow: none;
+}
+
+html {
+  font-size: 16px;
+}
+
+/*
+ * !important overrides prevent gmail.css's :root and body rules from
+ * leaking into the demo site.  gmail.css sets body { background: var(--color-bg) }
+ * and :root { --color-bg: #f6f8fc } which would turn the page white.
+ */
+body {
+  font-family: var(--font-sans) !important;
+  background: var(--bg) !important;
+  background-image: none !important;
+  color: var(--text-primary) !important;
+  line-height: 1.6 !important;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+html {
+  color-scheme: dark light !important;
+  overscroll-behavior: none;
+}
+
+/* Hide scrollbars but keep scrolling */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Undo shared base.css min-height: 100% on #root */
+#root {
+  min-height: auto;
+}

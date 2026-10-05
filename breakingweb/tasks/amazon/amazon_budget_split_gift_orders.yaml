@@ -1,0 +1,169 @@
+task_id: amazon_budget_split_gift_orders
+env_id: amazon
+title: Split a Budget Across Two Recipient Gift Orders
+instruction_template: 'You have ${target.total_budget} to spend on gifts for two recipients.
+  Place TWO separate orders: one shipped to "{target.recipient_1_name}" at "{target.address_1_street}",
+  the other shipped to "{target.recipient_2_name}" at "{target.address_2_street}".
+  Each order must contain at least one product from the {target.category} category.
+  Each order''s subtotal must be strictly less than ${target.per_order_cap} - don''t
+  exceed the cap.
+
+  '
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: named_address
+    params:
+      full_name: Alice Brown
+      street_address: 123 Oak Avenue
+      city: Boulder
+      state: CO
+      zip_code: '80301'
+    outputs:
+    - address_id
+    - full_name
+    - street_address
+    - city
+  - use: named_address
+    params:
+      full_name: Bob Stone
+      street_address: 456 Elm Street
+      city: Cambridge
+      state: MA
+      zip_code: '02139'
+    outputs:
+    - address_id_b
+    - full_name_b
+    - street_address_b
+    - city_b
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - product_ids
+  targets:
+    total_budget: 200
+    per_order_cap: 100
+    category: Home & Kitchen
+    recipient_1_name: Alice Brown
+    address_1_id: '{output.address_id}'
+    address_1_street: 123 Oak Avenue
+    recipient_2_name: Bob Stone
+    address_2_id: '{output.address_id_b}'
+    address_2_street: 456 Elm Street
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order shipped to recipient 1 (Alice) at her street, in-category subtotal under cap
+    properties:
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recipient_1_name'] and a.street_address == target['address_1_street'] for a in state.addresses)"
+      items:
+        expr: "any(any(p.id == it['product_id'] and p.category == target['category'] for p in state.products) for it in x)"
+      subtotal: {expr: "x < target['per_order_cap']"}
+      status: {eq: confirmed}
+      payment_method_id: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Order shipped to recipient 2 (Bob) at his street, in-category subtotal under cap
+    properties:
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recipient_2_name'] and a.street_address == target['address_2_street'] for a in state.addresses)"
+      items:
+        expr: "any(any(p.id == it['product_id'] and p.category == target['category'] for p in state.products) for it in x)"
+      subtotal: {expr: "x < target['per_order_cap']"}
+      status: {eq: confirmed}
+      payment_method_id: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify saved addresses
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

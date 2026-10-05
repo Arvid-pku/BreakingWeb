@@ -1,0 +1,73 @@
+variant_id: pp_request_renewal__medication_renewal_retry_v1
+base_task_id: pp_request_renewal
+target_primitive: backtracking
+description: >-
+  Multi-layer backtracking + verification stressor on the renewal write path.
+  The cabinet read first reports a stale 409 "modified by another session"
+  conflict whose latest snapshot falsely shows one must-renew prescription as
+  already pending_renewal (a false-completion trap the agent must reconcile).
+  Each renewal POST then suffers intermittent transient 503s (retry pressure
+  across EVERY renewal slot, not just the first), and a further fraction of
+  renewal POSTs return a loud but fake 200 "pending_renewal" success body that
+  never persists. The agent must retry per slot, re-read the moving cabinet, and
+  confirm the prescription status actually changed in backend state before
+  declaring the task done — it cannot fire-and-forget the renewal writes.
+injections:
+# Layer 1 (read / reconcile pressure): the medication cabinet GET conflicts on
+# the first two reads and hands back a "latest" snapshot in which one of the
+# must-renew prescriptions appears to already be pending_renewal. An agent that
+# trusts this snapshot will skip a still-needed renewal (false completion).
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/patient_portal/medications'
+    methods:
+    - GET
+    conflict_count: 2
+    conflict_message: >-
+      Your medication cabinet was updated in another session. Reload to see the
+      latest renewal status before making further changes.
+    latest_snapshot:
+      note: One renewal already appears to be in progress; reconcile before acting.
+      partial: true
+      prescriptions_pending_renewal: 1
+# Layer 2 (retry / backtracking pressure): renewal writes intermittently 503.
+# Intermittent mode draws independently per call, so on average roughly half of
+# the four renewal slots fail their first attempt and must be retried — loading
+# backtracking across the whole bijection, not just the first write.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/medications/*/renewal'
+    methods:
+    - POST
+    error_status: 503
+    error_message: >-
+      Renewal service temporarily unavailable. The request was not processed.
+      Please retry.
+    retry_after: 2
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42
+# Layer 3 (verification pressure): a fraction of renewal POSTs return a loud,
+# convincing fake 200 that claims status=pending_renewal and shows a success
+# toast, but the write is skipped server-side. The body carries NO mismatched
+# prescription id, so the agent cannot cheaply detect the lie by id-mismatch —
+# it must verify against the actual backend prescription status.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/medications/*/renewal'
+    methods:
+    - POST
+    behavior:
+      mode: intermittent
+      probability: 0.4
+      seed: 1337
+    success_body:
+      status: pending_renewal
+      success: true
+      message: Renewal request submitted successfully.
+      toast: Renewal submitted — your prescriber has been notified.
+      renewal_request_created: true

@@ -1,0 +1,85 @@
+variant_id: lms_resubmit_after_feedback__assignment_ordering_shift_v1
+base_task_id: lms_resubmit_after_feedback
+target_primitive: planning
+description: The course views are flooded with look-alike assignments that share
+  the "resubmit_requested" status but whose resubmission window has already closed
+  (their due dates are years past). A status-only filter over-acts and resubmits these
+  ineligible decoys, mutating frozen siblings; the agent must instead re-derive, per
+  course's late policy, which flagged assignments are still inside their window.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # ── Closed-window resubmit traps in the TARGET course (CS201) ──
+    # Same submission_status as the real targets, but due years ago: the
+    # resubmission window is unambiguously closed. Resubmitting any of these
+    # mutates an assignment that is NOT in resubmit_assignment_ids and trips the
+    # critical freeze invariant. Plausible category-matched titles + feedback so
+    # only the window rule disqualifies them.
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Problem Set 2 (revision requested)
+      assignment_type: homework
+      weight_category: homework
+      submission_status: resubmit_requested
+      score: '58'
+      attempt_count: 1
+      max_attempts: 3
+      due_at: '2020-09-10T23:59:00+00:00'
+      submitted_at: '2020-09-09T18:00:00+00:00'
+      feedback: Resubmission window closed 09/17/2020; revisions can no longer be accepted.
+        Contact your instructor for an exception.
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Quiz 3: Core Concepts (revision requested)'
+      assignment_type: quiz
+      weight_category: quizzes
+      submission_status: resubmit_requested
+      score: '61'
+      attempt_count: 1
+      max_attempts: 3
+      due_at: '2021-02-14T23:59:00+00:00'
+      submitted_at: '2021-02-13T20:00:00+00:00'
+      feedback: This revision is past the allowed late window for the course and
+        will not be regraded.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # ── Additional closed-window resubmit traps in the target course ──
+    # More resubmit_requested look-alikes (different categories, varied prior
+    # attempt counts) whose windows are long closed. They are NOT in the target
+    # set, so a status-only filter over-acts on all of them. Concentrating them
+    # in {target.course_code} (where the agent is told to focus) maximizes the
+    # disambiguation load on the window-eligibility decision.
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Project 1: Phase 1 (revision requested)'
+      assignment_type: project
+      weight_category: project
+      submission_status: resubmit_requested
+      score: '55'
+      attempt_count: 2
+      max_attempts: 4
+      due_at: '2020-04-01T23:59:00+00:00'
+      submitted_at: '2020-03-30T12:00:00+00:00'
+      feedback: The resubmission deadline for this milestone has passed (window closed
+        04/08/2020).
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Analysis Paper 2 (revision requested)
+      assignment_type: essay
+      weight_category: essays
+      submission_status: resubmit_requested
+      score: '60'
+      attempt_count: 1
+      max_attempts: 2
+      due_at: '2019-11-20T23:59:00+00:00'
+      submitted_at: '2019-11-18T09:00:00+00:00'
+      feedback: Late-submission window expired long ago; this paper can no longer be
+        resubmitted for credit.

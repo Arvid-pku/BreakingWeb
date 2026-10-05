@@ -1,0 +1,63 @@
+variant_id: pp_complex_claim_dispute__claim_appeal_retry_v1
+base_task_id: pp_complex_claim_dispute
+target_primitive: backtracking
+description: >-
+  Two stacked network stressors on the claim-appeal workflow, both loading
+  backtracking + verification on the SAME route family. (1) The first TWO appeal
+  POSTs return a LOUD misleading-success body that echoes the agent's own appeal
+  reason and shows status "appealed" WITHOUT persisting — so the agent must
+  verify real state and retry each urgent claim more than once. (2) The first
+  GET of the claims list after an appeal returns a 409 concurrent-modification
+  conflict whose stale snapshot still shows the just-appealed claims as
+  "denied", forcing a reload-and-reconcile before the agent can trust that its
+  two urgent appeals actually stuck.
+injections:
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/claims/*/appeal'
+    methods:
+    - POST
+    fail_count: 2
+    behavior:
+      mode: once
+    success_body:
+      id: clm_a9d2e4f8c1
+      service_date: '2026-02-10'
+      provider_id: prov_a82c441f
+      appointment_id: apt_d4f1c823a9
+      procedure_code: '99213'
+      diagnosis_code: I10
+      status: appealed
+      amount_billed: '180.00'
+      amount_covered: '0.00'
+      patient_responsibility: '180.00'
+      eob_available: true
+      appeal_deadline: '2026-08-10T00:00:00+00:00'
+      denial_reason: Documentation incomplete
+      supporting_referral_id: null
+      supporting_lab_ids: []
+      appeal_reason: '{request.reason}'
+      toast: 'Appeal submitted — your claim is now under review.'
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/patient_portal/claims'
+    methods:
+    - GET
+    conflict_count: 1
+    conflict_message: >-
+      Your claims were updated by another billing session while you were
+      appealing. Reload to see the current status before continuing.
+    latest_snapshot:
+      items:
+      - id: clm_4
+        status: denied
+        eob_available: true
+        appeal_deadline: '2026-06-07T04:00:00Z'
+        patient_responsibility: '967'
+      - id: clm_8
+        status: denied
+        eob_available: true
+        appeal_deadline: '2026-07-06T04:00:00Z'
+        patient_responsibility: '1047'

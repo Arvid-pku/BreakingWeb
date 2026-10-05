@@ -1,0 +1,30 @@
+variant_id: amazon_negative_review_return_cascade__return_retry
+base_task_id: amazon_negative_review_return_cascade
+target_primitive: verification
+description: >
+  The first two return POSTs return a fake 200 with a realistic return body
+  but never persist on the backend. The agent must verify each return was
+  actually filed via re-read (not by trusting the success toast) before
+  filing the next one in the cascade.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/returns'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      return:
+        id: return_fake_retry
+        order_id: order_fake_retry
+        order_item_index: 0
+        product_id: prod_fake_retry
+        product_name: Pending return
+        reason: Quality below expectations
+        status: pending
+        refund_amount: 0.0
+        created_at: '2026-04-26T08:00:00+00:00'
+        resolution_note: ''
+    behavior:
+      mode: once

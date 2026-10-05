@@ -1,0 +1,188 @@
+task_id: gmail_sensitive_hr_routing
+env_id: gmail
+title: Sensitive HR Routing
+instruction_template: 'You have four HR-related emails. Handle each according to its
+  specific policy:
+
+
+  1. Thread "Performance Concern: {target.employee_name} - Q3 Review" from {target.hr_manager_name}
+  ({target.hr_manager_email}): the thread CCs the engineering team AND {target.employee_name}
+  ({target.employee_email}) who is the subject of the concern. Forward {target.hr_manager_name}''s
+  message to HR Director {target.hr_director_name} ({target.hr_director_email}) ONLY
+  with the body "Forwarding for confidential review. Do not reply-all on the original
+  thread." Do NOT reply or reply-all on this thread.
+
+
+  2. Thread "Benefits Enrollment - Dental Plan Question" from {target.benefits_requester_name}
+  ({target.benefits_requester_email}). Reply ONLY to {target.benefits_requester_name}
+  with the exact phrase "Your employee ID is {target.employee_id}. HR will process
+  the dental enrollment within 5 business days."
+
+
+  3. Thread "Resignation Notice - Effective April 15" from {target.resigner_name}
+  ({target.resigner_email}). Forward this email to BOTH VP {target.vp_name} ({target.vp_email})
+  AND HR Director {target.hr_director_name} ({target.hr_director_email}) with the
+  body "Resignation received. Backfill planning needed." Then star {target.resigner_name}''s
+  message.
+
+
+  4. Thread "Updated PTO Policy - Effective March 1" from HR Announcements ({target.announcements_email}).
+  Archive this email. Do not reply or forward.
+
+
+'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: sensitive_hr_routing
+    params: {}
+    outputs:
+    - thread_1_id
+    - thread_1_msg_id
+    - thread_2_id
+    - thread_2_msg_id
+    - thread_3_id
+    - thread_3_msg_id
+    - thread_4_id
+    - thread_4_msg_id
+    - hr_manager_name
+    - hr_manager_email
+    - hr_director_name
+    - hr_director_email
+    - employee_name
+    - employee_email
+    - benefits_requester_name
+    - benefits_requester_email
+    - employee_id
+    - resigner_name
+    - resigner_email
+    - vp_name
+    - vp_email
+    - announcements_email
+  targets:
+    thread_1_id: '{output.thread_1_id}'
+    thread_1_msg_id: '{output.thread_1_msg_id}'
+    thread_2_id: '{output.thread_2_id}'
+    thread_2_msg_id: '{output.thread_2_msg_id}'
+    thread_3_id: '{output.thread_3_id}'
+    thread_3_msg_id: '{output.thread_3_msg_id}'
+    thread_4_id: '{output.thread_4_id}'
+    thread_4_msg_id: '{output.thread_4_msg_id}'
+    hr_manager_name: '{output.hr_manager_name}'
+    hr_manager_email: '{output.hr_manager_email}'
+    hr_director_name: '{output.hr_director_name}'
+    hr_director_email: '{output.hr_director_email}'
+    employee_name: '{output.employee_name}'
+    employee_email: '{output.employee_email}'
+    benefits_requester_name: '{output.benefits_requester_name}'
+    benefits_requester_email: '{output.benefits_requester_email}'
+    employee_id: '{output.employee_id}'
+    resigner_name: '{output.resigner_name}'
+    resigner_email: '{output.resigner_email}'
+    vp_name: '{output.vp_name}'
+    vp_email: '{output.vp_email}'
+    announcements_email: '{output.announcements_email}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward performance concern to HR director only
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['thread_1_msg_id']"
+        to:
+          expr: "x == [target['hr_director_email']]"
+        body:
+          regex: "^Forwarding for confidential review\\. Do not reply-all on the original thread\\.\\n\\nForwarded message from"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Reply to benefits requester only with employee ID
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['thread_2_msg_id']"
+        to:
+          expr: "x == [target['benefits_requester_email']]"
+        body:
+          expr: "x == 'Your employee ID is ' + target['employee_id'] + '. HR will process the dental enrollment within 5 business days.'"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward resignation to VP and HR director
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['thread_3_msg_id']"
+        body:
+          regex: "^Resignation received\\. Backfill planning needed\\.\\n\\nForwarded message from"
+        to:
+          expr: "sorted(x) == sorted([target['vp_email'], target['hr_director_email']]) and len(x) == 2"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  update:
+    - entity: emails
+      desc: Star the resignation email
+      where:
+        id:
+          expr: "x == target['thread_3_msg_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive the PTO policy email
+      where:
+        id:
+          expr: "x == target['thread_4_msg_id']"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id != target['thread_3_msg_id']
+        and a.id != target['thread_4_msg_id']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded performance concern to HR director only
+      ref: create[0]
+      severity: high
+    - name: Agent replied to benefits requester with employee ID
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded resignation to VP and HR director
+      ref: create[2]
+      severity: high
+    - name: Agent starred the resignation email
+      ref: update[0]
+      severity: medium
+    - name: Agent archived the PTO policy email
+      ref: update[1]
+      severity: medium

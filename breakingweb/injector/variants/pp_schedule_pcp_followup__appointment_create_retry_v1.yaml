@@ -1,0 +1,17 @@
+variant_id: pp_schedule_pcp_followup__appointment_create_retry_v1
+base_task_id: pp_schedule_pcp_followup
+target_primitive: backtracking
+description: The first appointment-booking request returns 503. The agent must verify the appointment did not persist and
+  retry the booking.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/create'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

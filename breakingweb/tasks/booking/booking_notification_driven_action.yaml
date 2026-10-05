@@ -1,0 +1,144 @@
+task_id: booking_notification_driven_action
+env_id: booking
+title: Act on a Price Drop Notification
+instruction_template: 'Check your notifications and find the one about a price drop
+  for a property in "{target.city}". The notification should mention "{target.property_name}".
+  After reading the notification, search for this property, and save it to your existing
+  saved list called "{target.list_name}".
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Copenhagen Harbor Hotel
+      city: Copenhagen
+      country: Denmark
+      star_rating: 4
+      review_score: 8.9
+      review_count: 1890
+      price: 220.0
+      property_type: Hotel
+      neighborhood: Nyhavn
+      address: 10 Nyhavn, 1051 Copenhagen
+      genius_discount_pct: 10
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Bicycle rental
+      - Waterfront
+      popular_facilities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Bicycle rental
+      distance_km: 0.5
+      rooms:
+      - name: Harbor View Room
+        price: 220.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free
+        original_price: 275.0
+        view_type: harbor
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: add_notification
+    params:
+      type: price_drop
+      title: 'Price Drop Alert: Copenhagen Harbor Hotel'
+      message: Great news! Copenhagen Harbor Hotel in Copenhagen has dropped its price
+        by 20%. Harbor View Room now available from $220/night (was $275). Don't miss
+        this deal!
+      related_id: '{output.property_id}'
+    outputs:
+    - notification_id
+  - use: create_saved_list
+    params:
+      name: Nordic Getaway
+      property_ids: []
+    outputs:
+    - list_id
+    - list_name
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    notification_id: '{output.notification_id}'
+    list_id: '{output.list_id}'
+    list_name: '{output.list_name}'
+    city: Copenhagen
+canonical_diff:
+  update:
+    - entity: Notification
+      desc: Mark the price drop notification as read
+      where:
+        id: {expr: "x == target['notification_id']"}
+      changes:
+        read: {eq: true}
+    - entity: SavedList
+      desc: Add the target property to the Nordic Getaway saved list
+      where:
+        id: {expr: "x == target['list_id']"}
+      changes:
+        property_ids:
+          expr: "target['property_id'] in x"
+        updated_at: {any: true}
+  invariant:
+    - collection: state.notifications
+      filter: "a.id != target['notification_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.id != target['list_id']"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+  named_invariants:
+    - name: Agent marked the price drop notification as read
+      ref: update[0]
+      severity: critical
+    - name: Agent added the property to the correct saved list
+      ref: update[1]
+      severity: critical
+    - name: Agent did not modify other notifications
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

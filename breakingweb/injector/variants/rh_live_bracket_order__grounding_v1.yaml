@@ -1,0 +1,54 @@
+variant_id: rh_live_bracket_order__grounding_v1
+base_task_id: rh_live_bracket_order
+target_primitive: grounding
+description: >
+  Noise orders for MSFT at different price levels and a misleading alert
+  create confusion about which orders belong to the bracket strategy.
+  The agent must correctly place all three legs without duplicating or
+  conflating with existing orders.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: MSFT
+      side: buy
+      order_type: limit
+      quantity: 10
+      limit_price: "395.00"
+      time_in_force: day
+      status: pending
+    - symbol: MSFT
+      side: sell
+      order_type: stop
+      quantity: 8
+      stop_price: "385.00"
+      status: pending
+    - symbol: AAPL
+      side: buy
+      order_type: limit
+      quantity: 5
+      limit_price: "180.00"
+      time_in_force: gtc
+      status: pending
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: MSFT
+      condition: below
+      target_price: 390.00
+      message: "MSFT approaching your limit — existing buy order at $395 may fill soon"
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

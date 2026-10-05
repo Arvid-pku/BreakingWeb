@@ -1,0 +1,17 @@
+variant_id: pp_cancel_reschedule__appointment_reschedule_retry_v1
+base_task_id: pp_cancel_reschedule
+target_primitive: backtracking
+description: The first reschedule request returns 503. The agent must verify the original appointment still holds and retry
+  the reschedule.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/reschedule'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

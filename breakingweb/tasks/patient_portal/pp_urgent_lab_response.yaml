@@ -1,0 +1,141 @@
+task_id: pp_urgent_lab_response
+env_id: patient_portal
+title: Urgent Lab Result Response
+instruction_template: You have a critical lab result flagged for immediate attention.
+  Find the critical lab result in your records, then schedule exactly one follow-up
+  appointment with the provider who ordered that specific lab, not your PCP unless
+  they are the ordering provider. Use that provider's next available slot and set
+  the appointment reason exactly "Critical lab follow-up". Do not send any messages
+  or modify any medications.
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 25
+primary_primitives:
+- grounding
+start_path: /labs
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Chronic Kidney Disease
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - endocrinology
+      - cardiology
+      - billing
+      must_include:
+      - pcp
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+    outputs:
+    - active_rx_ids
+  - use: lab_results_panel
+    params:
+      resulted_count: 4
+      abnormal_count: 1
+      critical_count: 1
+    outputs:
+    - resulted_lab_ids
+    - critical_lab_id
+    - abnormal_lab_ids
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 0
+      must_have_specialties:
+      - cardiology
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    critical_lab_id: '{output.critical_lab_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one follow-up appointment with the provider who ordered the critical lab, using that provider's next available slot"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Critical lab follow-up"}
+        provider_id:
+          expr: "x == initial.get_lab(target['critical_lab_id']).ordered_by"
+        datetime:
+          expr: >-
+            x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id == initial.get_lab(target['critical_lab_id']).ordered_by
+              for s in p.available_slots
+            )
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify prescriptions (medications)"
+      ref: invariant[2]
+      severity: critical
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

@@ -1,0 +1,294 @@
+task_id: amazon_complete_shopping_journey
+env_id: amazon
+title: Compare Speakers, Buy Best, Wishlist Cheapest, Review Past Order, Update
+  Address
+instruction_template: 'Complete this multi-part shopping session: 1. Search for and
+  compare these three speakers: ''{target.cheap_name}'', ''{target.mid_name}'', and
+  ''{target.best_name}''. Look up each one''s rating and price, then purchase the
+  one with the highest rating. 2. Among the same three speakers, add the cheapest
+  one to your wishlist for later. 3. Go to your order history, find your delivered
+  order for ''{target.past_name}'', open the product page from the order, and write
+  a 4-star review titled ''{target.review_title}''. 4. Add a new shipping address:
+  {target.addr_name}, {target.addr_street}, {target.addr_city}, IL {target.addr_zip},
+  and set it as your default.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 48
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Premium Bluetooth Speaker
+      brand: SoundCore
+      category: Electronics
+      price: 59.99
+      rating: 4.9
+      features:
+      - 360-degree sound
+      - 24-hour battery
+      - IPX7 waterproof
+      - Multi-room pairing
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_best
+    - product_name_best
+    - product_price_best
+  - use: featured_product
+    params:
+      name: Compact Travel Speaker
+      brand: Lumivox
+      category: Electronics
+      price: 22.99
+      rating: 4.2
+      features:
+      - Ultra-portable
+      - 8-hour battery
+      - Clip-on design
+      - Bluetooth 5.0
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cheap
+    - product_name_cheap
+    - product_price_cheap
+  - use: featured_product
+    params:
+      name: Waterproof Speaker Cube
+      brand: NexGen Audio
+      category: Electronics
+      price: 44.99
+      rating: 4.5
+      features:
+      - IP68 waterproof
+      - 15-hour battery
+      - Built-in microphone
+      - Shock resistant
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_mid
+    - product_name_mid
+    - product_price_mid
+  - use: featured_product
+    params:
+      name: Desk Organizer Premium
+      brand: ErgoNest
+      category: Office Supplies
+      price: 29.99
+      rating: 4.4
+      features:
+      - Walnut wood finish
+      - 6-compartment design
+      - Cable management slot
+      - Non-scratch base
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_past
+    - product_name_past
+    - product_price_past
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_past}'
+      status: delivered
+      days_ago: 10
+    outputs:
+    - order_id_past
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    best_name: '{output.product_name_best}'
+    best_pid: '{output.product_id_best}'
+    cheap_name: '{output.product_name_cheap}'
+    cheap_pid: '{output.product_id_cheap}'
+    mid_name: '{output.product_name_mid}'
+    mid_pid: '{output.product_id_mid}'
+    past_name: '{output.product_name_past}'
+    past_pid: '{output.product_id_past}'
+    review_title: Well-Built Office Essential
+    addr_name: Casey Jordan
+    addr_street: 456 Elm Street
+    addr_city: Chicago
+    addr_state: IL
+    addr_zip: '60601'
+canonical_diff:
+  create:
+  - entity: wishlist
+    desc: Cheapest speaker added to wishlist
+    properties:
+      value:
+        expr: x == target['cheap_pid']
+  - entity: Order
+    desc: Highest-rated speaker purchased
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['best_pid'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        any: true
+      payment_method_id:
+        any: true
+      status:
+        eq: confirmed
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  - entity: Review
+    desc: 4-star review for past delivered product with target title
+    properties:
+      product_id:
+        expr: x == target['past_pid']
+      rating:
+        eq: 4
+      title:
+        expr: x == target['review_title']
+      body:
+        any: true
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at:
+        any: true
+  - entity: Address
+    desc: New default address created (Casey Jordan)
+    properties:
+      full_name:
+        expr: x == target['addr_name']
+      street_address:
+        expr: target['addr_street'] in x
+      city:
+        expr: x == target['addr_city']
+      state:
+        expr: x == target['addr_state']
+      zip_code:
+        expr: x == target['addr_zip']
+      is_default:
+        eq: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  update:
+  - entity: Product
+    desc: Product review_count incremented as side effect (weight 0)
+    weight: 0.0
+    where:
+      id:
+        expr: "x == target['past_pid']"
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['past_pid'])
+          + 1"
+  - entity: Address
+    desc: Prior default address demoted (side effect of setting a new default,
+      weight 0)
+    weight: 0.0
+    where:
+      id:
+        any: true
+    changes:
+      is_default:
+        eq: false
+  invariant:
+  - collection: state.orders
+    filter: a.id.startswith('order_initial_') or a.id == 'order_1'
+    preserve: ALL
+  - collection: state.addresses
+    filter: a.full_name != target['addr_name']
+    preserve: ALL
+  - collection: state.products
+    filter: a.id != target['past_pid']
+    preserve: ALL
+  - collection: state.reviews
+    filter: a.product_id != target['past_pid']
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    filter: a.value != target['cheap_pid']
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other saved addresses
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not write reviews for other products
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low

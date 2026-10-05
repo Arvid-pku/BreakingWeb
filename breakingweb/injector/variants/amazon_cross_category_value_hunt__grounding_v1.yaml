@@ -1,0 +1,55 @@
+variant_id: amazon_cross_category_value_hunt__grounding_v1
+base_task_id: amazon_cross_category_value_hunt
+target_primitive: grounding
+description: "Three near-duplicate SKUs share the Electronics target's brand, price, and 4.8 rating — the same category-winner ranking. Sort-by-rating-then-price within the Electronics category produces a four-way tie, so the agent must compare exact product_ids to pick the canonical winner. The first two cart-add calls silently no-op so the agent must verify the cart before placing the cross-category order."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Ultra-Slim Wireless Mouse - Pro Edition"
+      brand: TechNova
+      seller: TechNova
+      category: Electronics
+      price: 29.99
+      rating: 4.8
+      review_count: 820
+      match_image_of: Ultra-Slim Wireless Mouse
+      description: "Pro-edition sibling tied at the Electronics category winner's price+rating."
+    - type: product
+      name: "Ultra-Slim Wireless Mouse 2-Pack"
+      brand: TechNova
+      seller: TechNova
+      category: Electronics
+      price: 29.99
+      rating: 4.8
+      review_count: 580
+      match_image_of: Ultra-Slim Wireless Mouse
+      description: "Two-unit bundle tied at the Electronics winner; not the single-unit target."
+    - type: product
+      name: "Ultra-Slim Wireless Mouse Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 29.99
+      rating: 4.8
+      review_count: 410
+      match_image_of: Ultra-Slim Wireless Mouse
+      description: "Marketplace refurbished listing tied at the Electronics winner; identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

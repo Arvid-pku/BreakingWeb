@@ -1,0 +1,55 @@
+variant_id: amazon_browse_category__cheapest_decoy
+base_task_id: amazon_browse_category
+target_primitive: grounding
+description: "Three near-duplicate Electronics SKUs share the target's brand and thumbnail and tie at exactly $7.99 — the same lowest price as the canonical target. Sort-by-price-low-to-high produces a four-way tie at the top, so the agent must read the canonical product_id (or full listing details) rather than just clicking the first cheapest item. The first two cart-add calls silently no-op so the agent must verify the cart actually changed."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "USB-C Charging Cable 6ft - Pro Edition"
+      brand: CableTech
+      seller: CableTech
+      category: Electronics
+      price: 7.99
+      rating: 4.3
+      review_count: 820
+      match_image_of: USB-C Charging Cable 6ft
+      description: "Pro-edition sibling at the same lowest price; sort-by-price cannot disambiguate."
+    - type: product
+      name: "USB-C Charging Cable 6ft 2-Pack"
+      brand: CableTech
+      seller: CableTech
+      category: Electronics
+      price: 7.99
+      rating: 4.3
+      review_count: 580
+      match_image_of: USB-C Charging Cable 6ft
+      description: "Two-unit bundle at the same lowest price; not the single-unit cheapest target."
+    - type: product
+      name: "USB-C Charging Cable 6ft Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 7.99
+      rating: 4.3
+      review_count: 410
+      match_image_of: USB-C Charging Cable 6ft
+      description: "Marketplace refurbished listing tied at the same lowest price; identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

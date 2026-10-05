@@ -1,0 +1,17 @@
+variant_id: gmail_action_item_extraction__misleading_success
+base_task_id: gmail_action_item_extraction
+target_primitive: verification
+description: >
+  First send returns 200 with a toast claiming success, but the message is
+  NOT persisted. Agent must re-check sent folder to confirm.
+injections:
+  - layer: network
+    params:
+      action: misleading_success
+      url_pattern: "**/api/env/gmail/send"
+      methods: ["POST"]
+      fail_count: 2
+      success_body:
+        success: true
+        message: "Email sent"
+        toast: "Your message has been delivered."

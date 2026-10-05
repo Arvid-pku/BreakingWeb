@@ -1,0 +1,30 @@
+variant_id: gmail_star_email__star_retry
+base_task_id: gmail_star_email
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/emails/*/star'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      email:
+        id: email_a8c4d219e7
+        thread_id: thread_a8c4d219
+        from: self@example.com
+        to:
+        - other@example.com
+        cc: []
+        bcc: []
+        subject: Acknowledgement
+        body: Marked.
+        labels: []
+        is_starred: true
+        is_read: true
+        timestamp: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once

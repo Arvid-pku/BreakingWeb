@@ -1,0 +1,144 @@
+task_id: rh_live_intraday_reversal
+env_id: robinhood
+title: Intraday Reversal Buy
+instruction_template: Watch NVDA's price. It will decline from around $875
+  toward the low $840s then recover. Once the price has dropped below $845 and
+  shows at least 2 consecutive rising ticks (each tick higher than the
+  previous), buy 5 shares at market price. Do not buy while the price is still
+  falling.
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 22
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - NVDA
+      - AAPL
+      - MSFT
+      - TSLA
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      NVDA:
+        keyframes:
+        - - 0
+          - 875.0
+        - - 15
+          - 838.0
+        - - 30
+          - 870.0
+        - - 45
+          - 885.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Market buy of 5 NVDA shares placed at the reversal (after price drops
+      below $845 with 2 consecutive rising ticks)
+    properties:
+      symbol: {eq: NVDA}
+      side: {eq: buy}
+      order_type: {eq: market}
+      quantity: {eq: 5}
+      status: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: positions
+    desc: NVDA position created or increased
+    properties:
+      symbol: {eq: NVDA}
+      quantity: {any: true}
+  - entity: transactions
+    desc: Buy transaction recorded for NVDA
+    properties:
+      type: {eq: buy}
+      symbol: {eq: NVDA}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order fill notifications fired by the NVDA buy
+    bijection:
+      over: "[n for n in state.notifications if n.id not in [ix.id for ix in initial.notifications]]"
+      variable: v
+    properties:
+      type: {any: true}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  update:
+  - entity: positions
+    desc: Existing NVDA position increased by buy (if held before)
+    bijection:
+      over: "[p for p in initial.positions if p.symbol == 'NVDA']"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      quantity: {any: true}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'NVDA'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol != 'NVDA'"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+  constraints:
+  - desc: NVDA reversal market buy filled for 5 shares
+    expr: any(o.symbol == 'NVDA' and o.side == 'buy' and o.order_type ==
+      'market' and o.quantity == Decimal('5') and o.status == 'filled' and
+      o.filled_quantity == o.quantity for o in state.orders)
+    severity: critical
+  - desc: NVDA buy waited for below-$845 price and two rising ticks
+    expr: any(o.symbol == 'NVDA' and o.side == 'buy' and o.order_type ==
+      'market' and o.filled_tick is not None and o.filled_tick >= 2 and
+      state._price_engine.price_at_tick('NVDA', o.filled_tick - 2) <
+      Decimal('845') and state._price_engine.price_at_tick('NVDA',
+      o.filled_tick - 2) < state._price_engine.price_at_tick('NVDA',
+      o.filled_tick - 1) < state._price_engine.price_at_tick('NVDA',
+      o.filled_tick) for o in state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures patience, state_tracking, grounding, verification by
+  requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

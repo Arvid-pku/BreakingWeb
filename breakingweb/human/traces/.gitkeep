@@ -1,0 +1,3 @@
+# Human recording traces live here under:
+#   breakingweb/human/traces/{annotator}/{assignment_role}/{env}/{base_task_id}/{condition}/{attempt}/
+# Annotators commit their own subdirectory and open a PR to aggregate traces.

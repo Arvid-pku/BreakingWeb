@@ -1,0 +1,36 @@
+variant_id: gmail_invoice_dispute_reversal__grounding_v1
+base_task_id: gmail_invoice_dispute_reversal
+target_primitive: grounding
+description: Ambiguous dispute status and confusing invoice references make identifying
+  correct invoices hard
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - Invoice with partial dispute
+    - Duplicate invoice with different status
+    - Reversed invoice that looks disputed
+    - Invoice dispute email that was spam
+    - Old invoice with similar number
+- layer: seed
+  params:
+    action: alias_entities
+    multiplier: 2
+    aliases:
+      - name: "M. Webb"
+        email: "mwebb@thornton.com"
+        note: "Finance team"
+      - name: "Hawthorne Supplies"
+        email: "invoices@hawthorne-supply.co"
+        note: "Vendor accounts payable"
+      - name: "Ridgeline Transport"
+        email: "billing@ridgelinelogistics.net"
+        note: "Shipping partner"
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 12
+    seed: 144
+    subject_prefix: Invoice

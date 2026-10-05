@@ -1,0 +1,181 @@
+task_id: reddit_complete_account_setup
+title: Complete Account Setup and Engagement
+instruction_template: '1. Subscribe to r/MachineLearning, r/Piracy, and r/dataisbeautiful.
+
+  2. Set theme to "dark", enable compact view, disable all email notifications, set feed sort to "top".
+
+  3. Create a post in r/MachineLearning: title exactly "{target.post_title}", body exactly "{target.post_body}".
+
+  4. In r/worldnews find "{target.wn_title}". Upvote, save, and comment: "{target.wn_comment}"
+
+  5. Send a message to u/{target.msg_to} subject "{target.msg_sub}" body exactly: "{target.msg_body}"
+
+  6. Mark all messages and notifications as read.
+
+
+  Do not unsubscribe from existing communities.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- grounding
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Antarctic ice sheet losing mass at twice the rate predicted by 2020 models
+      body: Satellite data confirms accelerating melt.
+      score: 47000
+    outputs:
+    - wn_id
+    - wn_title
+    - wn_sub
+  targets:
+    post_title: 'Diffusion models vs GANs for image generation: which to choose in 2026'
+    post_body: 'A practical comparison based on my experience deploying both in production. TL;DR: diffusion models win on quality, GANs win on speed.'
+    wn_title: '{output.wn_title}'
+    wn_id: '{output.wn_id}'
+    wn_comment: This is deeply concerning. The feedback loops between ice loss and ocean warming could accelerate this further.
+    msg_to: NeuralNexus
+    msg_sub: Welcome
+    msg_body: Just joined r/MachineLearning! Looking forward to discussing diffusion models and contributing to the community.
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    desc: Mark every unread notification as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Message
+    collection: messages
+    bijection:
+      over: '[m.id for m in initial.messages if not m.is_read]'
+      variable: v
+    desc: Mark every unread inbox message as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Upvote and save the worldnews target post
+    where:
+      id:
+        expr: x == target['wn_id']
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  - entity: Subreddit
+    collection: subreddits
+    bijection:
+      over: '[''MachineLearning'', ''Piracy'', ''dataisbeautiful'']'
+      variable: v
+    desc: Subscribe to each required subreddit
+    where:
+      id:
+        expr: state.get_subreddit(x).name == v
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      compact_view: {eq: true}
+      default_feed_sort: {eq: top}
+      email_comment_reply: {eq: false}
+      email_post_reply: {eq: false}
+      email_mentions: {eq: false}
+      email_messages: {eq: false}
+  create:
+  - entity: Post
+    collection: posts
+    desc: Create the required MachineLearning post with exact title and body
+    properties:
+      subreddit_name:
+        eq: MachineLearning
+      title:
+        expr: x == target['post_title']
+      body:
+        expr: x == target['post_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    collection: comments
+    desc: Comment on the worldnews post with the exact text
+    properties:
+      post_id:
+        expr: x == target['wn_id']
+      body:
+        expr: x == target['wn_comment']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Message
+    collection: sent_messages
+    desc: Send the welcome message with the exact subject and body
+    properties:
+      to_user:
+        expr: x == target['msg_to']
+      subject:
+        expr: x == target['msg_sub']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

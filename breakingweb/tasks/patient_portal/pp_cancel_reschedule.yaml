@@ -1,0 +1,160 @@
+task_id: pp_cancel_reschedule
+env_id: patient_portal
+title: Reschedule Avoiding Conflict
+instruction_template: Cancel your dermatology appointment and reschedule it to a date
+  that does not conflict with any of your other existing appointments.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 10
+primary_primitives:
+- backtracking
+start_path: /appointments
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Eczema
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - billing
+      must_include:
+      - pcp
+      - dermatology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 2
+      include_specialist: true
+      conflict_pair: false
+      # PP-5: pin the target appointment to dermatology so target_apt_id
+      # is bound to the dermatology provider rather than "first non-PCP",
+      # which the previous shape allowed to drift to any specialty.
+      target_specialty: dermatology
+    outputs:
+    - upcoming_ids
+    - specialist_apt_id
+    - target_apt_id
+  # Without an approved dermatology referral, the booking API rejects the
+  # reschedule with "No approved referral exists for dermatology." The
+  # instruction forbids messaging the PCP (the only path to a new
+  # referral), so the task is unsolvable without seeding one upfront.
+  # See audit_reports/w05.md pp_cancel_reschedule.
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      must_have_specialties:
+      - dermatology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+    specialist_apt_id: '{output.specialist_apt_id}'
+    target_apt_id: '{output.target_apt_id}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+canonical_diff:
+  update:
+    - entity: Appointment
+      desc: "Cancel the target dermatology appointment"
+      where:
+        # PP-5: target_apt_id is now pinned to the dermatology specialty
+        # (instead of "first non-PCP"), so the matcher's where-clause
+        # always points at the appointment the instruction names.
+        id: {expr: "x == target['target_apt_id']"}
+      changes:
+        status: {eq: "cancelled"}
+  create:
+    - entity: Appointment
+      desc: "Schedule a dermatology replacement appointment in an actual dermatology slot that does not conflict with other upcoming appointments"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: >-
+            x == next(a.provider_id for a in initial.appointments if a.id == target['target_apt_id'])
+            and any(p.id == x and p.specialty == 'dermatology' for p in initial.providers)
+        linked_referral_id:
+          expr: >-
+            x is not None
+            and x in target['approved_ref_ids']
+            and any(r.id == x and r.status == 'approved' and r.to_specialty == 'dermatology' for r in initial.referrals)
+        datetime:
+          expr: >
+            not any(
+              a.datetime == x
+              and a.status == 'scheduled'
+              and a.id in target['upcoming_ids']
+              and a.id != target['target_apt_id']
+              for a in initial.appointments
+            )
+            and any(
+              p.id == next(a.provider_id for a in initial.appointments if a.id == target['target_apt_id'])
+              and any(s.datetime == x for s in p.available_slots)
+              for p in initial.providers
+            )
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments} and a.id != target['target_apt_id']"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: "Agent did not cancel or modify other upcoming appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

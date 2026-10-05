@@ -1,0 +1,122 @@
+task_id: rh_options_expiration_management
+env_id: robinhood
+title: Manage 8 Expiring Options Positions
+instruction_template: 'You have 8 options positions expiring this Friday. For each
+  position: if it is a profitable long option with more than 20% gain, sell to close
+  it; if it is a losing long option, let it expire; if it is a short option that is
+  in-the-money, buy to close to avoid assignment; if it is a short option that is
+  out-of-the-money, let it expire. Execute all necessary closing actions.'
+difficulty: frontier
+time_limit_seconds: 500
+expected_steps: 32
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+      - NVDA
+      - SPY
+    outputs: []
+  - use: complex_options_book
+    params:
+      positions_count: 8
+      days_to_expiry: 3
+    outputs:
+    - options_order_ids
+    - profitable_long_symbols
+    - short_itm_symbols
+    - no_action_symbols
+  - use: options_chain
+    params:
+      symbol: AAPL
+      expirations_count: 2
+      strikes_per_expiration: 10
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: MSFT
+      expirations_count: 2
+      strikes_per_expiration: 10
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: GOOGL
+      expirations_count: 2
+      strikes_per_expiration: 10
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: TSLA
+      expirations_count: 2
+      strikes_per_expiration: 10
+    outputs: []
+  - use: options_chain
+    params:
+      symbol: SPY
+      expirations_count: 2
+      strikes_per_expiration: 10
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      quantities:
+      - '100'
+      - '100'
+      - '50'
+      cost_bases:
+      - '170.00'
+      - '380.00'
+      - '140.00'
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    seeded_option_order_ids: '{output.options_order_ids}'
+    profitable_long_symbols: '{output.profitable_long_symbols}'
+    short_itm_symbols: '{output.short_itm_symbols}'
+    no_action_symbols: '{output.no_action_symbols}'
+canonical_diff:
+  create:
+  - entity: options_orders
+    desc: Sell-to-close order for each profitable long option
+    bijection:
+      over: "target['profitable_long_symbols']"
+      variable: v
+    properties:
+      legs: {expr: "any(leg['underlying_symbol'] == v and leg['side'] == 'sell' for leg in x)"}
+      status: {in: [pending, filled]}
+  - entity: options_orders
+    desc: Buy-to-close order for each short in-the-money option
+    bijection:
+      over: "target['short_itm_symbols']"
+      variable: v
+    properties:
+      legs: {expr: "any(leg['underlying_symbol'] == v and leg['side'] == 'buy' for leg in x)"}
+      status: {in: [pending, filled]}
+  invariant:
+  - collection: state.options_orders
+    filter: "a.id not in target['seeded_option_order_ids'] and any(leg.underlying_symbol in target['no_action_symbols'] for leg in a.legs)"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, planning, grounding, verification, backtracking
+  by requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

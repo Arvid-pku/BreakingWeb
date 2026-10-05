@@ -1,0 +1,97 @@
+variant_id: pp_dispute_claim__claim_shadow_v1
+base_task_id: pp_dispute_claim
+target_primitive: state_tracking
+description: >-
+  State-tracking stressor. Beside the seeded records sit claim/message lookalikes
+  engineered to defeat the THREE things the answer depends on: the eligibility
+  filter (denied + EOB + deadline >= now), the recency sort, and the documented
+  service_date / claim-id tiebreak that decides the final rank. The injected
+  decoys include (1) a denied + EOB + valid-deadline claim dated NEWER than every
+  true target paired with an otherwise-identical no-EOB twin at the same newest
+  date -- so BOTH a naive "two newest" recency pick AND a naive "denied + EOB"
+  pick mis-fire; (2) extra same-service_date tie members at the recency boundary
+  to corrupt the tiebreak; and (3) a contradictory billing thread asserting a
+  claim's deadline was "extended" / that a claim "was already appealed", which
+  lures an EXTRA (over-count) or MISSED (under-count) appeal against the
+  unforgiving exact-cardinality invariant. The agent must hold the full
+  multi-predicate eligibility set across many reads and resolve the recency
+  ordering from the authoritative claim records, not from the cosmetic
+  near-misses. Decoy density is amplified via multiplier/cap.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 3
+    cap: 16
+    decoys:
+    # (1a) Recency lure: denied + EOB + valid deadline, dated NEWER than every
+    # true answer claim. A "pick the newest-looking denied claims" agent grabs
+    # this into its top-3, displacing a real target (over/mis-count). It is NOT
+    # in the seed's denied_claim_ids, so it can never be a correct positive.
+    - type: claim
+      service_date: '2026-05-31'
+      status: denied
+      amount_billed: '1990.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1990.00'
+      eob_available: false
+      appeal_deadline: '2026-08-01T00:00:00+00:00'
+      denial_reason: Prior authorization not on file
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (1b) No-EOB twin at the SAME newest date. A "denied + EOB, ignore recency
+    # rank" agent that also sorts-before-filtering is double-baited: identical
+    # surface, opposite eligibility. Reinforces the existing no-EOB trap.
+    - type: claim
+      service_date: '2026-05-31'
+      status: denied
+      amount_billed: '1990.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1990.00'
+      eob_available: false
+      appeal_deadline: '2026-08-02T00:00:00+00:00'
+      denial_reason: Prior authorization not on file
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (2) Fake tie member at the recency boundary date (matches the seeded tie
+    # pair's service_date). Eligible-looking, it muddies the service_date /
+    # claim-id tiebreak that decides the final answer rank.
+    - type: claim
+      service_date: '2026-05-26'
+      status: denied
+      amount_billed: '1535.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1535.00'
+      eob_available: true
+      appeal_deadline: '2026-07-30T00:00:00+00:00'
+      denial_reason: Service not medically necessary
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # (3) Contradictory billing thread: claims a denied claim's deadline was
+    # "extended" and that another "was already appealed". Tempts an EXTRA appeal
+    # (over-count) or a skipped one (under-count) -- both trip the critical
+    # exact-cardinality invariant. Authoritative state is the claim record, not
+    # this message.
+    - type: message
+      category: billing
+      subject: Appeal deadline extended for one of your denied claims
+      body: >-
+        Good news: the appeal window on one of your recently denied claims has
+        been extended, and our records show another denied claim was already
+        appealed on your behalf last week. No further action is needed on those
+        two. Please disregard earlier deadline notices.
+      timestamp: '2026-05-30T09:15:00+00:00'
+      is_read: false
+    # Topical no-action billing noise (state-tracking distraction).
+    - type: message
+      category: billing
+      subject: Claim resolved -- informational only
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2026-04-15T08:00:00+00:00'
+      is_read: true
+    - type: message
+      category: billing
+      subject: Statement available for an unrelated prior-year claim
+      body: A prior-year statement is available for your records; it is closed and needs no action.
+      timestamp: '2026-03-02T08:00:00+00:00'
+      is_read: true

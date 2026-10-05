@@ -1,0 +1,188 @@
+task_id: pp_preventive_care_compliance
+env_id: patient_portal
+title: Preventive Care Compliance Plan
+instruction_template: 'Review your Applicable Screenings list in the profile and schedule
+  an appointment for every screening whose status is "Overdue" (next_due date has
+  passed). For each overdue screening, schedule exactly one appointment, include
+  the screening name in the appointment reason, AND confirm the appointment after
+  scheduling (specialist screening appointments require an explicit confirmation
+  step). If an overdue screening requires a specialist referral, the seeded referral
+  is already approved — you do not need to request or modify any referral. Do not
+  schedule screenings whose status is "Current". Do not send any messages.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - High Cholesterol
+      insurance_tier: standard
+      overdue_screening_count: 2
+      # B-1 confirmation workflow: screening appointments at cardiology /
+      # radiology / dermatology specialist providers land in
+      # confirmation_state="pending"; agent must POST /confirm after scheduling.
+      auto_confirm_specialties:
+      - cardiology
+      - radiology
+      - dermatology
+    outputs:
+    - pcp_id
+    - pcp_name
+    - applicable_screening_names
+    - overdue_screening_names
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - radiology
+      - dermatology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - radiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: true
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - prior_auth_ref_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 3
+      pending_count: 1
+    outputs:
+    - resulted_lab_ids
+    - pending_lab_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  - use: message_threads
+    params:
+      thread_count: 2
+      unread_count: 1
+      categories:
+      - clinical
+    outputs:
+    - thread_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    applicable_screening_names: '{output.applicable_screening_names}'
+    overdue_screening_names: '{output.overdue_screening_names}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # The instruction's 1-3 items (check referral, verify pre-auth, schedule
+  # pre-screening labs) are read-only verifications — the env backend gates
+  # specialist scheduling on referral+pre-auth (hazard Class 3), and "schedule
+  # pre-screening labs" is covered implicitly by the scheduling action for
+  # screenings that require them. The only state-changing axis is the
+  # screening appointment per overdue item.
+  create:
+    - entity: Appointment
+      desc: >-
+        Schedule one screening appointment per overdue screening; the
+        appointment's reason must contain the screening's name (bijection
+        identity test). Not-yet-due screenings must not be scheduled —
+        excess candidates are surfaced by the bounded-creation invariant.
+      bijection:
+        over: "target['overdue_screening_names']"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        reason:
+          expr: "v.lower() in (x or '').lower()"
+        # Specialist screening appointments must be confirmed via the
+        # two-step schedule + confirm workflow. PCP screenings (when no
+        # specialist is involved) skip this check because their
+        # confirmation_state stays "not_required".
+        confirmation_state:
+          expr: 'x in ("confirmed", "not_required")'
+        provider_id: {any: true}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    # Pre-existing appointments must not be cancelled or modified.
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    # Referrals are read-only — the instruction says "check if a referral is
+    # needed" and "verify pre-authorization". The agent must not create or
+    # mutate referrals (e.g., flipping a denied one to approved).
+    - collection: state.referrals
+      preserve: ALL
+    # Pre-existing messages must not be modified. No messaging axis in this
+    # task, so any pre-existing message id must remain.
+    - collection: state.messages
+      filter: "a.id in {x.id for x in initial.messages}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify or delete pre-existing messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent did not schedule more screening appointments than overdue screenings"
+      ref: create[0]
+      severity: medium
+secondary_primitives: []

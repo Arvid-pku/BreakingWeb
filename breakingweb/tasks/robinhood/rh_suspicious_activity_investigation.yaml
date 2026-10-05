@@ -1,0 +1,112 @@
+task_id: rh_suspicious_activity_investigation
+env_id: robinhood
+title: Investigate Suspicious Account Activity
+instruction_template: 'You received a security alert. Investigate by checking the
+  security log and reviewing your recent order history for anything that looks unauthorized.
+  Cancel any unauthorized orders you find, and harden the account by switching two-factor
+  authentication to an authenticator app.'
+difficulty: frontier
+time_limit_seconds: 500
+expected_steps: 30
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - GME
+      - AMC
+    outputs: []
+  - use: security_log
+    params:
+      include_suspicious: true
+    outputs:
+    - suspicious_timestamp
+    - suspicious_location
+  - use: pending_orders
+    params:
+      count: 4
+      include_suspicious_window: true
+      suspicious_timestamp: '{output.suspicious_timestamp}'
+      suspicious_order_count: 2
+    outputs:
+    - suspicious_order_ids
+  - use: notifications
+    params:
+      include_security_alert: true
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      quantities:
+      - '25'
+      - '30'
+      cost_bases:
+      - '170.00'
+      - '380.00'
+    outputs: []
+  targets:
+    suspicious_order_ids: '{output.suspicious_order_ids}'
+    suspicious_location: '{output.suspicious_location}'
+canonical_diff:
+  update:
+  - entity: orders
+    desc: Each suspicious order cancelled
+    bijection:
+      over: list(target['suspicious_order_ids'])
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      status:
+        eq: cancelled
+  - entity: settings
+    desc: Two-factor authentication set to authenticator app
+    where:
+      id: {any: true}
+    changes:
+      two_factor_method: {eq: authenticator}
+  invariant:
+  - collection: state.orders
+    filter: a.id not in target['suspicious_order_ids']
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []
+primitive_thesis: Measures exploration, state_tracking, verification, planning, backtracking
+  by requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

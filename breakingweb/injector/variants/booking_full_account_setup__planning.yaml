@@ -1,0 +1,26 @@
+variant_id: booking_full_account_setup__planning_v1
+base_task_id: booking_full_account_setup
+target_primitive: planning
+description: The account settings page splits payment, security, and preferences
+  into separate pages behind a confirmation step, requiring more careful navigation
+  planning.
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: "payment-methods$"
+      method: POST
+      delay_ms: 2500
+    - path_pattern: "settings$"
+      method: PUT
+      delay_ms: 2000
+    - path_pattern: "preferences$"
+      method: PUT
+      delay_ms: 2000
+- layer: client
+  params:
+    action: inject_confirmation_dialogs
+    behavior:
+      confirm_on: ['payment-methods', 'settings']
+      message: "Are you sure you want to save these changes?"

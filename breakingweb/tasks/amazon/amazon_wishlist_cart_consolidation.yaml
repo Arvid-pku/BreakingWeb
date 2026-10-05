@@ -1,0 +1,292 @@
+task_id: amazon_wishlist_cart_consolidation
+env_id: amazon
+title: Consolidate Wishlist and Cart Then Checkout
+instruction_template: 'Your cart has 2 items and your wishlist has 4 items. Move the
+  2 cheapest wishlist items to your cart. Remove the 2 most expensive wishlist items
+  from your wishlist. Then complete checkout for everything in your cart.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 36
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Phone Screen Protector
+      brand: Pixelon
+      category: Electronics
+      price: 9.99
+      rating: 4.3
+      features:
+      - Tempered glass
+      - Scratch resistant
+      - Easy installation
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cart1
+    - product_name_cart1
+    - product_price_cart1
+  - use: featured_product
+    params:
+      name: Microfiber Cleaning Cloth Set
+      brand: BrightHearth
+      category: Home & Kitchen
+      price: 11.99
+      rating: 4.2
+      features:
+      - 12-pack
+      - Ultra soft
+      - Machine washable
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_cart2
+    - product_name_cart2
+    - product_price_cart2
+  - use: featured_product
+    params:
+      name: Travel Neck Pillow
+      brand: ComfortFit
+      category: Clothing
+      price: 16.99
+      rating: 4.4
+      features:
+      - Memory foam
+      - Machine washable cover
+      - Compact travel bag
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_wl_cheap1
+    - product_name_wl_cheap1
+    - product_price_wl_cheap1
+  - use: featured_product
+    params:
+      name: Reusable Water Bottle
+      brand: HydroLife
+      category: Sports & Outdoors
+      price: 19.99
+      rating: 4.5
+      features:
+      - 32oz capacity
+      - Double-wall insulated
+      - BPA-free
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_wl_cheap2
+    - product_name_wl_cheap2
+    - product_price_wl_cheap2
+  - use: featured_product
+    params:
+      name: Smart Home Hub
+      brand: TechNova
+      category: Electronics
+      price: 69.99
+      rating: 4.6
+      features:
+      - Voice control
+      - Wi-Fi 6 support
+      - Compatible with 100+ devices
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_wl_exp1
+    - product_name_wl_exp1
+    - product_price_wl_exp1
+  - use: featured_product
+    params:
+      name: Espresso Machine Deluxe
+      brand: Hearthway
+      category: Home & Kitchen
+      price: 79.99
+      rating: 4.7
+      features:
+      - 15-bar pressure
+      - Built-in grinder
+      - Milk frother
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_wl_exp2
+    - product_name_wl_exp2
+    - product_price_wl_exp2
+  - use: pre_filled_cart
+    params:
+      product_ids:
+      - '{output.product_id_cart1}'
+      - '{output.product_id_cart2}'
+      quantities:
+      - 1
+      - 1
+    outputs:
+    - cart_item_ids
+    - cart_total
+  - use: wishlist_items
+    params:
+      product_ids:
+      - '{output.product_id_wl_cheap1}'
+      - '{output.product_id_wl_cheap2}'
+      - '{output.product_id_wl_exp1}'
+      - '{output.product_id_wl_exp2}'
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    cheap1: '{output.product_id_wl_cheap1}'
+    cheap2: '{output.product_id_wl_cheap2}'
+    exp1: '{output.product_id_wl_exp1}'
+    exp2: '{output.product_id_wl_exp2}'
+    cart1: '{output.product_id_cart1}'
+    cart2: '{output.product_id_cart2}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed containing both cart items and the two cheap wishlist
+      items
+    properties:
+      items:
+        expr: "len(x) == 4 and {it['product_id'] for it in x} == {target['cart1'],
+          target['cart2'], target['cheap1'], target['cheap2']} and not any(it['product_id']
+          in [target['exp1'], target['exp2']] for it in x) and all(it['quantity']
+          == 1 for it in x)"
+      status:
+        eq: confirmed
+      shipping_address_id:
+        any: true
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  delete:
+  - entity: CartItem
+    desc: Original cart item cart1 consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_id:
+        expr: x == target['cart1']
+  - entity: CartItem
+    desc: Original cart item cart2 consumed by checkout (weight 0 side effect)
+    weight: 0.0
+    where:
+      product_id:
+        expr: x == target['cart2']
+  - entity: wishlist
+    desc: Cheap wishlist item 1 removed (moved to cart)
+    where:
+      value:
+        expr: x == target['cheap1']
+  - entity: wishlist
+    desc: Cheap wishlist item 2 removed (moved to cart)
+    where:
+      value:
+        expr: x == target['cheap2']
+  - entity: wishlist
+    desc: Expensive wishlist item 1 removed
+    where:
+      value:
+        expr: x == target['exp1']
+  - entity: wishlist
+    desc: Expensive wishlist item 2 removed
+    where:
+      value:
+        expr: x == target['exp2']
+  invariant:
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['cart1'] for it in (a.items
+      or [])) and any(it.get('product_id') == target['cheap1'] for it in
+      (a.items or [])))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value not in [target['cheap1'], target['cheap2'], target['exp1'], target['exp2']]"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

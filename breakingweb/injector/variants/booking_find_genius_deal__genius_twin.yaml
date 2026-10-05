@@ -1,0 +1,34 @@
+variant_id: booking_find_genius_deal__genius_twin
+base_task_id: booking_find_genius_deal
+target_primitive: grounding
+description: Similar properties appear nearby, but one lacks the required Genius discount and another
+  offers a weaker badge. The agent must verify the real Genius deal.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Barcelona Genius Boutique Residence
+      city: Barcelona
+      country: Spain
+      property_type: Boutique Hotel
+      star_rating: 4
+      review_score: 8.3
+      review_count: 860
+      price: 183.3
+      description: Nearly identical property name with slightly different review profile.
+      is_genius_property: false
+      genius_discount_pct: 0
+    - type: property
+      name: Barcelona Genius Boutique Collection
+      city: Barcelona
+      country: Spain
+      property_type: Boutique Hotel
+      star_rating: 3
+      review_score: 8.0
+      review_count: 640
+      price: 206.7
+      description: Similar branding can distract from the exact property match.
+      is_genius_property: true
+      genius_discount_pct: 5

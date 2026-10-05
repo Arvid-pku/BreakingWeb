@@ -1,0 +1,32 @@
+variant_id: booking_frontier_account_overhaul__account_retry_v2
+base_task_id: booking_frontier_account_overhaul
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/account'
+    methods:
+    - PUT
+    fail_count: 1
+    response_body:
+      name: Jordan Parker
+      email: jordan.parker@example.com
+      phone: '+1 555-0100'
+      nationality: United States
+      date_of_birth: '1990-01-01'
+      gender: ''
+      address: ''
+      genius:
+        level: 1
+        total_bookings: 0
+        bookings_needed_for_next: 5
+        benefits: []
+      wallet:
+        balance: 0.0
+        currency: USD
+        transactions: []
+    behavior:
+      mode: once

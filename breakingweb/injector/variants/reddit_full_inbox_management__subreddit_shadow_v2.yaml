@@ -1,0 +1,27 @@
+variant_id: reddit_full_inbox_management__subreddit_shadow_v2
+base_task_id: reddit_full_inbox_management
+target_primitive: grounding
+description: Lookalike usernames impersonate the reply1 / reply2 / new_to targets
+  in the inbox so the agent must verify the exact handle before every reply or
+  compose. Replaces an earlier subreddit_shadow variant that had no bite on a
+  messaging-only task.
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    entities:
+    - type: user
+      original_name: '{target.reply1_from}'
+      alias_name: '{target.reply1_from}_'
+      message_subject: 'Re: {target.reply1_sub}'
+      message_body: Similar-looking account - do not reply here.
+    - type: user
+      original_name: '{target.reply2_from}'
+      alias_name: '{target.reply2_from}.mod'
+      message_subject: 'Re: {target.reply2_sub}'
+      message_body: Typosquat of reply2 sender. Verify the exact username.
+    - type: user
+      original_name: ByteRunner
+      alias_name: ByteRunner_
+      message_subject: Weekend coding session - confirmation?
+      message_body: Lookalike of the new_to target. Do not compose here.

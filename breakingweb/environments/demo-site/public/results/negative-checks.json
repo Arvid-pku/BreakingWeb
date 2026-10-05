@@ -1,0 +1,239 @@
+{
+  "total_tasks_with_negatives": 20,
+  "total_negative_checks": 29,
+  "triggered_count": 3,
+  "checks": [
+    {
+      "task_id": "gmail_budget_reconciliation",
+      "task_title": "Budget Reconciliation",
+      "difficulty": "hard",
+      "desc": "Single recipient (not Reply All)",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_budget_reconciliation",
+      "task_title": "Budget Reconciliation",
+      "difficulty": "hard",
+      "desc": "Wrong values not repeated",
+      "penalty": 0.15,
+      "triggered": true
+    },
+    {
+      "task_id": "gmail_contact_audit",
+      "task_title": "Contact Audit",
+      "difficulty": "medium",
+      "desc": "Near-threshold contact preserved",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_contact_cleanup",
+      "task_title": "Contact Cleanup",
+      "difficulty": "medium",
+      "desc": "Near-threshold contact (under 30 days) was not deleted",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_data_compilation",
+      "task_title": "Data Compilation",
+      "difficulty": "medium",
+      "desc": "Decoy numbers not in body",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_delegation_routing",
+      "task_title": "Delegation Routing",
+      "difficulty": "medium",
+      "desc": "Decoy not forwarded",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_filter_architect",
+      "task_title": "Filter Architect",
+      "difficulty": "medium",
+      "desc": "Pre-existing filter was not deleted",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_filter_overhaul",
+      "task_title": "Filter Overhaul",
+      "difficulty": "expert",
+      "desc": "Broken filter not left in place",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_inbox_triage_protocol",
+      "task_title": "Inbox Triage Protocol",
+      "difficulty": "hard",
+      "desc": "Decoy invoice was not starred",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_inbox_triage_protocol",
+      "task_title": "Inbox Triage Protocol",
+      "difficulty": "hard",
+      "desc": "Resolved security follow-up was not forwarded",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_inbox_triage_protocol",
+      "task_title": "Inbox Triage Protocol",
+      "difficulty": "hard",
+      "desc": "Dinner travel decoy was not labeled with Travel Follow-up",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_inbox_triage_protocol",
+      "task_title": "Inbox Triage Protocol",
+      "difficulty": "hard",
+      "desc": "Onboarding reply was not sent via Reply All",
+      "penalty": 0.1,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_incident_escalation",
+      "task_title": "Incident Escalation",
+      "difficulty": "hard",
+      "desc": "Reply not Reply All",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_incident_escalation",
+      "task_title": "Incident Escalation",
+      "difficulty": "hard",
+      "desc": "Resolved alert not forwarded",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_label_workflow_setup",
+      "task_title": "Label Workflow Setup",
+      "difficulty": "medium",
+      "desc": "Non-review email not mis-labeled",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_meeting_negotiation",
+      "task_title": "Meeting Negotiation",
+      "difficulty": "hard",
+      "desc": "Must compose new, not reply",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_morning_triage_extended",
+      "task_title": "Morning Triage Extended",
+      "difficulty": "hard",
+      "desc": "FYI decoy not starred",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_morning_triage_extended",
+      "task_title": "Morning Triage Extended",
+      "difficulty": "hard",
+      "desc": "Reply not Reply All",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_new_hire_setup",
+      "task_title": "New Hire Setup",
+      "difficulty": "hard",
+      "desc": "Reply not Reply All",
+      "penalty": 0.2,
+      "triggered": true
+    },
+    {
+      "task_id": "gmail_phishing_investigation",
+      "task_title": "Phishing Investigation",
+      "difficulty": "hard",
+      "desc": "Phishing not starred",
+      "penalty": 0.25,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_phishing_investigation",
+      "task_title": "Phishing Investigation",
+      "difficulty": "hard",
+      "desc": "Phishing not forwarded",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_priority_escalation",
+      "task_title": "Priority Escalation",
+      "difficulty": "hard",
+      "desc": "Status phrase was not sent on unrelated replies",
+      "penalty": 0.25,
+      "triggered": true
+    },
+    {
+      "task_id": "gmail_quarterly_closeout",
+      "task_title": "Quarterly Closeout",
+      "difficulty": "expert",
+      "desc": "Active contact preserved",
+      "penalty": 0.15,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_quarterly_closeout",
+      "task_title": "Quarterly Closeout",
+      "difficulty": "expert",
+      "desc": "Spam not forwarded",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_subscription_cleanup",
+      "task_title": "Subscription Cleanup",
+      "difficulty": "hard",
+      "desc": "Spam was not forwarded",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_thread_archaeology",
+      "task_title": "Thread Archaeology",
+      "difficulty": "hard",
+      "desc": "Thread not forwarded to wrong person",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_thread_detective",
+      "task_title": "Thread Detective",
+      "difficulty": "hard",
+      "desc": "Reply does not mention any conflicting times",
+      "penalty": 0.25,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_thread_detective",
+      "task_title": "Thread Detective",
+      "difficulty": "hard",
+      "desc": "Reply was sent only to the sender (not Reply All)",
+      "penalty": 0.2,
+      "triggered": false
+    },
+    {
+      "task_id": "gmail_vacation_preparation",
+      "task_title": "Vacation Preparation",
+      "difficulty": "expert",
+      "desc": "Timeline reply was not Reply All",
+      "penalty": 0.15,
+      "triggered": false
+    }
+  ]
+}

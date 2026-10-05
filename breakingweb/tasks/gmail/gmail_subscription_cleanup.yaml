@@ -1,0 +1,154 @@
+task_id: gmail_subscription_cleanup
+env_id: gmail
+title: Subscription Cleanup
+instruction_template: Clean up your subscriptions. In your Promotions tab, archive
+  the four newsletter emails. Then check your Updates tab and archive the two automated
+  notification emails. Forward the newsletter about {target.good_newsletter_topic}
+  to {target.personal_email}.
+  Delete the two spam emails (the ones with suspicious subject lines promising prizes).
+  Finally, go to Settings and create two auto-archive filters for the domains {target.newsletter_domain_a}
+  and {target.newsletter_domain_b}.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 48
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: subscription_cleanup
+    params: {}
+    outputs:
+    - promo_ids
+    - update_ids
+    - good_newsletter_id
+    - good_newsletter_topic
+    - personal_email
+    - spam_ids
+    - newsletter_domain_a
+    - newsletter_domain_b
+  targets:
+    promo_ids: '{output.promo_ids}'
+    update_ids: '{output.update_ids}'
+    good_newsletter_id: '{output.good_newsletter_id}'
+    good_newsletter_topic: '{output.good_newsletter_topic}'
+    personal_email: '{output.personal_email}'
+    spam_ids: '{output.spam_ids}'
+    newsletter_domain_a: '{output.newsletter_domain_a}'
+    newsletter_domain_b: '{output.newsletter_domain_b}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward good newsletter to personal email
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['good_newsletter_id']"
+        to:
+          expr: "x == [target['personal_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: filters
+      desc: Create auto-archive filter for newsletter domain A
+      count: 1
+      properties:
+        from_addresses:
+          expr: "f\"*@{target['newsletter_domain_a']}\" in x"
+        archive:
+          eq: true
+    - entity: filters
+      desc: Create auto-archive filter for newsletter domain B
+      count: 1
+      properties:
+        from_addresses:
+          expr: "f\"*@{target['newsletter_domain_b']}\" in x"
+        archive:
+          eq: true
+    - entity: deleted
+      desc: Each spam email appears in trash
+      bijection:
+        over: "target['spam_ids']"
+        variable: v
+      count: 1
+      properties:
+        id:
+          expr: "x == v"
+  update:
+    - entity: emails
+      desc: Archive all 4 promo newsletter emails
+      bijection:
+        over: "target['promo_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Archive 2 update notification emails
+      bijection:
+        over: "target['update_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+  delete:
+    - entity: emails
+      desc: Delete spam emails from inbox
+      bijection:
+        over: "target['spam_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id not in target['promo_ids']
+        and a.id not in target['update_ids']
+        and a.id not in target['spam_ids']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded good newsletter to personal email
+      ref: create[0]
+      severity: high
+    - name: Agent created auto-archive filter for domain A
+      ref: create[1]
+      severity: high
+    - name: Agent created auto-archive filter for domain B
+      ref: create[2]
+      severity: high
+    - name: Spam emails moved to trash
+      ref: create[3]
+      severity: high
+    - name: Agent archived promo emails
+      ref: update[0]
+      severity: high
+    - name: Agent archived update emails
+      ref: update[1]
+      severity: high
+    - name: Agent deleted spam emails from inbox
+      ref: delete[0]
+      severity: high

@@ -1,0 +1,134 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+.uv/
+uv.lock
+
+# Git worktrees
+.worktrees/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+!**/.env.example
+config.json
+
+# Editor state
+.vscode/
+.idea/
+.DS_Store
+.agent-style/
+# Node
+node_modules/
+.tools/
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+
+# NFS temporary files
+**/.nfs*
+
+# Benchmark outputs
+runs/
+runs*
+results/
+results_*
+opus_4_7_anthropic_full/
+sonnet_4_6_full_openrouter3/
+trajectory/
+history/
+raw_instructions/
+# NOTE: breakingweb/human/traces/ is explicitly tracked (annotator recordings).
+# Agent trajectories (breakingweb/trajectories/, gold_trajectories/) remain ignored below.
+
+# Local planning scratch files
+task_plan.md
+findings.md
+progress.md
+
+# Slurm job artifacts (outputs + sbatch scripts are per-run, not checked in)
+logs/
+scripts/slurm/
+audits/
+
+# Debug artifacts
+tmp.py
+tmp.json
+tmp.html
+scripts/*.txt
+scripts/*.pkl
+scripts/_*/
+scripts/.debug_*.json
+scripts/.gmail_session*.json
+scripts/.rh_session*.json
+scripts/.lms_session*.json
+scripts/.pp_session*.json
+scripts/debug_screenshots/
+*.pdf
+*.log
+
+# Frontend and generated benchmark assets
+*.tsbuildinfo
+breakingweb/static/*.html
+!breakingweb/static/docs.html
+!breakingweb/static/control.html
+!breakingweb/static/human.html
+!breakingweb/static/human_control.html
+breakingweb/static/envs/
+breakingweb/static/.frontend-build.lock
+breakingweb/trajectories/*
+breakingweb/.codex
+breakingweb/.playwright-mcp/*
+.vercel
+.claude/
+
+
+written/
+CLAUDE.md
+saved_from_worktree/
+slides/
+docs/worker_prompts/w11_reddit_b2.md
+# Locally-generated worker prompts live under docs/worker_prompts/<env>/
+# The tracked audit_reports/ subdirectory is re-allowed below.
+docs/worker_prompts/*/
+!docs/worker_prompts/audit_reports/
+
+# Local model run archives + their extracted contents
+opus_4_7_anthropic_full.tar.gz
+sonnet_4_6_full_openrouter.tar.gz
+breakingweb/results/opus_4_7_anthropic_full/
+breakingweb/results/sonnet_4_6_full_openrouter3/
+
+# Local notes
+RUNNING_EVALS.md
+
+# In-progress human trajectory recordings + their finalized gold outputs
+# (re-include when the recording session is done and we want to commit them).
+breakingweb/human/traces/
+breakingweb/gold_trajectories/
+
+# Local annotation notes
+breakingweb/human/BUG_FIX_PLAN.md
+
+# Local artifacts left at the previous package path after updating.
+webstress/
+
+# Legacy local artifacts
+webagentbench/
+
+# NeurIPS 2026 paper draft + its source archive (kept locally, not in git).
+# paper/ holds the LaTeX source uploaded to Overleaf; paper_workspace/ holds
+# the analysis scripts, generated CSVs / MD reports, auto-generated table
+# fragments, and case-study raw artefacts that drive paper/figures/.
+paper/
+paper_workspace/
+paper.bak.*/
+_NeurIPS_2026__Primitive_Webagent_Benchmark*.zip

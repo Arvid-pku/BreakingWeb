@@ -1,0 +1,162 @@
+task_id: amazon_negative_review_return_cascade
+env_id: amazon
+title: File Returns for Every Negatively Reviewed Purchase
+instruction_template: 'You recently placed orders for three products: "{target.reviewed_names_str}".
+  You have already reviewed each of them. For EVERY one of those three products where
+  you gave a rating below 3 stars, file a return request against the matching delivered
+  order. Use the reason "Quality below expectations". Do not file returns for any
+  other product.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 24
+primary_primitives:
+- planning
+secondary_primitives:
+- verification
+start_path: /orders
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: reviewed_orders_batch
+    params:
+      specs:
+      - name: Wireless Earbuds Standard
+        brand: SoundCore
+        category: Electronics
+        price: 39.99
+        product_rating: 4.0
+        rating: 2
+        title: Poor audio quality
+        body: Sound quality is muddy and the fit is uncomfortable.
+      - name: Bamboo Kitchen Utensils Set
+        brand: Hearthway
+        category: Home & Kitchen
+        price: 24.99
+        product_rating: 4.4
+        rating: 5
+        title: Love these!
+        body: Sturdy, beautiful, exactly as described.
+      - name: Travel Yoga Mat
+        brand: SummitForge
+        category: Sports & Outdoors
+        price: 34.99
+        product_rating: 4.2
+        rating: 1
+        title: Fell apart after one week
+        body: The foam ripped within days and the straps broke. Disappointed.
+    outputs:
+    - product_ids
+    - order_ids
+    - review_ratings
+    - negative_product_ids
+    - negative_order_ids
+    - positive_product_ids
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 20.0
+      - 100.0
+    outputs:
+    - catalog_electronics
+  targets:
+    negative_reviewed_product_ids: '{output.negative_product_ids}'
+    order_ids_for_returns: '{output.negative_order_ids}'
+    positive_product_id: '{output.positive_product_ids}'
+    reviewed_names_str: Wireless Earbuds Standard, Bamboo Kitchen Utensils Set,
+      Travel Yoga Mat
+canonical_diff:
+  create:
+  - entity: ReturnRequest
+    desc: File a return for each product reviewed below 3 stars
+    bijection:
+      over: "target['negative_reviewed_product_ids']"
+      variable: v
+    properties:
+      product_id: {expr: "x == v"}
+      order_id:
+        expr: "x in target['order_ids_for_returns'] and any(o.id == x and any(it.product_id
+          == v for it in o.items) for o in state.orders)"
+      reason: {eq: "Quality below expectations"}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  invariant:
+  - collection: state.returns
+    filter: "a.product_id not in target['negative_reviewed_product_ids']"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other return requests
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not modify cart
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not write additional product reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not file more returns than negatively reviewed products
+    ref: create[0]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

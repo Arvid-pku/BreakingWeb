@@ -1,0 +1,16 @@
+variant_id: gmail_label_workflow_setup__label_retry
+base_task_id: gmail_label_workflow_setup
+target_primitive: backtracking
+description: The first label creation fails transiently. The agent must retry and verify the labels exist before moving on.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/labels'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

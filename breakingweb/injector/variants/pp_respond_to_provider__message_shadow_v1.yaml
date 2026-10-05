@@ -1,0 +1,77 @@
+variant_id: pp_respond_to_provider__message_shadow_v1
+base_task_id: pp_respond_to_provider
+target_primitive: grounding
+description: >
+  Grounding stressor aimed at the TWO load-bearing discriminators of this task:
+  (1) which PCP to act on (the message sender, target.pcp_id == prov_1 -- NOT
+  the same-specialty decoy target.decoy_pcp_id), and (2) the two-step confirm
+  workflow that bit the strongest model (book-and-forget is insufficient). The
+  weak v1 only added generic decoy messages on a subtask neither model failed.
+  This version plants near-identical LOOKALIKES of the exact entities the
+  matcher keys on, on the SEED layer (so they are baked into the re-captured
+  baseline and do NOT count as agent-created collateral):
+    A. A pre-existing PENDING in-person appointment with the DECOY PCP, with a
+       near-identical reason and an EARLIER datetime than the assigned PCP's
+       earliest in-person slot. This tempts the agent to (a) confirm the WRONG
+       existing appointment, or (b) treat the task as already done -- directly
+       amplifying the confirmation-state failure mode -- and reinforces the
+       "book with the SENDER, not the earlier-slot PCP" decision.
+    B. An UNREAD message from the DECOY PCP with the SAME subject as the target
+       ("Blood Pressure Medication Adjustment"), so the action-driving message
+       can only be disambiguated by from_provider_id == target.pcp_id, not by
+       subject or specialty.
+    C. Two generic clinical lookalikes for baseline inbox noise.
+  All decoys reference the base seed targets (decoy_pcp_id / pcp_name); no new
+  unresolved {target.X} is introduced.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # A. PENDING in-person lookalike appointment with the DECOY (wrong) PCP,
+    #    near-identical reason, EARLIER than the assigned PCP's earliest
+    #    in-person slot. Stresses the confirm step + the second-PCP grounding:
+    #    an agent that confirms the first scheduled-pending appointment it sees,
+    #    or that concludes the follow-up "already exists", mis-targets.
+    #    `appointment_type` (not `type`) carries the modality so it does not
+    #    collide with the decoy dispatcher key `type: appointment`.
+    - type: appointment
+      provider_id: '{target.decoy_pcp_id}'
+      days_ahead: 2
+      hour: 9
+      status: scheduled
+      appointment_type: in-person
+      reason: Blood pressure medication follow up
+      requires_confirmation: true
+      confirmation_state: pending
+      location: Main Campus
+    # B. UNREAD message from the DECOY PCP with the SAME subject as the target.
+    #    Forces grounding on from_provider_id (the sender) rather than subject
+    #    text -- the matcher's read-target is pinned to target.bp_msg_id (the
+    #    assigned PCP's message), so reading this lookalike does NOT satisfy it.
+    - type: message
+      from_type: provider
+      provider_id: '{target.decoy_pcp_id}'
+      category: clinical
+      subject: Blood Pressure Medication Adjustment
+      body: >
+        Following up from our side on your blood pressure regimen. Please review
+        when convenient; no action is required from this note.
+      timestamp: '2025-02-12T10:15:00+00:00'
+      is_read: false
+    # C. Generic clinical inbox noise (baseline grounding pressure).
+    - type: message
+      from_type: provider
+      provider_name: '{target.pcp_name}'
+      category: clinical
+      subject: Follow-up reminder from earlier thread
+      body: This older portal thread is similar in topic but contains no action request.
+      timestamp: '2025-02-10T09:00:00+00:00'
+      is_read: false
+    - type: message
+      from_type: provider
+      category: clinical
+      subject: Medication check-in note
+      body: This lookalike note is informational only. Verify the exact provider thread before acting.
+      timestamp: '2025-02-11T08:30:00+00:00'
+      is_read: false

@@ -1,0 +1,70 @@
+variant_id: booking_find_deal_and_book__property_twin
+base_task_id: booking_find_deal_and_book
+target_primitive: grounding
+description: Near-identical properties appear alongside the true target on the
+  Deals page, AND the first POST to /reservations silently fails (returns 200
+  but no reservation is persisted). The agent must (a) pick the deal hotel
+  correctly and (b) verify the booking actually landed.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/reservations'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      ok: true
+      reservation_id: "res_pending"
+      confirmation_number: "CONF-PENDING"
+      message: "Reservation request received"
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Four near-typo siblings of "Lisbon Riverside Retreat". rs > target's
+    # 8.5 to lure rating sorts. None have entries on the Deals page so
+    # "navigate to Deals and find the deal for {name}" still surfaces
+    # only the real one.
+    - type: property
+      name: Lisbon Riverside Retreatt    # extra t
+      city: Lisbon
+      country: Portugal
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.7
+      review_count: 860
+      price: 170.0
+      description: Nearly identical property name with slightly different review profile.
+    - type: property
+      name: Lisbon Riveside Retreat      # drop r
+      city: Lisbon
+      country: Portugal
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.6
+      review_count: 640
+      price: 168.0
+      description: Similar branding can distract from the exact property match.
+    - type: property
+      name: Lisbom Riverside Retreat     # Lisbon → Lisbom
+      city: Lisbon
+      country: Portugal
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.8
+      review_count: 720
+      price: 172.0
+      description: City-name typo at the prefix.
+    - type: property
+      name: Lisbon Riverside Reteat      # drop r in Retreat
+      city: Lisbon
+      country: Portugal
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.9
+      review_count: 980
+      price: 175.0
+      description: Suffix-word typo (Retreat → Reteat).

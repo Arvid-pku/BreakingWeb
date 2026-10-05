@@ -1,0 +1,134 @@
+task_id: gmail_multi_party_rsvp
+env_id: gmail
+title: Multi-Party RSVP
+instruction_template: 'You are organizing a team lunch. Your original email (subject
+  "Team Lunch — Date Poll") lists three proposed dates: April 4, April 11, April 18.
+  It also names 5 required attendees: {target.marcus_name}, {target.sofia_name}, {target.theo_name},
+  {target.elena_name}, and {target.nina_name}. Three others ({target.jordan_name},
+  {target.miles_name}, {target.priya_name}) are optional. Responses arrived across
+  4 threads. Read every response to find the one date where all 5 required attendees
+  can attend. Note: {target.sofia_name} initially replied "April 11 works" but sent
+  a correction later in the same thread saying "Sorry, April 11 conflict came up —
+  only April 4 works for me now." Collect all dietary restrictions mentioned in any
+  response. Compose a new email to team.lunch@ops.thornton.com with subject "Team
+  Lunch Confirmed" containing the confirmed date as "Date: April 4" and a "Dietary
+  notes:" section listing each person''s restriction as ''{name}: {restriction}''
+  on separate lines. After sending, star the most recent email in each of the 4 RSVP
+  threads and archive the original poll email.'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 52
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: multi_party_rsvp
+    params: {}
+    outputs:
+    - marcus_name
+    - sofia_name
+    - theo_name
+    - elena_name
+    - nina_name
+    - jordan_name
+    - miles_name
+    - priya_name
+    - date_poll_email_id
+    - rsvp_thread_1_latest_email_id
+    - rsvp_thread_2_latest_email_id
+    - rsvp_thread_3_latest_email_id
+    - rsvp_thread_4_latest_email_id
+    - rsvp_thread_1_id
+    - rsvp_thread_2_id
+    - rsvp_thread_3_id
+    - rsvp_thread_4_id
+  targets:
+    marcus_name: '{output.marcus_name}'
+    sofia_name: '{output.sofia_name}'
+    theo_name: '{output.theo_name}'
+    elena_name: '{output.elena_name}'
+    nina_name: '{output.nina_name}'
+    jordan_name: '{output.jordan_name}'
+    miles_name: '{output.miles_name}'
+    priya_name: '{output.priya_name}'
+    date_poll_email_id: '{output.date_poll_email_id}'
+    rsvp_thread_1_latest_email_id: '{output.rsvp_thread_1_latest_email_id}'
+    rsvp_thread_2_latest_email_id: '{output.rsvp_thread_2_latest_email_id}'
+    rsvp_thread_3_latest_email_id: '{output.rsvp_thread_3_latest_email_id}'
+    rsvp_thread_4_latest_email_id: '{output.rsvp_thread_4_latest_email_id}'
+    rsvp_thread_1_id: '{output.rsvp_thread_1_id}'
+    rsvp_thread_2_id: '{output.rsvp_thread_2_id}'
+    rsvp_thread_3_id: '{output.rsvp_thread_3_id}'
+    rsvp_thread_4_id: '{output.rsvp_thread_4_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose Team Lunch Confirmed email to team.lunch@ops.thornton.com with confirmed date and dietary notes
+      count: 1
+      properties:
+        to:
+          expr: "x == ['team.lunch@ops.thornton.com']"
+        subject:
+          eq: "Team Lunch Confirmed"
+        body:
+          substring: "Date: April 4"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  update:
+    - entity: emails
+      desc: Star most recent email from each of the 4 RSVP threads
+      bijection:
+        over: "[target['rsvp_thread_1_latest_email_id'], target['rsvp_thread_2_latest_email_id'], target['rsvp_thread_3_latest_email_id'], target['rsvp_thread_4_latest_email_id']]"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive the original date poll email
+      where:
+        id:
+          expr: "x == target['date_poll_email_id']"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    # Exempt any email inside the 4 RSVP threads from preservation: the
+    # Thread-view star button stars the entire thread (Gmail-real behavior),
+    # so older replies legitimately become starred when annotators star "the
+    # most recent" via the natural UI path. The required-state on
+    # rsvp_thread_*_latest_email_id is still enforced by update[0] above.
+    - collection: state.emails
+      filter: "a.thread_id not in [target['rsvp_thread_1_id'], target['rsvp_thread_2_id'], target['rsvp_thread_3_id'], target['rsvp_thread_4_id']] and a.id != target['date_poll_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed Team Lunch Confirmed email with correct date
+      ref: create[0]
+      severity: high
+    - name: Agent starred latest RSVP thread emails
+      ref: update[0]
+      severity: high
+    - name: Agent archived original poll email
+      ref: update[1]
+      severity: high

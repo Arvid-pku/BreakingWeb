@@ -1,0 +1,92 @@
+variant_id: lms_calculate_weighted_grade__announcement_verify_v1
+base_task_id: lms_calculate_weighted_grade
+target_primitive: verification
+description: A verification-stressor stack on the DISCREPANCY (resubmit) branch.
+  The grades read returns a misleading/stale weighted score on the opposite side
+  of the discrepancy threshold, the resubmit write fakes success without
+  persisting, and decoy graded assignments contest the "latest-due graded"
+  selection. The agent must recompute the weighted grade the engine's way,
+  pick the true global-latest graded assignment, and verify the resubmit
+  actually persisted (attempt_count incremented) rather than trusting any
+  displayed value.
+injections:
+# (1) VERIFICATION on the BRANCH discriminator: the grades read advertises a
+#     weighted_score that hides the >1pt discrepancy. Intermittent so a single
+#     re-read does not converge — the agent must reconcile against the syllabus
+#     weights + drop-lowest + late penalty multiple times.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    methods:
+    - GET
+    response_body:
+      course_id: '{target.target_course_id}'
+      weighted_score: '88.5'
+      letter_grade: B+
+      category_scores: {}
+      note: Cached standing — recompute from the syllabus to confirm.
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42
+# (2) VERIFICATION of PERSISTENCE: the resubmit write returns a success-shaped
+#     body WITHOUT the backend persisting attempt_count / submission_status, so
+#     an agent that trusts the toast (and never re-reads the assignment) fails
+#     the tightened attempt_count >= initial+1 / exactly-one-resubmit predicate.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/lms/assignments/*/submit'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      assignment:
+        id: '{target.most_recent_graded_id}'
+        file_name: grade_dispute.pdf
+        submission_status: submitted
+        attempt_count: 2
+        message: Resubmission recorded.
+    behavior:
+      mode: once
+# (3) GROUNDING/VERIFICATION decoys: two graded look-alike assignments in the
+#     target course with an EARLY (2026-02-01) due date — plausible
+#     "dispute" candidates but NEVER the global latest-due graded one, so the
+#     agent must verify it selected the true max-due target, not a decoy.
+#     (The early date guarantees the decoy can never displace the load-bearing
+#     max(due_at) predicate, keeping the task solvable.)
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      title: Midterm Re-grade Dispute (resolved)
+      assignment_type: exam
+      weight_category: midterm
+      submission_status: graded
+      score: '84'
+      points_possible: '100'
+      due_at: '2026-02-01T10:00:00+00:00'
+      attempt_count: 1
+      max_attempts: 2
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      title: Project Checkpoint (graded, archived)
+      assignment_type: project
+      weight_category: project
+      submission_status: graded
+      score: '46'
+      points_possible: '50'
+      due_at: '2026-02-01T11:00:00+00:00'
+      attempt_count: 1
+      max_attempts: 2
+# (4) A decoy announcement in the target course to tempt the WRONG (no-discrepancy)
+#     branch action, which is now critically penalized on the discrepancy branch.
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Grade standing confirmed — no action needed
+      body: Archived note suggesting your standing is fine; do not trust without recomputing.
+      priority: urgent

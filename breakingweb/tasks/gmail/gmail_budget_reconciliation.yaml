@@ -1,0 +1,139 @@
+task_id: gmail_budget_reconciliation
+env_id: gmail
+title: Budget Reconciliation
+instruction_template: Three department heads sent you their Q1 budget numbers. {target.dept_a_name}
+  sent the {target.dept_a_dept} figures, {target.dept_b_name} sent the {target.dept_b_dept}
+  figures, and {target.dept_c_name} sent the {target.dept_c_dept} figures. A fourth
+  email from {target.summary_author_name} attempts to summarize all three — but two
+  of the numbers are wrong. Read all four emails, identify the errors, and reply to
+  {target.summary_author_name}'s email with the two corrections. Reply only to {target.summary_author_name}
+  (do not Reply All — the summary is CC'd to the CFO and board). Star the three department
+  emails for reference. Create a 'Budget Verified' label and apply it to all four
+  budget emails.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 42
+primary_primitives:
+- state_tracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: budget_reconciliation
+    params: {}
+    outputs:
+    - dept_a_name
+    - dept_a_dept
+    - dept_b_name
+    - dept_b_dept
+    - dept_c_name
+    - dept_c_dept
+    - summary_author_name
+    - summary_author_email
+    - summary_id
+    - dept_ids
+    - all_budget_ids
+    - correct_value_1
+    - correct_value_2
+    - wrong_values
+  targets:
+    dept_a_name: '{output.dept_a_name}'
+    dept_a_dept: '{output.dept_a_dept}'
+    dept_b_name: '{output.dept_b_name}'
+    dept_b_dept: '{output.dept_b_dept}'
+    dept_c_name: '{output.dept_c_name}'
+    dept_c_dept: '{output.dept_c_dept}'
+    summary_author_name: '{output.summary_author_name}'
+    summary_author_email: '{output.summary_author_email}'
+    summary_id: '{output.summary_id}'
+    dept_ids: '{output.dept_ids}'
+    all_budget_ids: '{output.all_budget_ids}'
+    correct_value_1: '{output.correct_value_1}'
+    correct_value_2: '{output.correct_value_2}'
+    wrong_values: '{output.wrong_values}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to summary author with the two corrections
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['summary_id']"
+        to:
+          expr: "x == [target['summary_author_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['correct_value_1'] in x and target['correct_value_2'] in x"
+    - entity: labels
+      desc: Create the Budget Verified label
+      count: 1
+      properties:
+        name:
+          eq: Budget Verified
+  update:
+    - entity: emails
+      desc: Star the three department emails and apply Budget Verified label
+      bijection:
+        over: "target['dept_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - Budget Verified
+    - entity: emails
+      desc: Apply Budget Verified label to the summary email
+      bijection:
+        over: "[target['summary_id']]"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - Budget Verified
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['all_budget_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Budget Verified'"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+    - collection: state.settings
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent correction reply to summary author
+      ref: create[0]
+      severity: high
+    - name: Agent created the Budget Verified label
+      ref: create[1]
+      severity: high
+    - name: Agent starred department emails and labeled them
+      ref: update[0]
+      severity: high
+    - name: Agent applied Budget Verified label to the summary email
+      ref: update[1]
+      severity: high
+    - name: Agent did not modify non-budget emails
+      ref: invariant[0]
+      severity: high

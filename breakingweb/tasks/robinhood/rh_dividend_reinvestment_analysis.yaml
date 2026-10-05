@@ -1,0 +1,82 @@
+task_id: rh_dividend_reinvestment_analysis
+env_id: robinhood
+title: Dividend Yield Analysis and Recurring Investment
+instruction_template: Calculate the yield-on-cost for each stock in your portfolio
+  (annual dividends divided by your cost basis). For any stock with yield-on-cost
+  below 1%, disable dividend reinvestment. Set up a recurring weekly $50 investment
+  in the stock with the highest yield-on-cost.
+difficulty: expert
+time_limit_seconds: 400
+expected_steps: 22
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - KO
+      - JNJ
+      - PG
+      - T
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 6
+    outputs: []
+  - use: dividend_schedule
+    params:
+      quarters: 4
+    outputs:
+    - low_yield_symbols
+    - best_yield_symbol
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    low_yield_symbols: '{output.low_yield_symbols}'
+    best_yield_symbol: '{output.best_yield_symbol}'
+canonical_diff:
+  create:
+  - entity: recurring_investments
+    desc: Weekly $50 recurring investment for highest yield-on-cost stock
+    properties:
+      symbol:
+        expr: x == target['best_yield_symbol']
+      frequency:
+        eq: weekly
+      amount:
+        expr: float(x) == 50.0
+      status:
+        eq: active
+      next_execution_date:
+        any: true
+  update:
+  - entity: settings
+    desc: Dividend reinvestment disabled (when low-yield stocks exist)
+    where:
+      id: {any: true}
+    changes:
+      reinvest_dividends: {expr: "len(target['low_yield_symbols']) == 0 or x == False"}
+  invariant:
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    filter: a.symbol != target['best_yield_symbol']
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []

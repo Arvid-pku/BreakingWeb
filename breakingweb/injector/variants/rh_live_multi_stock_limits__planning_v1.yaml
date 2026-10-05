@@ -1,0 +1,34 @@
+variant_id: rh_live_multi_stock_limits__planning_v1
+base_task_id: rh_live_multi_stock_limits
+target_primitive: planning
+description: >
+  Noise orders for unrelated symbols and distractor notifications about
+  other stocks create a cluttered order book. The agent must plan its
+  limit order placement for AAPL, GOOGL, and AMZN without being
+  derailed by existing pending orders on different symbols.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    symbols: ["TSLA", "MSFT", "META"]
+    count: 8
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    messages:
+    - "TSLA limit buy filled at $242.50"
+    - "MSFT stop-loss triggered at $410.00"
+    - "Your META order was partially filled"
+    - "Price alert: NFLX crossed $650"
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 2
+    success_body:
+      success: true
+      message: Limit order submitted.
+    behavior:
+      mode: once

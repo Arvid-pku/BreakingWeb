@@ -1,0 +1,131 @@
+task_id: gmail_sender_domain_triage
+env_id: gmail
+title: Triage inbox by sender-domain rules
+instruction_template: 'An ops email from operations@internal.thornton.com with subject
+  "Inbox Processing Rules -- March 2026" in your inbox defines three domain-to-action
+  rules. Read that email first, then process every inbox email that matches one of
+  the three domains. Do not act on emails from any other domain. Do not modify the
+  ops rules email itself.
+
+
+  The rules are:
+
+  1. Archive all emails where the From address domain is crestline.io.
+
+  2. Add the label ''Partner'' to all emails where the From address domain is harborline.co.
+  Do not archive or delete them.
+
+  3. Delete all emails where the From address domain is quicksavings.net.
+
+
+'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 25
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: sender_domain_triage
+    params: {}
+    outputs:
+    - vendor_a_ids
+    - partner_b_ids
+    - spam_c_ids
+    - ops_email_id
+    - cc_decoy_id
+    - display_name_decoy_id
+    - adversarial_vendor_id
+    - neutral_ids
+  targets:
+    vendor_a_ids: '{output.vendor_a_ids}'
+    partner_b_ids: '{output.partner_b_ids}'
+    spam_c_ids: '{output.spam_c_ids}'
+    ops_email_id: '{output.ops_email_id}'
+    cc_decoy_id: '{output.cc_decoy_id}'
+    display_name_decoy_id: '{output.display_name_decoy_id}'
+    adversarial_vendor_id: '{output.adversarial_vendor_id}'
+    neutral_ids: '{output.neutral_ids}'
+canonical_diff:
+  update:
+    - entity: emails
+      desc: Archive all crestline.io emails (remove from inbox)
+      bijection:
+        over: "target['vendor_a_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Add Partner label to harborline.co emails
+      bijection:
+        over: "target['partner_b_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - Partner
+  create:
+    - entity: deleted
+      desc: Each quicksavings.net email appears in trash
+      bijection:
+        over: "target['spam_c_ids']"
+        variable: v
+      count: 1
+      properties:
+        id:
+          expr: "x == v"
+  delete:
+    - entity: emails
+      desc: Delete all quicksavings.net emails from inbox
+      bijection:
+        over: "target['spam_c_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id not in target['vendor_a_ids']
+        and a.id not in target['partner_b_ids']
+        and a.id not in target['spam_c_ids']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent archived all crestline.io emails
+      ref: update[0]
+      severity: high
+    - name: Agent labeled harborline.co emails with Partner
+      ref: update[1]
+      severity: high
+    - name: Agent deleted all quicksavings.net emails from inbox
+      ref: delete[0]
+      severity: high
+    - name: Each quicksavings.net email appears in trash
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

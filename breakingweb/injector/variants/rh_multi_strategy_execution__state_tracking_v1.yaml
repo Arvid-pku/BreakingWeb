@@ -1,0 +1,53 @@
+variant_id: rh_multi_strategy_execution__state_tracking_v1
+base_task_id: rh_multi_strategy_execution
+target_primitive: state_tracking
+description: >
+  Noise orders on the same losers (INTC, BA) and confusing positions with
+  similar strikes to the collar target make it harder for the agent to
+  track which strategies have been completed and which remain.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: INTC
+      side: buy
+      order_type: limit
+      quantity: 15
+      limit_price: "32.00"
+      time_in_force: gtc
+      status: pending
+    - symbol: BA
+      side: sell
+      order_type: limit
+      quantity: 8
+      limit_price: "180.00"
+      time_in_force: day
+      status: pending
+    - symbol: AAPL
+      side: buy
+      order_type: limit
+      quantity: 5
+      limit_price: "172.00"
+      time_in_force: gtc
+      status: pending
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: AAPL
+      option_type: put
+      side: buy
+      strike: "165.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "5.20"
+    - symbol: AAPL
+      option_type: call
+      side: sell
+      strike: "190.00"
+      expiration_days: 56
+      quantity: 2
+      average_cost: "3.80"

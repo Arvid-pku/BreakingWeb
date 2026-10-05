@@ -1,0 +1,34 @@
+variant_id: rh_covered_call_strategy__exploration_v1
+base_task_id: rh_covered_call_strategy
+target_primitive: exploration
+description: >
+  The options trading affordance is hidden behind a context-menu trigger,
+  positions are shuffled so AAPL is not prominently displayed, and decoy
+  notifications about options expiration for other holdings add confusion.
+  The agent must explore the interface to locate the options order flow.
+injections:
+- layer: client
+  params:
+    action: hide_affordance
+    selector: '[aria-label="Trade Options"]'
+    trigger: contextmenu
+    behavior:
+      mode: persistent
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 83
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+      - type: corporate_action
+        title: "MSFT Options Expiring"
+        message: "You have 2 MSFT call contracts expiring this Friday. Review your positions."
+      - type: price_alert
+        title: "AAPL Near 52-Week High"
+        message: "AAPL is trading within 2% of its 52-week high of $199.62. Consider adjusting your covered call strategy."
+      - type: earnings
+        title: "AAPL Earnings in 14 Days"
+        message: "Apple Inc reports Q2 earnings on April 16. Implied volatility has risen 35%."

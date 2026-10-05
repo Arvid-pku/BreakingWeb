@@ -1,0 +1,25 @@
+variant_id: lms_peer_review_mega__peer_review_persist_check_v2
+base_task_id: lms_peer_review_mega
+target_primitive: verification
+description: The LMS presents an initially plausible state, then a later correction
+  or refresh reveals the true outcome. The agent must verify persisted state before
+  stopping.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/peer-reviews'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    type: announcement

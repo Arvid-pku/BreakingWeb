@@ -1,0 +1,50 @@
+variant_id: lms_ta_dual_role__peer_review_clutter_v1
+base_task_id: lms_ta_dual_role
+target_primitive: exploration
+description: >-
+  Floods the peer-review surface with out-of-scope look-alike reviews that
+  carry the SAME assigned/in_progress statuses as the real in-scope targets,
+  so a cheap status filter no longer removes them. The decoys live in the
+  sibling TA course (not the in-scope primary TA course) and use near-match
+  reviewee names, so the only way to tell them apart from the real targets is
+  to trace each review's underlying submission back to its course. This turns
+  "find every pending review in my TA course" into a genuine open-ended
+  search: completing any look-alike trips the critical preserve-ALL
+  peer-review invariant, and missing any real target leaves the bijection
+  unsaturated.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    # multiplier replicates each spec; with 3 base specs x 3 = 9 extra
+    # look-alike reviews on the surface (capped at 12). Combined with the
+    # base's 8 in-scope + 4 sibling pending reviews, the agent must scope a
+    # ~20-row peer-review list down to the exact 8 in {target.ta_course_code}.
+    multiplier: 3
+    cap: 12
+    decoys:
+    # All decoys are out-of-scope: they belong to the SIBLING TA course
+    # ({target.sibling_ta_course_id}), NOT the in-scope {target.ta_course_code}
+    # course, so they must NOT be touched. They share the real targets'
+    # assigned/in_progress statuses, so no status filter removes them; the
+    # near-match reviewee names defeat name-based heuristics. assignment_id is
+    # left unset so the injector pins each to a real sibling-course assignment,
+    # keeping the assignment -> course trace honest.
+    - type: peer_review
+      course_id: '{target.sibling_ta_course_id}'
+      reviewee_name: Avery Patel
+      submission_title: Reflection submission draft
+      submission_body: Near-match draft assigned to you in your other TA course; out of scope here.
+      status: assigned
+    - type: peer_review
+      course_id: '{target.sibling_ta_course_id}'
+      reviewee_name: Nina Kim
+      submission_title: Reflection submission revision
+      submission_body: Revision circulated in your other TA course; not part of the in-scope set.
+      status: in_progress
+    - type: peer_review
+      course_id: '{target.sibling_ta_course_id}'
+      reviewee_name: Priya Patel
+      submission_title: Reflection submission working copy
+      submission_body: Working copy in your other TA course; leave untouched for this task.
+      status: assigned

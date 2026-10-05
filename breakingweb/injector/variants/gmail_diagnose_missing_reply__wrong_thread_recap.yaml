@@ -1,0 +1,16 @@
+variant_id: gmail_diagnose_missing_reply__wrong_thread_recap
+base_task_id: gmail_diagnose_missing_reply
+target_primitive: backtracking
+description: A recap email confidently claims the wrong client thread is still unanswered. The agent must
+  inspect the actual thread history instead of trusting the shortcut summary.
+injections:
+- layer: seed
+  params:
+    action: plant_wrong_answer
+    from_name: Client Ops Tracker
+    from: ops-tracker@company.internal
+    subject: Outstanding client replies summary
+    body: 'Current summary: only the onboarding paperwork thread still needs a response. The API integration
+      timeline thread was already handled, so no action is required there.'
+    labels:
+    - inbox

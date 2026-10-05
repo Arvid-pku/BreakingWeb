@@ -1,0 +1,137 @@
+task_id: reddit_block_and_cleanup
+title: Block User and Clean Up
+instruction_template: '1. Block u/{target.block_user}.
+
+  2. Hide any posts by u/{target.block_user} in your feed.
+
+  3. Delete the message from u/{target.block_user} with subject "{target.delete_subject}".
+
+  4. Go to Settings and disable "Allow followers" and "Show online status".
+
+  5. Navigate to r/personalfinance and find "{target.save_title}". Save it.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: CryptoSkeptic
+      subject: Stop posting about Linux!!!
+      body: Nobody cares about your distro.
+      is_read: false
+    outputs:
+    - delete_msg_id
+    - delete_msg_subject
+    - delete_msg_from
+  - use: target_post
+    params:
+      subreddit: personalfinance
+      title: Complete guide to backdoor Roth IRA contributions for high earners
+      body: Step by step walkthrough.
+      score: 11000
+    outputs:
+    - save_id
+    - save_title
+    - save_sub
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Why blockchain will never replace traditional databases
+      body: A CTO's perspective.
+      author: CryptoSkeptic
+      score: 800
+    outputs:
+    - hide_id
+    - hide_title
+    - hide_sub
+  targets:
+    block_user: CryptoSkeptic
+    delete_subject: '{output.delete_msg_subject}'
+    delete_msg_id: '{output.delete_msg_id}'
+    save_title: '{output.save_title}'
+    save_id: '{output.save_id}'
+    hide_id: '{output.hide_id}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Hide the CryptoSkeptic post
+    where:
+      id:
+        expr: x == target['hide_id']
+    changes:
+      is_hidden:
+        eq: true
+  - entity: Post
+    desc: Save the personal-finance post
+    where:
+      id:
+        expr: x == target['save_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: settings
+    desc: Allow followers disabled, show online status disabled
+    where: {id: {any: true}}
+    changes:
+      allow_followers: {eq: false}
+      show_online_status: {eq: false}
+  delete:
+  - entity: Message
+    collection: state.messages
+    desc: Delete the harassment message
+    where:
+      id:
+        expr: x == target['delete_msg_id']
+  invariant:
+  - collection: state.posts
+    filter: a.id != target['hide_id'] and a.id != target['save_id']
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent hid the target user's post
+    ref: update[0]
+    severity: high
+  - name: Agent saved the PF post
+    ref: update[1]
+    severity: high
+  - name: Agent deleted the harassment message
+    ref: delete[0]
+    severity: high
+  - name: Agent did not modify unrelated posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and
+      state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high
+  - expr: "target['block_user'] in state.blocked_users and all(u in initial.blocked_users or u == target['block_user'] for u in state.blocked_users)"
+    desc: Required blocked-users side effect enforced
+    severity: critical
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

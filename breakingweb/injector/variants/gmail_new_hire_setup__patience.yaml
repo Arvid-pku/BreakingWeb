@@ -1,0 +1,44 @@
+variant_id: gmail_new_hire_setup__patience_v1
+base_task_id: gmail_new_hire_setup
+target_primitive: patience
+description: Progressive delays force planning around which operations to batch vs
+  sequence.
+injections:
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/gmail/labels'
+    delay_ms: 4500
+    behavior:
+      mode: progressive
+      stages:
+      - after_call: 1
+        delay_ms: 1500
+      - after_call: 2
+        delay_ms: 3000
+      - after_call: 3
+        delay_ms: 4500
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/gmail/filters'
+    delay_ms: 4500
+    behavior:
+      mode: progressive
+      stages:
+      - after_call: 1
+        delay_ms: 2250
+      - after_call: 2
+        delay_ms: 3750
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/gmail/contacts'
+    delay_ms: 3000
+    behavior:
+      mode: progressive
+      stages:
+      - after_call: 1
+        delay_ms: 1500
+      - after_call: 2
+        delay_ms: 3000

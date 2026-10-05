@@ -1,0 +1,180 @@
+task_id: pp_specialist_roundrobin
+env_id: patient_portal
+title: Specialist Round-Robin
+instruction_template: 'Complete this referral chain without using messages: 1) Schedule
+  one cardiology appointment in the next available slot with reason exactly "Echocardiogram",
+  2) Confirm that an approved referral exists and that its prior-authorization status
+  is approved, 3) Use that approved referral to schedule one specialist appointment
+  in the next available slot with reason exactly "Referral consultation". Book the
+  echocardiogram before the referral consultation. Do not cancel any existing appointments
+  and do not send any messages.'
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 34
+primary_primitives:
+- planning
+start_path: /appointments
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Coronary Artery Disease
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - orthopedics
+      - neurology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - orthopedics
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - prior_auth_ref_id
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    prior_auth_ref_id: '{output.prior_auth_ref_id}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # Positive signals:
+  #   (a) Schedule exactly one cardiology Echocardiogram appointment at the
+  #       next available cardiology slot (backend bypasses the referral gate
+  #       when the reason contains 'echo'/'echocardiogram').
+  #   (b) Schedule exactly one Referral consultation linked to the seed's
+  #       prior_auth_ref_id (which is guaranteed approved + prior_auth
+  #       approved by the referral_chain seeder), with a provider whose
+  #       specialty matches the referral's to_specialty, at the next
+  #       available slot for that specialist.
+  # Ordering: booked_at of the echo < booked_at of the consultation is
+  # enforced via a constraints: entry (cross-entity comparison that cannot
+  # be expressed per-entity).
+  create:
+    - entity: Appointment
+      desc: "Schedule one cardiology Echocardiogram appointment at the next available cardiology slot"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Echocardiogram"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['cardio_provider_ids']
+                     for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one Referral consultation using the approved referral, after the echocardiogram is booked"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Referral consultation"}
+        linked_referral_id:
+          expr: "x == target['prior_auth_ref_id']"
+        provider_id:
+          expr: >
+            any(p.id == x and p.specialty == r.to_specialty
+                for p in initial.providers
+                for r in initial.referrals
+                if r.id == target['prior_auth_ref_id'])
+        datetime:
+          expr: >
+            x == min(s.datetime
+                     for r in initial.referrals
+                     if r.id == target['prior_auth_ref_id']
+                     for p in initial.providers
+                     if p.specialty == r.to_specialty
+                     for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at:
+          # Booking-order predicate (was a high-severity constraint): the
+          # consultation must be booked AFTER the echocardiogram (echo
+          # booked_at < this consult booked_at).
+          expr: >-
+            any(
+              echo.booked_at < x
+              for echo in state.appointments
+              if echo.status == 'scheduled'
+              and echo.reason == 'Echocardiogram'
+              and echo.id not in {y.id for y in initial.appointments}
+            )
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+    - collection: state.patient
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not create, modify, or approve any referral (read-only verification)"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

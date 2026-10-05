@@ -1,0 +1,224 @@
+task_id: reddit_feed_curation_expert
+title: Feed Curation and Quality Control
+instruction_template: '1. Hide the post "{target.hide_title}" in r/{target.hide_sub} (it is off-topic).
+
+  2. In r/science find "{target.sci_title}". Upvote, save, and comment: "{target.sci_comment}"
+
+  3. In r/programming find "{target.prog_title}". Save it (do not vote).
+
+  4. Send message to u/{target.msg_to} subject "{target.msg_sub}" body: "{target.msg_body}"
+
+  5. Mark all notifications read. Set feed sort to "top".
+
+
+  Do not hide other posts.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: science
+      title: Engineered probiotic bacteria can detect and treat inflammatory bowel disease in mice
+      body: Published in Nature Biotechnology.
+      score: 19000
+    outputs:
+    - sci_id
+    - sci_title
+    - sci_sub
+  - use: target_post
+    params:
+      subreddit: programming
+      title: A visual guide to SSH tunneling and port forwarding
+      body: Diagrams that finally made it click for me.
+      author: SilentObserver
+      score: 7600
+    outputs:
+    - prog_id
+    - prog_title
+    - prog_sub
+  - use: target_post
+    params:
+      subreddit: technology
+      title: My cat walked across my keyboard and somehow deployed to production
+      body: True story.
+      score: 52000
+    outputs:
+    - hide_id
+    - hide_title
+    - hide_sub
+  - use: capture_notification_ids
+    params: {}
+    outputs:
+    - all_notification_ids
+    - unread_notification_ids
+  targets:
+    hide_title: '{output.hide_title}'
+    hide_id: '{output.hide_id}'
+    hide_sub: '{output.hide_sub}'
+    sci_title: '{output.sci_title}'
+    sci_id: '{output.sci_id}'
+    prog_title: '{output.prog_title}'
+    prog_id: '{output.prog_id}'
+    sci_comment: The targeted delivery mechanism is elegant. If this translates to human trials, it could replace systemic immunosuppressants.
+    msg_to: SilentObserver
+    msg_sub: Your SSH tunneling guide
+    msg_body: Best SSH explanation I have ever seen. Would you mind if I reference it in a training doc I am writing?
+    unread_notification_ids: '{output.unread_notification_ids}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Off-topic post hidden
+    where:
+      id:
+        expr: x == target['hide_id']
+    changes:
+      is_hidden:
+        eq: true
+  - entity: Post
+    desc: Science post upvoted and saved
+    where:
+      id:
+        expr: x == target['sci_id']
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  - entity: Post
+    desc: Programming post saved (do not vote)
+    where:
+      id:
+        expr: x == target['prog_id']
+    changes:
+      is_saved:
+        eq: true
+      vote_direction:
+        eq: 0
+  - entity: Notification
+    desc: All unread notifications marked as read
+    bijection:
+      over: target['unread_notification_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_feed_sort: {eq: top}
+  create:
+  - entity: Comment
+    desc: Comment on science post with exact text
+    properties:
+      post_id:
+        expr: x == target['sci_id']
+      body:
+        expr: x == target['sci_comment']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Message
+    collection: state.sent_messages
+    desc: Message sent to SilentObserver
+    properties:
+      to_user:
+        expr: x == target['msg_to']
+      subject:
+        expr: x == target['msg_sub']
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['msg_body']
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.notifications
+    filter: 'True'
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Off-topic post hidden
+    ref: update[0]
+    severity: high
+  - name: Science post upvoted and saved
+    ref: update[1]
+    severity: high
+  - name: Programming post saved
+    ref: update[2]
+    severity: high
+  - name: All unread notifications marked as read
+    ref: update[3]
+    severity: high
+  - name: Comment on science post with exact text
+    ref: create[0]
+    severity: high
+  - name: Message sent to SilentObserver
+    ref: create[1]
+    severity: high
+  - name: Agent did not modify subreddit memberships
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not touch unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not create or mutate unrelated comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not read or delete inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send extra outbound messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not delete or re-read already-read notifications
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not edit user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

@@ -1,0 +1,36 @@
+variant_id: booking_expert_compare_and_decide__property_shadow_v2
+base_task_id: booking_expert_compare_and_decide
+target_primitive: grounding
+description: Search results include a same-city sibling property with a nearly identical name and overlapping
+  amenities. The agent must still book or compare the exact target hotel.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Three near-typo siblings of target "Rosewood London". Each uses a
+    # different character-level variation so an agent that "skims" the
+    # name fails on at least one. rs above target (9.3) to lure rating
+    # sorts; all prices > $400 so the task's "<$400 with free
+    # cancellation" filter still uniquely selects the real Rosewood London.
+    - type: property
+      name: Rosewood Londom            # n→m
+      city: London
+      country: United Kingdom
+      price: 540.0
+      review_score: 9.5
+      amenities: [Free WiFi, Spa, Pool, Restaurant, Bar, Fitness center]
+    - type: property
+      name: Rosewod London             # drop one o
+      city: London
+      country: United Kingdom
+      price: 560.0
+      review_score: 9.4
+      amenities: [Free WiFi, Spa, Pool, Restaurant, Bar]
+    - type: property
+      name: The Rosewood London        # spurious "The"
+      city: London
+      country: United Kingdom
+      price: 570.0
+      review_score: 9.6
+      amenities: [Free WiFi, Spa, Pool, Restaurant, Bar, Fitness center]

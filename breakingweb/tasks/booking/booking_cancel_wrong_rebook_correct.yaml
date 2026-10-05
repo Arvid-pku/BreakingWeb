@@ -1,0 +1,249 @@
+task_id: booking_cancel_wrong_rebook_correct
+env_id: booking
+title: Cancel Wrong-Date Reservation and Modify Correct One
+instruction_template: "You have two confirmed reservations in {target.city}. One of\
+  \ them is for the WRONG dates and needs to be cancelled, while the other is correct\
+  \ and needs special requests added.\n1. Find your reservation at \"{target.wrong_prop_name}\"\
+  \ (checking in\n   {target.wrong_check_in}). This reservation was booked for the\
+  \ wrong dates.\n   It has a non-trivial cancellation fee — preview the fee first,\
+  \ then accept\n   any cancellation fee and cancel it.\n2. After cancelling, open\
+  \ the system's Rebooking Options page for the\n   cancelled reservation and review\
+  \ the same-city alternatives the system\n   generated. Identify the alternative\
+  \ that best matches your intended stay\n   (correct room type / guests / budget).\n\
+  3. Then find your other confirmed reservation in the same city (checking in\n \
+  \  {target.correct_check_in}) at the property that matches your intended stay.\
+  \ This\n   is the correct reservation. Modify it to add the special request: \"\
+  Extra pillows\n   and hypoallergenic bedding please. Celebrating anniversary.\"\n"
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Connaught London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.4
+      review_count: 2890
+      price: 620.0
+      neighborhood: Mayfair
+      address: Carlos Place, London W1K 2AL
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+    outputs:
+    - wrong_prop_id
+    - wrong_prop_name
+    - wrong_cheapest_room_id
+    - wrong_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.wrong_prop_id}'
+      check_in: '2026-06-01'
+      check_out: '2026-06-04'
+      price_per_night: 620.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 8
+      cancellation_policy:
+        type: partial_refund
+        penalty_percentage: 40
+        description: "40% cancellation fee"
+    outputs:
+    - wrong_res_id
+    - wrong_conf_num
+    - wrong_res_property_id
+  - use: featured_property
+    params:
+      name: Claridge's London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.3
+      review_count: 3567
+      price: 615.0
+      neighborhood: Mayfair
+      address: Brook Street, London W1K 4HR
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+    outputs:
+    - correct_prop_id
+    - correct_prop_name
+    - correct_cheapest_room_id
+    - correct_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.correct_prop_id}'
+      check_in: '2026-06-15'
+      check_out: '2026-06-19'
+      price_per_night: 580.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 5
+    outputs:
+    - correct_res_id
+    - correct_conf_num
+    - correct_res_property_id
+  - use: decoy_property
+    params:
+      name: The Langham London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.1
+      review_count: 4200
+      price: 540.0
+      neighborhood: Marylebone
+      address: 1C Portland Place, London W1B 1JA
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+    outputs:
+    - london_extra1_prop_id
+    - london_extra1_prop_name
+  - use: decoy_property
+    params:
+      name: The Dorchester London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.2
+      review_count: 3800
+      price: 610.0
+      neighborhood: Mayfair
+      address: 53 Park Lane, London W1K 1QA
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+    outputs:
+    - london_extra2_prop_id
+    - london_extra2_prop_name
+  - use: featured_property
+    params:
+      name: Hotel Costes
+      city: Paris
+      country: France
+      star_rating: 5
+      review_score: 8.9
+      price: 450.0
+    outputs:
+    - distractor_prop_id
+    - distractor_prop_name
+    - distractor_cheapest_room_id
+    - distractor_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.distractor_prop_id}'
+      check_in: '2026-07-20'
+      check_out: '2026-07-23'
+      status: confirmed
+      booked_days_ago: 14
+    outputs:
+    - distractor_res_id
+    - distractor_conf_num
+    - distractor_res_property_id
+  targets:
+    wrong_res_id: '{output.wrong_res_id}'
+    wrong_prop_id: '{output.wrong_prop_id}'
+    wrong_prop_name: '{output.wrong_prop_name}'
+    wrong_check_in: '2026-06-01'
+    correct_res_id: '{output.correct_res_id}'
+    correct_prop_id: '{output.correct_prop_id}'
+    correct_prop_name: '{output.correct_prop_name}'
+    correct_check_in: '2026-06-15'
+    distractor_res_id: '{output.distractor_res_id}'
+    city: London
+    correct_rebook_prop_id: '{output.correct_prop_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the wrong-date reservation at The Connaught
+      where:
+        id: {expr: "x == target['wrong_res_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Modify the correct reservation to add special requests
+      where:
+        id: {expr: "x == target['correct_res_id']"}
+      changes:
+        status: {eq: modified}
+        guest_info:
+          expr: "'extra pillows' in (x.get('special_requests') or '').lower() and 'hypoallergenic' in (x.get('special_requests') or '').lower() and 'anniversary' in (x.get('special_requests') or '').lower()"
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['wrong_res_id'] and a.id != target['correct_res_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). System-only side effect; whitelisted.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the wrong-date reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent modified the correct reservation with special requests
+      ref: update[1]
+      severity: critical
+    - name: Agent did not cancel or modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low

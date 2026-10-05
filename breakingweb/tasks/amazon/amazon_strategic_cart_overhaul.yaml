@@ -1,0 +1,240 @@
+task_id: amazon_strategic_cart_overhaul
+env_id: amazon
+title: Remove Expensive Cart Items and Add Budget Alternatives
+instruction_template: 'Your shopping cart needs optimization. Review all items currently
+  in your cart and remove every item that costs more than $50.00 per unit. Then search
+  for ''{target.alt_product_1}'' and add 1 to your cart. Also search for ''{target.alt_product_2}''
+  and add 1 to your cart. Finally, complete checkout using the address and payment
+  method already on file.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 38
+primary_primitives:
+- state_tracking
+start_path: /cart
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Premium Noise-Cancelling Headphones
+        price: 149.99
+        quantity: 1
+        brand: AudioMax
+        category: Electronics
+      - name: Smart Home Security Camera
+        price: 79.99
+        quantity: 1
+        brand: SecureView
+        category: Electronics
+      - name: Ergonomic Standing Desk Mat
+        price: 89.99
+        quantity: 1
+        brand: ComfortPro
+        category: Office Supplies
+      - name: USB-C Charging Cable 3-Pack
+        price: 12.99
+        quantity: 1
+        brand: SwiftCharge
+        category: Electronics
+      - name: Stainless Steel Water Bottle
+        price: 24.99
+        quantity: 1
+        brand: HydroLife
+        category: Sports & Outdoors
+      - name: Cotton Crew Socks 6-Pack
+        price: 18.99
+        quantity: 1
+        brand: ComfortFit
+        category: Clothing
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  - use: featured_product
+    params:
+      name: Compact Bluetooth Speaker
+      brand: SoundWave
+      category: Electronics
+      price: 34.99
+      rating: 4.5
+      features:
+      - Portable design
+      - 12-hour battery
+      - IPX7 waterproof
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_alt1
+    - product_name_alt1
+    - product_price_alt1
+  - use: featured_product
+    params:
+      name: Bamboo Desk Organizer
+      brand: EcoDesk
+      category: Office Supplies
+      price: 22.99
+      rating: 4.3
+      features:
+      - Sustainable bamboo
+      - 5-compartment design
+      - Easy assembly
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_alt2
+    - product_name_alt2
+    - product_price_alt2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Office Supplies
+      count: 5
+      price_range:
+      - 10.0
+      - 40.0
+    outputs:
+    - catalog_office
+  targets:
+    alt_product_1: '{output.product_name_alt1}'
+    alt_product_2: '{output.product_name_alt2}'
+    alt_id_1: '{output.product_id_alt1}'
+    alt_id_2: '{output.product_id_alt2}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order contains both alt products and kept budget items; no expensive
+      ones
+    properties:
+      items:
+        expr: "len(x) == 5 and any(it['product_id'] == target['alt_id_1'] and it['quantity']
+          == 1 for it in x) and any(it['product_id'] == target['alt_id_2'] and it['quantity']
+          == 1 for it in x) and any(it['product_name'] == 'USB-C Charging Cable 3-Pack'
+          and it['quantity'] == 1 for it in x) and any(it['product_name'] == 'Stainless
+          Steel Water Bottle' and it['quantity'] == 1 for it in x) and any(it['product_name']
+          == 'Cotton Crew Socks 6-Pack' and it['quantity'] == 1 for it in x) and all(it['product_name']
+          not in ['Premium Noise-Cancelling Headphones', 'Smart Home Security Camera',
+          'Ergonomic Standing Desk Mat'] for it in x)"
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  delete:
+  - entity: CartItem
+    desc: Expensive headphones removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Premium Noise-Cancelling Headphones}
+  - entity: CartItem
+    desc: Expensive security camera removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Smart Home Security Camera}
+  - entity: CartItem
+    desc: Expensive desk mat removed before checkout (weight 0)
+    weight: 0.0
+    where:
+      product_name: {eq: Ergonomic Standing Desk Mat}
+  - entity: CartItem
+    desc: Kept budget cart item cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept budget cart item cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Kept budget cart item cleared on checkout (weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

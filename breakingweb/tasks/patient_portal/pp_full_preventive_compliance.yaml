@@ -1,0 +1,255 @@
+task_id: pp_full_preventive_compliance
+env_id: patient_portal
+title: Full Preventive Care Compliance
+instruction_template: 'Complete all overdue preventive care actions using only appointments,
+  refills, and renewal requests: 1) Review your applicable screenings list and schedule
+  appointments for any where the next_due date has passed, 2) Schedule appointments
+  for all due or overdue immunizations, 3) Identify all prescriptions expiring within
+  30 days that still have refills remaining and request refills, 4) For the prescription
+  with zero refills remaining, use the renewal request flow. Do not send any separate
+  clinical summary messages.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 60
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+      overdue_screening_count: 2
+    outputs:
+    - pcp_id
+    - pcp_name
+    - applicable_screening_names
+    - overdue_screening_names
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+      expiring_soon_count: 3
+      # Forces exactly one expiring rx to have 0 refills (renewal target);
+      # the remaining 2 get a deterministic 1-2 refill count (refill targets).
+      expiring_zero_refill_count: 1
+      zero_refill_count: 0
+    outputs:
+    - active_rx_ids
+    - expiring_rx_ids
+    - expiring_zero_refill_rx_ids
+    - expiring_with_refills_rx_ids
+  - use: immunization_record
+    params:
+      completed_count: 2
+      due_count: 2
+      series_incomplete: true
+    outputs:
+    - due_imm_ids
+    - due_vaccine_names
+    - due_vaccine_short_names
+    - incomplete_series_imm_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 2
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    expiring_rx_ids: '{output.expiring_rx_ids}'
+    expiring_with_refills_rx_ids: '{output.expiring_with_refills_rx_ids}'
+    expiring_zero_refill_rx_ids: '{output.expiring_zero_refill_rx_ids}'
+    due_vaccine_names: '{output.due_vaccine_names}'
+    due_vaccine_short_names: '{output.due_vaccine_short_names}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+    applicable_screening_names: '{output.applicable_screening_names}'
+    overdue_screening_names: '{output.overdue_screening_names}'
+canonical_diff:
+  # Four-axis compliance task over appointments, refills, and renewals.
+  # Screening and immunization appointments are tracked as TWO independent
+  # bijections (rather than a single union) so partial coverage credits
+  # partial score rather than failing the whole axis.
+  #   (a) bijection: one Appointment per overdue screening (reason contains
+  #       the screening name — legacy substring-match);
+  #   (b) bijection: one Appointment per due/overdue immunization (reason
+  #       contains the vaccine name);
+  #   (c) bijection: refill each expiring rx that still has refills
+  #       (Update entry — refills_remaining decremented, last_filled bumped);
+  #   (d) bijection: flip the expiring zero-refill rx to pending_renewal and
+  #       emit one rx_renewal ClinicalMessage linked to it.
+  update:
+    - entity: Prescription
+      desc: "Refill each expiring prescription that still has refills remaining"
+      bijection:
+        over: "target['expiring_with_refills_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        refills_remaining:
+          expr: "x == next(r.refills_remaining for r in initial.prescriptions if r.id == v) - 1"
+        last_filled:
+          expr: "x > next(r.last_filled for r in initial.prescriptions if r.id == v)"
+    - entity: Prescription
+      desc: "Flip the expiring zero-refill prescription to pending_renewal"
+      bijection:
+        over: "target['expiring_zero_refill_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        status: {eq: "pending_renewal"}
+  create:
+    - entity: Appointment
+      desc: >-
+        Schedule one appointment per overdue screening; reason must contain
+        the corresponding screening's name. Independent bijection so partial
+        success on screenings credits partial score (split from the former
+        union bijection that conflated screenings with immunizations).
+      bijection:
+        over: "list(target['overdue_screening_names'])"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        reason:
+          expr: "v.lower() in (x or '').lower()"
+        provider_id: {any: true}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: >-
+        Schedule one appointment per due/overdue immunization; reason must
+        contain the corresponding vaccine's short_name (the bare form, e.g.
+        "Tdap" rather than "Tdap (Tetanus)"). Independent bijection so
+        partial success on immunizations credits partial score (split from
+        the former union bijection). PP-2: bijection now iterates the
+        short-name list to avoid requiring agents to repeat the
+        parenthetical literally.
+      bijection:
+        over: "list(target['due_vaccine_short_names'])"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        reason:
+          expr: "v.lower() in (x or '').lower()"
+        provider_id: {any: true}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: ClinicalMessage
+      desc: "Submit a structured rx_renewal request for each expiring zero-refill rx"
+      bijection:
+        over: "target['expiring_zero_refill_rx_ids']"
+        variable: v
+      properties:
+        from_type: {eq: "patient"}
+        category: {eq: "rx_renewal"}
+        linked_entity_id: {expr: "x == v"}
+        linked_entity_type: {eq: "prescription"}
+        provider_id:
+          expr: >-
+            x in [r.provider_id for r in initial.prescriptions if r.id == v]
+        is_read: {any: true}
+        subject: {any: true}
+        body: {any: true}
+        thread_id: {any: true}
+        is_urgent: {any: true}
+  invariant:
+    # Pre-existing appointments must remain untouched; the creates above
+    # are the only permitted appointment mutations.
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    # Prescriptions that are not in the expiring set must not be modified
+    # (no premature discontinue / renew of rxes that still have refills and
+    # aren't expiring). The expiring_with_refills rxes legitimately change
+    # (refills_remaining + last_filled) via update[0]; the zero-refill
+    # expiring rx legitimately flips status via update[1]. Everything else
+    # must be preserved.
+    - collection: state.prescriptions
+      filter: "a.id not in target['expiring_rx_ids']"
+      preserve: ALL
+    # Pre-existing messages must be preserved; rx_renewal messages added by
+    # create[1] don't overlap with initial ids.
+    - collection: state.messages
+      filter: "a.id in {x.id for x in initial.messages}"
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not prematurely discontinue or renew prescriptions that were not expiring"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not modify, delete, or alter pre-existing messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent did not schedule more appointments than required overdue screenings"
+      ref: create[0]
+      severity: medium
+    - name: "Agent did not schedule more appointments than required due/overdue immunizations"
+      ref: create[1]
+      severity: medium
+    - name: "Agent did not submit more renewal messages than expiring zero-refill rxes"
+      ref: create[2]
+      severity: medium
+secondary_primitives: []

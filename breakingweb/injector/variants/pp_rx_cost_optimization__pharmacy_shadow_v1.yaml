@@ -1,0 +1,70 @@
+variant_id: pp_rx_cost_optimization__pharmacy_shadow_v1
+base_task_id: pp_rx_cost_optimization
+target_primitive: grounding
+description: The pharmacy list is flooded with brand/name lookalikes and a near-tie
+  mail-order decoy whose 90-day cost sits just below the obvious Express Scripts
+  option but still above the true cheapest, plus prescription decoys (an expired
+  same-name Atorvastatin and an active zero-refill rx at a retail pharmacy) that
+  look eligible by pharmacy alone. The agent must read is_mail_order, compare every
+  cost, and apply the (retail AND refills>=1 AND active) conjunction rather than
+  brand-family or pharmacy-only heuristics. None of these decoys change the
+  builder-precomputed cheapest_mail_order_pharmacy_id or
+  retail_refillable_active_rx_ids, so the canonical answer is unchanged while the
+  grounding load roughly doubles.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Name implies mail-order ("Mail Order") but is_mail_order=false: a
+    # brand-family heuristic that scans for "mail" misfires here.
+    - type: pharmacy
+      name: 'Rite Aid Mail Order #2044'
+      address: 11 Cedar St, Springfield, IL 62705
+      phone: (555) 410-2204
+      is_default: false
+      is_mail_order: false
+    # Name implies a neighborhood retail store ("Corner Drug") but is actually
+    # mail-order: forces the agent to read the is_mail_order flag, not the name.
+    - type: pharmacy
+      name: 'Corner Drug & Wellness'
+      address: 88 Lake Shore Dr, Springfield, IL 62706
+      phone: (555) 410-3399
+      is_default: false
+      is_mail_order: true
+      cost_per_90day_supply: '48.00'
+    # Near-tie mail-order decoy: $21.50 undercuts the obvious Express Scripts
+    # ($22) so a "pick the cheapest NEW-looking option" agent lands here, but it
+    # is STILL above the true cheapest (OptumRx $21). The builder-precomputed
+    # cheapest_mail_order_pharmacy_id is frozen before injection, so the canonical
+    # destination is unchanged; this decoy only punishes an agent that fails to
+    # compare every cost.
+    - type: pharmacy
+      name: 'Express Scripts Pharmacy (Premier)'
+      address: PO Box 21155, Tempe, AZ 85285
+      phone: (800) 555-1299
+      is_default: false
+      is_mail_order: true
+      dispensing_fee: '0'
+      cost_per_90day_supply: '21.50'
+    # Expired Atorvastatin at a retail pharmacy: a same-name decoy that an agent
+    # transferring "Atorvastatin" by medication-name match alone would wrongly
+    # move. It is expired, so it must be left untouched.
+    - type: prescription
+      medication: 'Atorvastatin 20mg'
+      dosage: '20mg'
+      frequency: once daily at bedtime
+      pharmacy_id: '{target.default_pharmacy_id}'
+      refills_remaining: 0
+      status: expired
+      interactions: []
+    # Active zero-refill rx at a retail pharmacy: looks eligible by pharmacy
+    # (retail) but fails the refills>=1 conjunct, so it must NOT be transferred.
+    - type: prescription
+      medication: 'Pantoprazole 40mg'
+      dosage: '40mg'
+      frequency: once daily
+      pharmacy_id: '{target.default_pharmacy_id}'
+      refills_remaining: 0
+      status: active
+      interactions: []

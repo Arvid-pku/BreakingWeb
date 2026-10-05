@@ -1,0 +1,103 @@
+task_id: gmail_priority_escalation
+env_id: gmail
+title: Priority Escalation
+instruction_template: Find the oldest unread email from each of your VIP contacts
+  (look for emails with the 'VIP' label). Mark each one as starred and reply with
+  the exact phrase '{target.status_phrase}'. Then create a filter that automatically
+  stars future mail from {target.future_vip_email}.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 35
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: priority_escalation
+    params: {}
+    outputs:
+    - vip_count
+    - vip_email_ids
+    - status_phrase
+    - future_vip_email
+  targets:
+    vip_count: '{output.vip_count}'
+    vip_email_ids: '{output.vip_email_ids}'
+    status_phrase: '{output.status_phrase}'
+    future_vip_email: '{output.future_vip_email}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to each VIP email with the required status phrase
+      bijection:
+        over: "target['vip_email_ids']"
+        variable: v
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == v"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == v)]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['status_phrase'] in x"
+        forwarded_from_id:
+          eq: null
+    - entity: filters
+      desc: Create filter that auto-stars future emails from future_vip_email
+      count: 1
+      properties:
+        from_addresses:
+          expr: "target['future_vip_email'] in x"
+        star:
+          eq: true
+  update:
+    - entity: emails
+      desc: Star all VIP emails and mark as read
+      bijection:
+        over: "target['vip_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        is_read:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['vip_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to each VIP email with status phrase
+      ref: create[0]
+      severity: high
+    - name: Agent created future VIP filter
+      ref: create[1]
+      severity: high
+    - name: Agent starred and read all VIP emails
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify non-VIP emails
+      ref: invariant[0]
+      severity: high

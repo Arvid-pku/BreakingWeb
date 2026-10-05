@@ -1,0 +1,16 @@
+variant_id: rh_options_buy_call__options_retry
+base_task_id: rh_options_buy_call
+target_primitive: backtracking
+description: The first options order submission fails transiently. The agent must verify the order exists and retry if needed.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/options/orders'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

@@ -1,0 +1,53 @@
+variant_id: gmail_board_briefing_prep__state_tracking_v1
+base_task_id: gmail_board_briefing_prep
+target_primitive: state_tracking
+description: >
+  Injects exact-topic decoys from the wrong senders and adds 12 topical
+  distractors that share the task keywords. This forces the agent to track which
+  sender matches which topic (not just search by keyword) and to remember which
+  emails it has already processed without changing the "most recent" target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+      - from_name: Board Ops
+        from: board.ops@thornton.com
+        subject: "{target.topic_a}"
+        body: >
+          FYI only. Sharing background material on {target.topic_a}; this is
+          not the direct owner update you need for the board packet.
+        labels: [inbox]
+      - from_name: Chief of Staff
+        from: chief.of.staff@thornton.com
+        subject: "Re: {target.topic_b}"
+        body: >
+          Passing along notes on {target.topic_b}. This is not from the topic
+          owner and should not be used as the board-forward source.
+        labels: [inbox]
+      - from_name: Executive Assistant
+        from: executive.assistant@thornton.com
+        subject: "{target.topic_c}"
+        body: >
+          Forwarding material on {target.topic_c} for visibility. The original
+          sender's latest update is elsewhere in your inbox.
+        labels: [inbox]
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 18
+    topical_count: 12
+    topical_subjects:
+      - "Re: Revenue Projections — revised numbers"
+      - "Fwd: Revenue forecast update"
+      - "Revenue Projections Q3 (outdated)"
+      - "Re: Supply Chain status from last quarter"
+      - "Supply Chain Optimization — draft notes"
+      - "Fwd: Supply chain vendor update"
+      - "Re: Market Expansion timeline"
+      - "Market Expansion Initiative — old proposal"
+      - "Fwd: Market expansion research"
+      - "Revenue and budget alignment"
+      - "Supply chain risk assessment"
+      - "Market and revenue crossover analysis"

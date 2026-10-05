@@ -1,0 +1,30 @@
+variant_id: rh_mark_notifications_read__notification_retry
+base_task_id: rh_mark_notifications_read
+target_primitive: backtracking
+description: The first mark-all-read request fails transiently. The agent must verify the notification state and retry if
+  some remain unread.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/notifications/read-all'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/notifications/read-all'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      updated: 0
+      message: All notifications marked as read.
+    behavior:
+      mode: once

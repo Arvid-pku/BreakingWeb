@@ -1,0 +1,171 @@
+task_id: lms_peer_review_with_feedback
+env_id: lms
+title: Complete Peer Review and Verify Own Submission Uses Feedback
+instruction_template: Complete all pending peer reviews by filling in rubric scores
+  and adding constructive comments for each. Then check if any of your own assignments
+  have feedback or a revision request. If feedback exists, review it and resubmit
+  the assignment with an updated file named "revised_with_feedback.pdf" incorporating
+  the suggestions.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- planning
+start_path: /peer-reviews
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 2
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.5
+      resubmit_count: 1
+    outputs:
+    - assignment_ids
+    - resubmit_assignment_ids
+    - decoy_assignment_id
+  - use: peer_review_assignments
+    params:
+      count: 3
+      statuses:
+      - assigned
+      - in_progress
+      - submitted
+    outputs:
+    - review_ids
+    - pending_review_ids
+    - completed_review_ids
+    - peer_review_assignment_ids
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    pending_review_ids: '{output.pending_review_ids}'
+    resubmit_assignment_id: '{output.resubmit_assignment_ids[0]}'
+    decoy_assignment_id: '{output.decoy_assignment_id}'
+    peer_review_assignment_ids: '{output.peer_review_assignment_ids}'
+canonical_diff:
+  update:
+  - entity: PeerReview
+    desc: Submit every pending peer review with rubric scores and constructive comments
+    bijection:
+      over: "target['pending_review_ids'].split(',') if target['pending_review_ids'] else []"
+      variable: review_id
+    where:
+      id:
+        expr: "x == v.strip()"
+    changes:
+      rubric_scores:
+        expr: >-
+          len(x) == 3
+          and set(x) == {'clarity', 'depth', 'originality'}
+          and all(1 <= v <= 5 for v in x.values())
+      comments:
+        expr: "len(x.strip()) > 20"
+      status: {eq: submitted}
+  - entity: Assignment
+    desc: Resubmit the assignment that received feedback with the revised file
+    where:
+      id:
+        expr: "x == target['resubmit_assignment_id']"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: revised_with_feedback.pdf
+      attempt_count:
+        expr: "x >= 2"
+      submitted_at:
+        expr: "x >= session_start"
+  invariant:
+  # Exclude the resubmit target and any assignment referenced by a peer
+  # review — submitting a peer review can cascade onto the underlying
+  # assignment record, so those assignments shouldn't be treated as
+  # unrelated mutations.
+  - collection: state.assignments
+    filter: "a.id != target['resubmit_assignment_id'] and a.id not in [pid.strip() for pid in (target.get('peer_review_assignment_ids', '') or '').split(',') if pid.strip()]"
+    preserve: ALL
+  - collection: state.peer_reviews
+    filter: "a.id not in [rid.strip() for rid in target['pending_review_ids'].split(',') if rid.strip()]"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent submitted all pending peer reviews
+    ref: update[0]
+    severity: high
+  - name: Agent resubmitted the feedback-bearing assignment
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other assignments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other peer reviews
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

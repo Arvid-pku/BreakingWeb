@@ -1,0 +1,50 @@
+task_id: rh_compare_dividend_yields
+env_id: robinhood
+title: Compare Dividend Yields and Add to Watchlist
+instruction_template: From the major consumer-staples dividend payers KO, PEP, and
+  PG, look up each one's current dividend yield, then add the ticker with the highest
+  yield to your "Dividend Kings" watchlist.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 7
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - KO
+      - PEP
+      - PG
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: watchlist
+    params:
+      name: Dividend Kings
+      symbols: []
+    outputs: []
+  targets: {}
+canonical_diff:
+  update:
+  - entity: watchlists
+    desc: KO added to the Dividend Kings watchlist (and only KO)
+    where:
+      name: {eq: Dividend Kings}
+    changes:
+      symbols: {set_eq: ["KO"]}
+  invariant:
+  - collection: state.watchlists
+    filter: "a.name != 'Dividend Kings'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []

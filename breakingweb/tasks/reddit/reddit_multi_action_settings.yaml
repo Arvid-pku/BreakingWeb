@@ -1,0 +1,171 @@
+task_id: reddit_multi_action_settings
+title: Multi-Action with Full Settings Update
+instruction_template: '1. Subscribe to r/Piracy.
+
+  2. Unsubscribe from r/memes.
+
+  3. Create a post in r/Python: title "{target.post_title}" body "{target.post_body}".
+
+  4. In r/worldnews find "{target.wn_title}". Upvote it.
+
+  5. Block u/CryptoSkeptic.
+
+  6. Settings: theme "dark", compact view on, disable show online status and allow followers, set feed sort "new" and comment sort "top".
+
+
+  Do not unsubscribe from anything else.'
+difficulty: expert
+time_limit_seconds: 540
+expected_steps: 40
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+      subscribe:
+      - memes
+    outputs:
+    - subscriptions
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: India becomes the third country to successfully land a rover on Mars
+      body: Mangalyaan 3 touched down in Jezero Crater.
+      score: 73000
+    outputs:
+    - wn_id
+    - wn_title
+    - wn_sub
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Why I'm bearish on the current AI hype cycle
+      body: Receipts and historical parallels inside.
+      author: CryptoSkeptic
+      score: 340
+    outputs:
+    - cs_post_id
+    - cs_post_title
+    - cs_post_sub
+  targets:
+    post_title: 'Comprehensive guide to Python packaging in 2026: pyproject.toml, uv, and hatch'
+    post_body: The Python packaging landscape has finally stabilized. Here is everything you need to know.
+    wn_title: '{output.wn_title}'
+    wn_id: '{output.wn_id}'
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribed to r/Piracy
+    where:
+      id:
+        expr: state.get_subreddit(x).name == 'Piracy'
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Subreddit
+    desc: Unsubscribed from r/memes
+    where:
+      id:
+        expr: state.get_subreddit(x).name == 'memes'
+    changes:
+      is_subscribed:
+        eq: false
+  - entity: Post
+    desc: Worldnews post upvoted
+    where:
+      id:
+        expr: x == target['wn_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      compact_view: {eq: true}
+      show_online_status: {eq: false}
+      allow_followers: {eq: false}
+      default_feed_sort: {eq: new}
+      default_comment_sort: {eq: top}
+  create:
+  - entity: Post
+    desc: Created Python post with exact title and body
+    properties:
+      subreddit_name:
+        eq: Python
+      title:
+        expr: x == target['post_title']
+      body:
+        expr: x == target['post_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+      flair_text:
+        any: true
+      is_spoiler:
+        any: true
+      is_nsfw:
+        any: true
+  invariant:
+  - collection: state.subreddits
+    filter: state.get_subreddit(a.id) is None or state.get_subreddit(a.id).name not in ('Piracy', 'memes')
+    preserve: ALL
+  - collection: state.posts
+    filter: a.id != target['wn_id']
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent subscribed to r/Piracy
+    ref: update[0]
+    severity: high
+  - name: Agent unsubscribed from r/memes
+    ref: update[1]
+    severity: high
+  - name: Agent upvoted the worldnews post
+    ref: update[2]
+    severity: high
+  - name: Agent created the Python packaging post with exact content
+    ref: create[0]
+    severity: high
+  - name: Agent did not subscribe or unsubscribe other subreddits
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not vote on or modify other posts
+    ref: invariant[1]
+    severity: high
+  constraints:
+  - expr: state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: "'CryptoSkeptic' in state.blocked_users and all(u in initial.blocked_users or u == 'CryptoSkeptic' for u in state.blocked_users)"
+    desc: Required blocked-users side effect enforced
+    severity: critical
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

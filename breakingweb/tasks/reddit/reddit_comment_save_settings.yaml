@@ -1,0 +1,151 @@
+task_id: reddit_comment_save_settings
+env_id: reddit
+title: Comment Chain, Save, and Settings
+instruction_template: '1. Navigate to r/{target.sub} and open "{target.post_title}".
+
+
+  2. Add a top-level comment with exactly: "{target.top_comment}"
+
+
+  3. Find the comment by u/{target.reply_author} that mentions "{target.reply_snippet}" and reply with exactly: "{target.reply_text}"
+
+
+  4. Save the post.
+
+
+  5. Go to Settings. Set comment sort to "controversial" and disable "Auto-play media".
+
+
+  Do not vote on any posts or comments.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: programming
+      title: 'Hot take: most design patterns are unnecessary complexity that junior devs use to feel smart'
+      body: Change my mind.
+      author: LogicLoom
+      score: 7800
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: target_comment
+    params:
+      post_id: '{output.post_id}'
+      body: The singleton pattern exists for a reason. Dependency injection without it leads to spaghetti code.
+      author: CompileError
+      score: 1200
+    outputs:
+    - reply_comment_id
+    - reply_comment_body
+  - use: comment_thread
+    params:
+      post_id: '{output.post_id}'
+      depth: 2
+      comments_per_level: 2
+    outputs:
+    - comment_ids
+    - thread_depth
+  targets:
+    sub: '{output.subreddit_name}'
+    post_title: '{output.post_title}'
+    post_id: '{output.post_id}'
+    top_comment: Design patterns are tools. Like any tool, they can be misused. The problem is not the patterns themselves but applying them where they are not needed.
+    reply_author: CompileError
+    reply_snippet: singleton pattern
+    reply_target_id: '{output.reply_comment_id}'
+    reply_text: DI containers solve the singleton use case more cleanly. The singleton pattern has well-documented issues with testing and concurrency.
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Save the target post
+    where:
+      id:
+        expr: x == target['post_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: settings
+    desc: Comment sort to controversial, auto-play media disabled
+    where: {id: {any: true}}
+    changes:
+      default_comment_sort: {eq: controversial}
+      auto_play_media: {eq: false}
+  create:
+  - entity: Comment
+    desc: Post the exact top-level comment
+    properties:
+      post_id:
+        expr: x == target['post_id']
+      body:
+        expr: x == target['top_comment']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Comment
+    desc: Post the reply to the singleton comment
+    properties:
+      post_id:
+        expr: x == target['post_id']
+      parent_id:
+        expr: x == target['reply_target_id']
+      body:
+        expr: x == target['reply_text']
+      author_name:
+        expr: x == state.owner_username
+  invariant:
+  - collection: state.posts
+    filter: a.id != target['post_id']
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent saved the target post
+    ref: update[0]
+    severity: high
+  - name: Agent posted the exact top-level comment
+    ref: create[0]
+    severity: high
+  - name: Agent posted the reply to the singleton comment
+    ref: create[1]
+    severity: high
+  - name: Agent did not modify unrelated posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

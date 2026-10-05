@@ -1,0 +1,315 @@
+task_id: reddit_full_account_audit
+title: Full Account Security and Privacy Audit
+instruction_template: '1. Block u/{target.block_user}.
+
+  2. Hide posts by u/{target.block_user}.
+
+  3. Delete message from u/{target.block_user}.
+
+  4. Go to Settings: theme "dark", disable show online status, disable allow followers, disable show active communities, disable all email notifications.
+
+  5. Unsave all posts from r/{target.leave_sub}.
+
+  6. Unsubscribe from r/{target.leave_sub}.
+
+  7. Navigate to r/{target.sub} find "{target.title}". Save and upvote it.
+
+  8. Mark all notifications read.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- state_tracking
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_ids
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Global carbon emissions fall for first time without economic recession
+      body: IEA data shows renewable transition driving decline.
+      score: 55000
+    outputs:
+    - wn_id
+    - wn_title
+    - wn_sub
+  - use: target_post
+    params:
+      subreddit: programming
+      title: How we reduced our CI/CD pipeline from 45 minutes to 3 minutes
+      body: Caching, parallelization, and smarter test selection.
+      author: CompileError
+      score: 11000
+    outputs:
+    - prog_id
+    - prog_title
+    - prog_sub
+  - use: target_comment
+    params:
+      post_id: '{output.prog_id}'
+      body: Test selection based on code coverage diff is the biggest win here. We saw similar results.
+      author: DeepDiver
+      score: 2100
+    outputs:
+    - reply_id
+    - reply_body
+  - use: target_message
+    params:
+      from_user: DigitalSage
+      subject: Collaboration request
+      body: Want to work together?
+      is_read: false
+    outputs:
+    - r_msg_id
+    - r_msg_sub
+    - r_msg_from
+  - use: target_message
+    params:
+      from_user: CryptoSkeptic
+      subject: FREE NFT DROP!!!
+      body: Limited time offer!
+      is_read: false
+    outputs:
+    - del_msg_id
+    - del_msg_sub
+    - del_msg_from
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Crypto skepticism thread - unpopular takes welcome
+      body: Sharing a contrarian view on the recent market cycle.
+      author: CryptoSkeptic
+      score: 420
+    outputs:
+    - cs_post_id
+    - cs_post_title
+    - cs_post_sub
+  - use: capture_notification_ids
+    params: {}
+    outputs:
+    - all_notification_ids
+    - unread_notification_ids
+  targets:
+    subscriptions: '{output.subscriptions}'
+    initial_subscriptions: '{output.subscriptions}'
+    initial_saved_ids: '{output.saved_ids}'
+    unread_notification_ids: '{output.unread_notification_ids}'
+    meme_ids: '{output.meme_ids}'
+    wn_title: '{output.wn_title}'
+    wn_id: '{output.wn_id}'
+    prog_title: '{output.prog_title}'
+    prog_id: '{output.prog_id}'
+    reply_author: DeepDiver
+    reply_hint: code coverage
+    reply_id: '{output.reply_id}'
+    r_from: '{output.r_msg_from}'
+    r_sub: '{output.r_msg_sub}'
+    r_body: Sounds great, let us set up a call next week.
+    del_sub: '{output.del_msg_sub}'
+    del_id: '{output.del_msg_id}'
+    block_user: CryptoSkeptic
+    leave_sub: memes
+    sub: '{output.wn_sub}'
+    title: '{output.wn_title}'
+    join: MachineLearning
+    j1: MachineLearning
+    j2: Piracy
+    j3: dataisbeautiful
+    sub1: '{output.wn_sub}'
+    p1: '{output.wn_title}'
+    c1: Finally some good news on climate. The renewable transition is working.
+    sub2: '{output.prog_sub}'
+    p2: '{output.prog_title}'
+    t1: '{output.wn_title}'
+    t2: '{output.prog_title}'
+    t3: '{output.wn_title}'
+    t4: '{output.prog_title}'
+    c3: This data gives me hope.
+    c4: Smart test selection is underrated.
+    ct: '{output.prog_title}'
+    cc: Great CI/CD improvements.
+    pt: Practical guide to deploying ML models with FastAPI and Docker
+    pb: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    py_title: Async Python patterns that actually improve performance
+    py_body: Not all async code is faster. Here are the patterns where async Python genuinely helps and where it hurts.
+    ml_title: 'Fine-tuning LLMs on domain-specific data: lessons from healthcare NLP'
+    ml_body: We fine-tuned several models on clinical notes. Here is what worked and what did not.
+    p1_title: Practical guide to deploying ML models with FastAPI and Docker
+    p1_body: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    post_title: Practical guide to deploying ML models with FastAPI and Docker
+    post_body: Step-by-step walkthrough from development to production.
+    prog_comment: Caching alone cut our pipeline by 60 percent.
+    reply_text: Code coverage diff is the key insight. Most teams over-test unchanged code.
+    msg_to: CompileError
+    msg_sub: Your CI/CD post
+    ms: Community announcement
+    mb: Just published a new guide in r/MachineLearning. Would love your review.
+    m_to: CompileError
+    wn_comment: Renewables are finally delivering on their promise. This is the turning point.
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Worldnews target post upvoted and saved
+    where:
+      id:
+        expr: x == target['wn_id']
+    changes:
+      is_saved:
+        eq: true
+      vote_direction:
+        eq: 1
+  - entity: Subreddit
+    desc: Unsubscribed from r/memes
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['leave_sub']
+    changes:
+      is_subscribed:
+        eq: false
+  - entity: Notification
+    desc: All unread notifications marked as read
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    desc: All memes-subreddit saved posts were unsaved
+    bijection:
+      over: target['meme_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_saved:
+        eq: false
+  - entity: Post
+    desc: Posts by the target block_user were hidden
+    where:
+      author_name:
+        expr: x == target['block_user']
+    changes:
+      is_hidden:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      show_online_status: {eq: false}
+      allow_followers: {eq: false}
+      show_active_communities: {eq: false}
+      email_comment_reply: {eq: false}
+      email_post_reply: {eq: false}
+      email_mentions: {eq: false}
+      email_messages: {eq: false}
+  delete:
+  - entity: Message
+    collection: state.messages
+    desc: Spam message from target delete id removed
+    where:
+      id:
+        expr: x == target['del_id']
+  invariant:
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    filter: 'True'
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Worldnews target post upvoted and saved
+    ref: update[0]
+    severity: high
+  - name: Unsubscribed from r/memes
+    ref: update[1]
+    severity: high
+  - name: All unread notifications marked as read
+    ref: update[2]
+    severity: high
+  - name: All memes-subreddit saved posts were unsaved
+    ref: update[3]
+    severity: high
+  - name: Spam message from target delete id removed
+    ref: delete[0]
+    severity: high
+  - name: Agent did not subscribe/unsubscribe from other subreddits
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not mutate unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not create or edit comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not delete other inbox messages
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not send outbound messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not re-read or delete already-read notifications
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not edit user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_digest == initial.settings.email_digest and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high
+  - expr: "'CryptoSkeptic' in state.blocked_users and all(u in initial.blocked_users or u == 'CryptoSkeptic' for u in state.blocked_users)"
+    desc: Required blocked-users side effect enforced
+    severity: critical
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

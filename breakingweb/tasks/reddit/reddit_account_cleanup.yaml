@@ -1,0 +1,145 @@
+task_id: reddit_account_cleanup
+env_id: reddit
+title: Account Cleanup Workflow
+instruction_template: 'Complete this account cleanup:
+
+
+  1. Go to your Saved page and unsave all posts that are from r/{target.unsave_sub}.
+
+
+  2. Go to Settings and switch theme to "dark", disable "Show online status", and set default comment sort to "new".
+
+
+  3. Unsubscribe from r/{target.leave_sub}.
+
+
+  4. Navigate to r/{target.comment_sub} and find the post "{target.comment_post_title}". Add a comment with exactly: "{target.comment_text}"
+
+
+  Do not change notification settings.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- backtracking
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+      score_range:
+      - 100
+      - 5000
+    outputs:
+    - meme_post_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_post_ids}'
+    outputs:
+    - saved_post_ids
+  - use: target_post
+    params:
+      subreddit: news
+      title: Supreme Court rules unanimously in favor of digital privacy protections
+      body: The ruling extends Fourth Amendment protections to cloud-stored data.
+      score: 28000
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    unsave_sub: memes
+    leave_sub: memes
+    comment_sub: news
+    comment_post_title: '{output.post_title}'
+    comment_post_id: '{output.post_id}'
+    comment_text: This is a landmark decision. Digital privacy has been in a legal gray area for far too long.
+    meme_post_ids: '{output.meme_post_ids}'
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Unsubscribe from r/memes
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['leave_sub']
+    changes:
+      is_subscribed:
+        eq: false
+  - entity: Post
+    desc: Unsave each seeded memes post so the Saved page holds no memes entries
+    bijection:
+      over: target['meme_post_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_saved:
+        eq: false
+  - entity: settings
+    desc: Theme dark, online status hidden, default comment sort to new
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      show_online_status: {eq: false}
+      default_comment_sort: {eq: new}
+  create:
+  - entity: Comment
+    desc: Post the exact comment on the news post
+    properties:
+      post_id:
+        expr: x == target['comment_post_id']
+      body:
+        expr: x == target['comment_text']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  invariant:
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent unsubscribed from r/memes
+    ref: update[0]
+    severity: high
+  - name: Agent posted the exact comment on the news post
+    ref: create[0]
+    severity: high
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and
+      state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

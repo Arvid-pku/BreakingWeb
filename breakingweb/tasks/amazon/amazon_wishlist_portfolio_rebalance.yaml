@@ -1,0 +1,292 @@
+task_id: amazon_wishlist_portfolio_rebalance
+env_id: amazon
+title: Curate Wishlist by Category and Purchase Budget Items
+instruction_template: 'Build and curate a wishlist, then purchase the best value items:
+  1. Search for and add these 6 products to your wishlist: ''{target.name_e_cheap}'',
+  ''{target.name_e_exp}'', ''{target.name_h_cheap}'', ''{target.name_h_exp}'', ''{target.name_s_cheap}'',
+  ''{target.name_s_exp}''. 2. Review your wishlist. Within each category (Electronics,
+  Home & Kitchen, Sports & Outdoors), identify the more expensive product and remove
+  it from the wishlist. 3. Move the remaining 3 wishlist items to your cart and complete
+  checkout.
+
+  '
+difficulty: frontier
+time_limit_seconds: 540
+expected_steps: 50
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: USB Desk Fan Quiet
+      brand: TechNova
+      category: Electronics
+      price: 19.99
+      rating: 4.5
+      features:
+      - Ultra-quiet motor
+      - 3 speed settings
+      - USB powered
+      - 360 degree rotation
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_e_cheap
+    - product_name_e_cheap
+    - product_price_e_cheap
+  - use: featured_product
+    params:
+      name: 4K Ultra Monitor 32-inch
+      brand: Pixelon
+      category: Electronics
+      price: 89.99
+      rating: 4.7
+      features:
+      - 4K UHD resolution
+      - IPS panel
+      - HDMI and DisplayPort
+      - VESA mount compatible
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_e_exp
+    - product_name_e_exp
+    - product_price_e_exp
+  - use: featured_product
+    params:
+      name: Bamboo Salad Bowl Set
+      brand: CedarCraft
+      category: Home & Kitchen
+      price: 22.99
+      rating: 4.4
+      features:
+      - Sustainable bamboo
+      - 4-piece set
+      - Hand-wash only
+      - Serving utensils included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_h_cheap
+    - product_name_h_cheap
+    - product_price_h_cheap
+  - use: featured_product
+    params:
+      name: Professional Stand Mixer
+      brand: Ironstone Home
+      category: Home & Kitchen
+      price: 79.99
+      rating: 4.6
+      features:
+      - 500W motor
+      - 10 speed settings
+      - 5-quart bowl
+      - 3 attachments included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_h_exp
+    - product_name_h_exp
+    - product_price_h_exp
+  - use: featured_product
+    params:
+      name: Resistance Bands Set Pro
+      brand: IronPeak
+      category: Sports & Outdoors
+      price: 17.99
+      rating: 4.3
+      features:
+      - 5 resistance levels
+      - Latex-free TPE
+      - Door anchor included
+      - Carry bag
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_s_cheap
+    - product_name_s_cheap
+    - product_price_s_cheap
+  - use: featured_product
+    params:
+      name: Adjustable Weight Bench
+      brand: BaseEdge
+      category: Sports & Outdoors
+      price: 94.99
+      rating: 4.8
+      features:
+      - 7 position adjustment
+      - 600 lb capacity
+      - Foldable design
+      - Non-slip feet
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_s_exp
+    - product_name_s_exp
+    - product_price_s_exp
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 15.0
+      - 60.0
+    outputs:
+    - catalog_home
+  - use: product_catalog
+    params:
+      category: Sports & Outdoors
+      count: 6
+      price_range:
+      - 10.0
+      - 50.0
+    outputs:
+    - catalog_sports
+  targets:
+    e_cheap: '{output.product_id_e_cheap}'
+    e_exp: '{output.product_id_e_exp}'
+    h_cheap: '{output.product_id_h_cheap}'
+    h_exp: '{output.product_id_h_exp}'
+    s_cheap: '{output.product_id_s_cheap}'
+    s_exp: '{output.product_id_s_exp}'
+    name_e_cheap: '{output.product_name_e_cheap}'
+    name_e_exp: '{output.product_name_e_exp}'
+    name_h_cheap: '{output.product_name_h_cheap}'
+    name_h_exp: '{output.product_name_h_exp}'
+    name_s_cheap: '{output.product_name_s_cheap}'
+    name_s_exp: '{output.product_name_s_exp}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed containing the cheap item from each of the three
+      categories
+    properties:
+      items:
+        expr: "len(x) == 3 and {it['product_id'] for it in x} == {target['e_cheap'],
+          target['h_cheap'], target['s_cheap']} and not any(it['product_id'] in [target['e_exp'],
+          target['h_exp'], target['s_exp']] for it in x) and all(it['quantity'] ==
+          1 for it in x)"
+      status:
+        eq: confirmed
+      shipping_address_id:
+        any: true
+      payment_method_id:
+        any: true
+      subtotal:
+        any: true
+      shipping_cost:
+        any: true
+      tax:
+        any: true
+      total:
+        any: true
+      placed_at:
+        any: true
+      estimated_delivery:
+        any: true
+      promo_code:
+        any: true
+      discount:
+        any: true
+  - entity: wishlist
+    desc: Cheap Electronics added to wishlist
+    properties:
+      value:
+        expr: x == target['e_cheap']
+  - entity: wishlist
+    desc: Cheap Home item added to wishlist
+    properties:
+      value:
+        expr: x == target['h_cheap']
+  - entity: wishlist
+    desc: Cheap Sports item added to wishlist
+    properties:
+      value:
+        expr: x == target['s_cheap']
+  invariant:
+  - collection: state.orders
+    filter: not (any(it.get('product_id') == target['e_cheap'] for it in
+      (a.items or [])) and any(it.get('product_id') == target['h_cheap'] for it
+      in (a.items or [])) and any(it.get('product_id') == target['s_cheap'] for
+      it in (a.items or [])))
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value not in [target['e_cheap'], target['e_exp'], target['h_cheap'],
+      target['h_exp'], target['s_cheap'], target['s_exp']]"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,259 @@
+task_id: gmail_inbox_zero_automation
+env_id: gmail
+title: Implement Inbox-Zero Automation Policy
+instruction_template: "Read the email from ops lead Priya Sharma (priya.sharma@blueridge.dev)\
+  \ with subject \"Inbox Zero policy - implement now\". Follow every instruction:\n\
+  (1) Create 5 labels with specified visibility:\n    - \"Auto/Vendor\" (show in label\
+  \ list, hide in message list)\n    - \"Auto/CI-CD\" (show in label list, show in\
+  \ message list)\n    - \"Auto/Newsletters\" (hide in label list, hide in message\
+  \ list)\n    - \"Auto/Billing\" (show in label list, show in message list)\n   \
+  \ - \"Auto/Social\" (hide in label list, hide in message list)\n(2) Create 6 filters:\n\
+  \    - From: *@vendors.blueridge.dev → add label \"Auto/Vendor\", skip inbox, mark\
+  \ as read\n    - From: ci@github.com, Subject contains: \"build\" → add label \"\
+  Auto/CI-CD\", skip inbox\n    - From: *@newsletter.blueridge.dev → add label \"\
+  Auto/Newsletters\", skip inbox, mark as read\n    - From: billing@stripe.com → add\
+  \ label \"Auto/Billing\", star\n    - From: billing@aws.amazon.com → add label \"\
+  Auto/Billing\", star\n    - From: *@social.blueridge.dev → add label \"Auto/Social\"\
+  , skip inbox\n(3) Archive all existing emails in the inbox that match any of the\
+  \ 6 filter criteria above.\n(4) Star every email in the inbox received in the last\
+  \ 24 hours that does NOT match any of the 6 filter criteria."
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: inbox_zero_automation
+    params: {}
+    outputs:
+    - directive_email_id
+    - draft_email_id
+    - vendor_email_ids
+    - cicd_email_ids
+    - newsletter_email_ids
+    - billing_email_ids
+    - social_email_ids
+    - cicd_non_matching_email_id
+    - billing_decoy_email_id
+    - domain_decoy_email_id
+    - non_matching_recent_email_ids
+    - non_matching_old_email_ids
+    - archive_target_ids
+    - star_target_ids
+  targets:
+    directive_email_id: '{output.directive_email_id}'
+    draft_email_id: '{output.draft_email_id}'
+    vendor_email_ids: '{output.vendor_email_ids}'
+    cicd_email_ids: '{output.cicd_email_ids}'
+    newsletter_email_ids: '{output.newsletter_email_ids}'
+    billing_email_ids: '{output.billing_email_ids}'
+    social_email_ids: '{output.social_email_ids}'
+    cicd_non_matching_email_id: '{output.cicd_non_matching_email_id}'
+    billing_decoy_email_id: '{output.billing_decoy_email_id}'
+    domain_decoy_email_id: '{output.domain_decoy_email_id}'
+    non_matching_recent_email_ids: '{output.non_matching_recent_email_ids}'
+    non_matching_old_email_ids: '{output.non_matching_old_email_ids}'
+    archive_target_ids: '{output.archive_target_ids}'
+    star_target_ids: '{output.star_target_ids}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create Auto/Vendor label (show in label list, hide in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Auto/Vendor"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "hide"
+    - entity: labels
+      desc: Create Auto/CI-CD label (show in label list, show in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Auto/CI-CD"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "show"
+    - entity: labels
+      desc: Create Auto/Newsletters label (hide in label list, hide in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Auto/Newsletters"
+        show_in_label_list:
+          eq: "hide"
+        show_in_message_list:
+          eq: "hide"
+    - entity: labels
+      desc: Create Auto/Billing label (show in label list, show in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Auto/Billing"
+        show_in_label_list:
+          eq: "show"
+        show_in_message_list:
+          eq: "show"
+    - entity: labels
+      desc: Create Auto/Social label (hide in label list, hide in message list)
+      count: 1
+      properties:
+        name:
+          eq: "Auto/Social"
+        show_in_label_list:
+          eq: "hide"
+        show_in_message_list:
+          eq: "hide"
+    - entity: filters
+      desc: Vendor filter - archive, mark read, label Auto/Vendor
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@vendors.blueridge.dev"
+        add_labels:
+          set_eq:
+            - "Auto/Vendor"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: filters
+      desc: CI-CD filter - archive, label Auto/CI-CD, subject build
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "ci@github.com"
+        subject_keywords:
+          set_eq:
+            - build
+        add_labels:
+          set_eq:
+            - "Auto/CI-CD"
+        archive:
+          eq: true
+    - entity: filters
+      desc: Newsletter filter - archive, mark read, label Auto/Newsletters
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@newsletter.blueridge.dev"
+        add_labels:
+          set_eq:
+            - "Auto/Newsletters"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: filters
+      desc: Billing Stripe filter - star, label Auto/Billing
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "billing@stripe.com"
+        add_labels:
+          set_eq:
+            - "Auto/Billing"
+        star:
+          eq: true
+    - entity: filters
+      desc: Billing AWS filter - star, label Auto/Billing
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "billing@aws.amazon.com"
+        add_labels:
+          set_eq:
+            - "Auto/Billing"
+        star:
+          eq: true
+    - entity: filters
+      desc: Social filter - archive, label Auto/Social
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@social.blueridge.dev"
+        add_labels:
+          set_eq:
+            - "Auto/Social"
+        archive:
+          eq: true
+  update:
+    - entity: emails
+      desc: Archive all filter-matching emails
+      bijection:
+        over: "target['archive_target_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Star all recent non-matching emails
+      bijection:
+        over: "target['star_target_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['archive_target_ids'] and a.id not in target['star_target_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Auto/Vendor', 'Auto/CI-CD', 'Auto/Newsletters', 'Auto/Billing', 'Auto/Social']"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent created Auto/Vendor label
+      ref: create[0]
+      severity: high
+    - name: Agent created Auto/CI-CD label
+      ref: create[1]
+      severity: high
+    - name: Agent created Auto/Newsletters label
+      ref: create[2]
+      severity: high
+    - name: Agent created Auto/Billing label
+      ref: create[3]
+      severity: high
+    - name: Agent created Auto/Social label
+      ref: create[4]
+      severity: high
+    - name: Agent created all 6 filters
+      ref: create[5]
+      severity: high
+    - name: Agent archived filter-matching emails
+      ref: update[0]
+      severity: high
+    - name: Agent starred recent non-matching emails
+      ref: update[1]
+      severity: high

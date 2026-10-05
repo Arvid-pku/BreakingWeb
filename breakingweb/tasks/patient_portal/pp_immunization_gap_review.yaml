@@ -1,0 +1,128 @@
+task_id: pp_immunization_gap_review
+env_id: patient_portal
+title: Review and Schedule Immunizations
+instruction_template: Review your immunization record. For any vaccines that are overdue
+  (past their next due date), schedule one appointment per overdue vaccine with the
+  provider who administered the most recent dose of that vaccine (if you have two
+  overdue vaccines, schedule two appointments — one with each administering provider).
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- planning
+start_path: /profile
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - billing
+      - admin
+      count_per_specialty:
+        pcp: 2
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: immunization_record
+    params:
+      completed_count: 3
+      due_count: 2
+      series_incomplete: false
+    outputs:
+    - completed_imm_ids
+    - due_imm_ids
+    - due_vaccine_names
+    - admin_providers
+    - window_start
+    - window_end
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 1
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    completed_imm_ids: '{output.completed_imm_ids}'
+    due_imm_ids: '{output.due_imm_ids}'
+    due_vaccine_names: '{output.due_vaccine_names}'
+    upcoming_ids: '{output.upcoming_ids}'
+    admin_providers: '{output.admin_providers}'
+    window_start: '{output.window_start}'
+    window_end: '{output.window_end}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule an appointment for each overdue vaccine"
+      bijection:
+        over: "target['due_imm_ids']"
+        variable: v
+      properties:
+        provider_id:
+          expr: "x in target['admin_providers'][v]"
+        datetime:
+          expr: "str(x) >= target['window_start'] and str(x) <= target['window_end']"
+        status: {eq: scheduled}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in target['upcoming_ids']"
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify existing non-immunization appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[1]
+      severity: medium
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not schedule more appointments than overdue vaccines"
+      ref: create[0]
+      severity: medium
+secondary_primitives: []

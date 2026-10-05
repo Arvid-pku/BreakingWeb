@@ -1,0 +1,40 @@
+variant_id: booking_write_simple_review__review_retry
+base_task_id: booking_write_simple_review
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/reviews'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: rev_a8c4d219e7
+      property_id: prop_fake_retry
+      reservation_id: res_fake_retry
+      author_name: Jordan Parker
+      author_country: United States
+      overall_score: 10
+      scores:
+        staff: 10
+        facilities: 10
+        cleanliness: 10
+        comfort: 10
+        value_for_money: 10
+        location: 10
+        free_wifi: 10
+      title: Acknowledgement
+      positive: Submitted.
+      negative: ''
+      room_type: Standard Double Room
+      travel_purpose: leisure
+      traveled_with: solo
+      stay_date: '2026-04'
+      helpful_count: 0
+      property_response: ''
+      created_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once

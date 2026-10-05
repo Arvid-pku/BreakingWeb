@@ -1,0 +1,52 @@
+variant_id: pp_resolve_schedule_conflicts__appointment_cancel_retry_v1
+base_task_id: pp_resolve_schedule_conflicts
+target_primitive: backtracking
+description: >-
+  The cancel endpoint is unreliable across the whole multi-cluster resolution.
+  Early cancels return transient 503 errors that must be retried, and several
+  later cancels return a convincing fake "cancelled" success WITHOUT persisting.
+  Because the base now requires five real cancels across multiple conflicting
+  groups, the agent cannot trust any single 200 — it must verify that EVERY
+  targeted appointment actually reached status=cancelled (re-GET the
+  appointment list) and re-issue the writes that silently no-oped. A one-shot
+  verify-the-first-write strategy leaves later duplicates booked and fails.
+injections:
+# Layer 1 — transient hard failures (canonical backtracking stressor). The
+# first two cancel writes return 503; the agent must discover the failure and
+# retry rather than abandon the cancel. Scoped to the real cancel route only.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/cancel'
+    methods:
+    - POST
+    error_status: 503
+    error_count: 2
+    error_message: >-
+      Scheduling service temporarily unavailable while resolving overlapping
+      slots. The cancellation was not applied. Please retry.
+    retry_after: 2
+    behavior:
+      mode: count
+# Layer 2 — misleading silent no-op on later cancels. After the transient
+# errors clear, roughly half of the remaining cancel writes return a 200 whose
+# body echoes the request and advertises status=cancelled, but the write is
+# skipped server-side. The agent must verify each of the five required cancels
+# persisted and re-issue the ones that did not. intermittent + a seeded
+# probability makes MULTIPLE of the five writes silently fail, not just one.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/cancel'
+    methods:
+    - POST
+    success_body:
+      session_id: '{request.session_id}'
+      status: cancelled
+      cancellation_reason: '{request.reason}'
+      message: Appointment cancelled successfully.
+      saved: true
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42

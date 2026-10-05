@@ -1,0 +1,185 @@
+task_id: lms_study_around_exams
+env_id: lms
+title: Mark Announcements Read for Courses With Upcoming Exams
+instruction_template: Open the calendar and read EVERY exam date for every course.
+  A course counts as having an upcoming exam ONLY when its exam starts within the
+  next 14 days from now (an exam 15 or more days out does NOT count, even if it is
+  the soonest one on the calendar). Several courses have exams clustered right around
+  the 14-day boundary, so check each course's exam date against the cutoff individually
+  rather than assuming the nearest few exams all qualify. For each course with an exam
+  in that 14-day window, mark every UNREAD announcement in that course as read so no
+  last-minute exam update is missed. Do NOT mark any announcement as read in a course
+  whose only exam is more than 14 days away or already past. Do NOT mark any announcement
+  that is already read, and do NOT touch announcements in courses without an upcoming
+  exam. Do not send any message.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 20
+primary_primitives:
+- state_tracking
+start_path: /calendar
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 6
+      must_include:
+      - CS101
+      - MATH201
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 5
+      graded_fraction: 0.5
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+  - use: calendar_events
+    params:
+      include_recurring: true
+      weeks: 6
+      near_exam_courses: 3
+      boundary_spread: true
+      boundary_out_courses: 2
+    outputs:
+    - event_ids
+    - courses_with_upcoming_exams
+    - courses_without_upcoming_exams
+    - first_non_exam_course_id
+    - second_non_exam_course_id
+    - stale_exam_datetime
+    - stale_exam_end_datetime
+    - upcoming_exam_cutoff_date
+  - use: announcements_feed
+    params:
+      count: 16
+      unread_count: 10
+      urgent_count: 3
+    outputs:
+    - announcement_ids
+    - unread_announcement_ids
+    - unread_in_exam_courses_ids
+    - unread_in_non_exam_courses_ids
+    - unread_in_exam_courses_count
+  targets:
+    courses_with_upcoming_exams: '{output.courses_with_upcoming_exams}'
+    courses_without_upcoming_exams: '{output.courses_without_upcoming_exams}'
+    unread_announcement_ids: '{output.unread_announcement_ids}'
+    unread_in_exam_courses_ids: '{output.unread_in_exam_courses_ids}'
+    unread_in_non_exam_courses_ids: '{output.unread_in_non_exam_courses_ids}'
+    unread_in_exam_courses_count: '{output.unread_in_exam_courses_count}'
+    first_non_exam_course_id: '{output.first_non_exam_course_id}'
+    second_non_exam_course_id: '{output.second_non_exam_course_id}'
+    stale_exam_datetime: '{output.stale_exam_datetime}'
+    stale_exam_end_datetime: '{output.stale_exam_end_datetime}'
+    upcoming_exam_cutoff_date: '{output.upcoming_exam_cutoff_date}'
+
+canonical_diff:
+  update:
+  - entity: Announcement
+    desc: Mark every unread announcement in a course with an upcoming exam as read
+    bijection:
+      over: "target['unread_in_exam_courses_ids'].split(',') if target['unread_in_exam_courses_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      is_read:
+        eq: true
+  invariant:
+  - collection: state.announcements
+    filter: "a.id not in (target['unread_in_exam_courses_ids'].split(',') if target['unread_in_exam_courses_ids'] else [])"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.assignments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: high
+  - desc: Every announcement that is now read in a non-exam course was already read in the seed
+    expr: "all(a.is_read == next((b for b in initial.announcements if b.id == a.id), a).is_read
+      for a in state.announcements
+      if a.id in (target['unread_in_non_exam_courses_ids'].split(',') if target['unread_in_non_exam_courses_ids'] else []))"
+    severity: critical
+  - desc: No announcement was marked read in a course whose only exam falls JUST OUTSIDE the 14-day window (near-boundary decoy courses)
+    expr: "all(a.is_read == next((b for b in initial.announcements if b.id == a.id), a).is_read
+      for a in state.announcements
+      if a.course_id in {target['first_non_exam_course_id'], target['second_non_exam_course_id']})"
+    severity: critical
+  - desc: Exactly the unread announcements in exam courses (no more, no fewer) became read
+    expr: "sorted(a.id for a in state.announcements if a.is_read and not next((b for b in initial.announcements if b.id == a.id), a).is_read)
+      == sorted(i for i in (target['unread_in_exam_courses_ids'].split(',') if target['unread_in_exam_courses_ids'] else []))"
+    severity: critical
+  named_invariants:
+  - name: Agent marked the exam-course unread announcements as read
+    ref: update[0]
+    severity: critical
+  - name: Agent did not mark unread announcements read in courses without an upcoming exam
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify assignments
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify modules
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

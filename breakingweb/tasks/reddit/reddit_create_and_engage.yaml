@@ -1,0 +1,155 @@
+task_id: reddit_create_and_engage
+env_id: reddit
+title: Subscribe, Post, and Engage with Existing Content
+instruction_template: 'Subscribe to r/{target.join_sub}. Create a text post there with title "{target.post_title}" and a body about {target.post_topic}. Then find the post "{target.engage_title}" in r/{target.engage_sub}, upvote it, and leave a comment with the exact text: "{target.comment_text}".
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 18
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - learnpython
+    outputs:
+    - subscriptions
+  - use: target_post
+    params:
+      subreddit: science
+      title: New study reveals high-altitude training improves cognitive function
+      body: Researchers at the University of Colorado found that endurance athletes who train above 7,000 feet show measurable improvements in working memory and reaction time.
+      author: CogSciRunner
+      score: 4820
+      flair_text: Neuroscience
+    outputs:
+    - engage_post_id
+    - engage_post_title
+    - engage_sub_name
+  - use: filler_posts
+    params:
+      subreddit: science
+      count: 5
+      score_range:
+      - 200
+      - 3000
+      age_range_hours:
+      - 2
+      - 72
+    outputs:
+    - filler_post_ids
+  - use: decoy_posts
+    params:
+      subreddit: science
+      count: 3
+      score_range:
+      - 1500
+      - 6000
+    outputs:
+    - decoy_post_ids
+  - use: filler_posts
+    params:
+      subreddit: learnpython
+      count: 4
+      score_range:
+      - 50
+      - 1500
+      age_range_hours:
+      - 1
+      - 48
+    outputs:
+    - filler_lp_ids
+  targets:
+    join_sub: learnpython
+    post_title: How I finally understood decorators - a visual guide
+    post_topic: a beginner-friendly visual explanation of Python decorators
+    engage_sub: science
+    engage_title: '{output.engage_post_title}'
+    engage_post_id: '{output.engage_post_id}'
+    comment_text: Fascinating study. I wonder if the effect persists after returning to lower altitudes.
+    initial_subscriptions: '{output.subscriptions}'
+    decoy_post_ids: '{output.decoy_post_ids}'
+canonical_diff:
+  # Positive form. learnpython subreddit isn't pre-seeded so subscribe is
+  # ambiguous (could be Create OR Update on Subreddit depending on the
+  # backend). The post creation, comment creation and upvote are
+  # unambiguous positive entries — adding them flips constraint_only=
+  # False so the unaccounted-collateral sweep runs (matcher.py:330).
+  update:
+  - entity: Post
+    collection: posts
+    desc: "Upvote the target science post"
+    where:
+      id:
+        expr: "x == target['engage_post_id']"
+    changes:
+      vote_direction: {eq: 1}
+  create:
+  - entity: Post
+    collection: posts
+    desc: "Create the learnpython post with the exact title and a topical body"
+    properties:
+      subreddit_name:
+        expr: "x == target['join_sub']"
+      title:
+        expr: "x == target['post_title']"
+      body:
+        expr: "x and ('decorator' in x.lower() or 'decorators' in x.lower())"
+      author_name:
+        expr: "x == state.owner_username"
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    collection: comments
+    desc: "Comment on the target science post with the exact text"
+    properties:
+      post_id:
+        expr: "x == target['engage_post_id']"
+      body:
+        expr: "x == target['comment_text']"
+      author_name:
+        expr: "x == state.owner_username"
+    # Optional create path when the join_sub had to be added on
+    # subscribe — accepts the new Subreddit entity so the collateral
+    # sweep doesn't flag it.
+      parent_id:
+        eq:
+  - entity: Subreddit
+    collection: subreddits
+    weight: 0
+    desc: "Add r/learnpython if the agent had to create it on first subscribe"
+    properties:
+      name:
+        expr: "x == target['join_sub']"
+      is_subscribed:
+        eq: true
+  invariant:
+    # Subreddit collection sees both create-on-first-subscribe and an
+    # is_subscribed update on the join_sub. Filter excludes the join
+    # subreddit (allowed) and flags any other subreddit mutation.
+  - collection: state.subreddits
+    filter: "a.name != target['join_sub']"
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  constraints:
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high

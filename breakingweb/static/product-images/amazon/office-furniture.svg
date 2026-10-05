@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Office furniture">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="118" y="92" width="164" height="116" rx="18" fill="#334155"/>
+  <rect x="100" y="190" width="200" height="54" rx="20" fill="#475569"/>
+  <path d="M200 244v70M146 326h108M156 258l-44 64M244 258l44 64" stroke="#232f3e" stroke-width="14" stroke-linecap="round"/>
+  <rect x="154" y="128" width="92" height="14" rx="7" fill="#ff9900"/>
+</svg>

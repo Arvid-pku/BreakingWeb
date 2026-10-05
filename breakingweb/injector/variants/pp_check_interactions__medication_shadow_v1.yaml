@@ -1,0 +1,144 @@
+variant_id: pp_check_interactions__medication_shadow_v1
+base_task_id: pp_check_interactions
+target_primitive: state_tracking
+description: >
+  State-tracking stressor for the active<->active interaction hunt. The cabinet is
+  flooded with prescriptions whose `interactions` list is non-empty but whose partner
+  is EXPIRED, NEVER-FILLED, or names a drug that is not currently active - additional
+  copies of exactly the trap the base already wires, so the agent must verify member
+  status across many more candidates before isolating the single active<->active
+  conflict. A clinical message asserts (stale, contradictory) that one of the
+  interacting drugs was "recently switched" - a claim the agent must NOT act on,
+  pulling it toward naming the wrong medication in the appointment reason. All decoy
+  prescription medications are drawn from drugs that are NOT members of any seeded
+  interaction pair, so the genuine pair is never silently overwritten or duplicated.
+injections:
+# -------------------------------------------------------------------------
+# Layer 1 (seed): THIRD expired-interaction trap + an active rx whose listed
+# interaction names a NEVER-ACTIVE (expired) drug, plus boundary-case active
+# lookalikes with near-expiry dates. Every medication here is OUTSIDE
+# _INTERACTION_PAIRS / the genuine-pair pool so the base answer is preserved.
+# Crucially, no two ACTIVE injected rxes name each other -> no second genuine
+# active<->active pair is ever created (task stays uniquely solvable).
+# -------------------------------------------------------------------------
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Active rx that LISTS an interaction with an expired drug below. Looks like
+    # half of a conflict in the cabinet list, but its partner is expired.
+    - type: prescription
+      medication: Pantoprazole 40mg
+      dosage: 40mg
+      frequency: once daily before breakfast
+      refills_remaining: 2
+      last_filled: '2025-12-18T08:00:00+00:00'
+      expires_at: '2026-11-01T08:00:00+00:00'
+      status: active
+      interactions:
+      - Hydrochlorothiazide 25mg
+    # The expired partner of the active rx above (third expired-interaction trap).
+    - type: prescription
+      medication: Hydrochlorothiazide 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2025-06-01T08:00:00+00:00'
+      expires_at: '2026-01-15T08:00:00+00:00'
+      status: expired
+      interactions:
+      - Pantoprazole 40mg
+    # A SECOND active rx whose listed interaction points at a discontinued drug
+    # that is not present as an active rx at all -> dangling trap.
+    - type: prescription
+      medication: Montelukast 10mg
+      dosage: 10mg
+      frequency: once daily at bedtime
+      refills_remaining: 1
+      last_filled: '2025-12-10T08:00:00+00:00'
+      expires_at: '2026-10-01T08:00:00+00:00'
+      status: active
+      interactions:
+      - Escitalopram 10mg
+    # The discontinued (expired) Escitalopram referenced above.
+    - type: prescription
+      medication: Escitalopram 10mg
+      dosage: 10mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2025-05-20T08:00:00+00:00'
+      expires_at: '2026-02-01T08:00:00+00:00'
+      status: expired
+      interactions:
+      - Montelukast 10mg
+    # Boundary-case active no-interaction lookalikes with near-expiry dates,
+    # close to the others so a date/category scan does not separate them.
+    - type: prescription
+      medication: Rosuvastatin 10mg
+      dosage: 10mg
+      frequency: once daily at bedtime
+      refills_remaining: 2
+      last_filled: '2025-12-22T08:00:00+00:00'
+      expires_at: '2026-06-05T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Cetirizine 10mg
+      dosage: 10mg
+      frequency: once daily
+      refills_remaining: 3
+      last_filled: '2025-12-05T08:00:00+00:00'
+      expires_at: '2026-06-12T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Omeprazole 20mg
+      dosage: 20mg
+      frequency: once daily before breakfast
+      refills_remaining: 1
+      last_filled: '2025-11-28T08:00:00+00:00'
+      expires_at: '2026-06-20T08:00:00+00:00'
+      status: active
+      interactions: []
+# -------------------------------------------------------------------------
+# Layer 2 (seed): contradictory + grounding clinical/admin messages. The
+# clinical "medication switch" thread is a stale claim the agent must NOT act
+# on; reconciling it against the structured rx records is the state-tracking
+# demand. The rest are pre-resolved noise that competes for attention.
+# -------------------------------------------------------------------------
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      category: clinical
+      subject: "Medication change on file (older note)"
+      body: >
+        Per our last visit we discussed switching one of your interacting
+        prescriptions to an alternative agent. This note is informational and
+        predates your current cabinet - your active prescription list is the
+        source of truth for what you are currently taking. Do not infer a new
+        medication name from this message.
+      timestamp: '2025-10-04T09:00:00+00:00'
+      is_read: false
+    - type: message
+      category: clinical
+      subject: "Interaction alert resolved (prior cycle)"
+      body: >
+        A previously flagged drug interaction involving an expired prescription
+        has already been closed out and requires no action. Included for context
+        only.
+      timestamp: '2025-09-22T09:00:00+00:00'
+      is_read: true
+    - type: message
+      category: rx_renewal
+      subject: "Renewal already processed - earlier thread"
+      body: This renewal request was completed in a prior cycle and is included for context only.
+      timestamp: '2025-11-20T08:00:00+00:00'
+      is_read: true
+    - type: message
+      category: billing
+      subject: "Claim resolved - informational only"
+      body: This older billing thread has already been resolved and does not require action.
+      timestamp: '2025-09-15T08:00:00+00:00'
+      is_read: true

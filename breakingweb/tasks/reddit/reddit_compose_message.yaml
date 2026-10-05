@@ -1,0 +1,77 @@
+task_id: reddit_compose_message
+env_id: reddit
+title: Compose a New Message
+instruction_template: 'Go to Messages and compose a new message to u/QuantumPanda with subject "Question about your AskReddit post" and body exactly: "Hey, I found your recent post really interesting. Could you share the source for that claim about honey?" Do not reply to any existing messages.'
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 7
+primary_primitives:
+- backtracking
+start_path: /feed
+seed:
+  distractors: 2
+  actors: {}
+  steps: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: Message
+      # Reddit has two Message collections (state.messages for the inbox,
+      # state.sent_messages for the outbox). Route this create to the outbox.
+    collection: sent_messages
+    desc: Compose a new message to QuantumPanda with the exact subject and body
+    properties:
+      to_user:
+        eq: QuantumPanda
+      subject:
+        eq: "Question about your AskReddit post"
+      body:
+        eq: "Hey, I found your recent post really interesting. Could you share the source for that claim about honey?"
+      parent_id:
+        eq:
+      from_user:
+        expr: "x == state.owner_username"
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+      # Trivial filter — sidesteps the registry validator's naive
+      # pluralization of Message → "messages" which collides with this
+      # invariant's collection name. At runtime the matcher routes
+      # entity:Message creates to state.sent_messages (collection_map
+      # last-one-wins), so the inbox is NOT a positive-diff target.
+    filter: "True"
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent composed the target message (new compose, not a reply)
+    ref: create[0]
+    severity: high
+  - name: Agent did not modify subreddits
+    ref: invariant[0]
+    severity: low
+  - name: Agent did not modify posts
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify the inbox (messages)
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify notifications
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[5]
+    severity: low
+secondary_primitives: []

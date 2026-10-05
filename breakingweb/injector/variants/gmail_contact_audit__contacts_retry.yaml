@@ -1,0 +1,22 @@
+variant_id: gmail_contact_audit__contacts_retry
+base_task_id: gmail_contact_audit
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/contacts**'
+    methods:
+    - POST
+    - PUT
+    - DELETE
+    fail_count: 2
+    response_body:
+      contact:
+        id: contact_a8c4d219
+        name: "\u2014"
+        email: "\u2014@example.com"
+    behavior:
+      mode: once

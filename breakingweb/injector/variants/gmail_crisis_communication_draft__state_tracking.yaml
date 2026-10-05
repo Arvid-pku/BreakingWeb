@@ -1,0 +1,25 @@
+variant_id: gmail_crisis_communication_draft__state_tracking_v1
+base_task_id: gmail_crisis_communication_draft
+target_primitive: state_tracking
+description: >
+  Inject 8 additional emails with crisis-related keywords and scramble timestamps.
+  Agent must track complaint email, legal advice, 2 draft responses, and approval
+  status across 12+ emails with confusing temporal order.
+injections:
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 12
+    topical_count: 8
+    topical_subjects:
+      - "Crisis Management Protocol"
+      - "Draft Response Timeline"
+      - "Legal Review Status"
+      - "Crisis Committee Meeting"
+      - "Response Strategy Options"
+      - "Complainant Follow-up"
+      - "Draft Revision Notes"
+      - "Approved Communications Log"
+- layer: server
+  params:
+    action: scramble_timestamps

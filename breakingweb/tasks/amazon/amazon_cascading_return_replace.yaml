@@ -1,0 +1,222 @@
+task_id: amazon_cascading_return_replace
+env_id: amazon
+title: Return Items from Multiple Orders and Buy Replacement
+instruction_template: 'You need to process two returns and buy a replacement. First,
+  return ''{target.ret_product_1}'' from your order with the reason ''defective''.
+  Second, return ''{target.ret_product_2}'' from your other delivered order with the
+  reason ''wrong_item''. Finally, search for ''{target.replace_name}'' and purchase
+  it as a replacement.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 38
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /orders
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Bluetooth Keyboard Compact
+      brand: Wavefront
+      category: Electronics
+      price: 44.99
+      rating: 4.3
+      features:
+      - Slim profile
+      - Multi-device pairing
+      - 6-month battery
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ret1
+    - product_name_ret1
+    - product_price_ret1
+  - use: featured_product
+    params:
+      name: Memory Foam Pillow
+      brand: NestWell
+      category: Home & Kitchen
+      price: 39.99
+      rating: 4.2
+      features:
+      - Cooling gel layer
+      - Hypoallergenic cover
+      - CertiPUR-US certified
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_ret2
+    - product_name_ret2
+    - product_price_ret2
+  - use: featured_product
+    params:
+      name: Ergonomic Wireless Keyboard
+      brand: TechNova
+      category: Electronics
+      price: 59.99
+      rating: 4.7
+      features:
+      - Split key design
+      - Cushioned palm rest
+      - 2.4GHz and Bluetooth
+      - Backlit keys
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_replace
+    - product_name_replace
+    - product_price_replace
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_ret1}'
+      status: delivered
+      days_ago: 5
+    outputs:
+    - order_id_ret1
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id_ret2}'
+      status: delivered
+      days_ago: 8
+    outputs:
+    - order_id_ret2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    ret_product_1: '{output.product_name_ret1}'
+    ret_pid_1: '{output.product_id_ret1}'
+    order_1: '{output.order_id_ret1}'
+    ret_product_2: '{output.product_name_ret2}'
+    ret_pid_2: '{output.product_id_ret2}'
+    order_2: '{output.order_id_ret2}'
+    replace_name: '{output.product_name_replace}'
+    replace_pid: '{output.product_id_replace}'
+canonical_diff:
+  create:
+  - entity: ReturnRequest
+    desc: Return 1 for order 1 with reason defective
+    properties:
+      order_id: {expr: "x == target['order_1']"}
+      product_id: {expr: "x == target['ret_pid_1']"}
+      reason: {eq: defective}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: ReturnRequest
+    desc: Return 2 for order 2 with reason wrong_item
+    properties:
+      order_id: {expr: "x == target['order_2']"}
+      product_id: {expr: "x == target['ret_pid_2']"}
+      reason: {eq: wrong_item}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: Order
+    desc: Replacement order containing the replacement product
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['replace_pid'] and x[0]['quantity']
+          == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {any: true}
+      payment_method_id: {any: true}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['replace_pid'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.returns
+    filter: "a.order_id != target['order_1'] and a.order_id != target['order_2']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other return requests
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

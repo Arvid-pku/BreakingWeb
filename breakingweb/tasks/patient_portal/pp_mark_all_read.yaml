@@ -1,0 +1,164 @@
+task_id: pp_mark_all_read
+env_id: patient_portal
+title: Triage Unread Care-Team Messages by Category
+instruction_template: Your patient-portal inbox has unread messages spread across four
+  categories (clinical, scheduling, billing, and prescription-renewal). Open and mark
+  as read EVERY unread message in the clinical and scheduling categories so none remain
+  unread in those two categories. Do NOT mark any unread billing message as read, and do
+  NOT mark any unread prescription-renewal message as read — those must stay unread. Do not
+  reply to, send, or request any messages or renewals.
+difficulty: medium
+time_limit_seconds: 210
+expected_steps: 14
+primary_primitives:
+- verification
+start_path: /messages
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: message_threads
+    params:
+      # 4 already-READ clinical threads make the inbox mostly-read, so the agent
+      # cannot "flip every provider message"; it must verify is_read state AND
+      # category per message before acting.
+      thread_count: 4
+      unread_count: 0
+      categories:
+      - clinical
+      # Higher cardinality + a fourth confusable category. clinical+scheduling
+      # are the 7-message actionable subset; billing AND rx_renewal (5 messages)
+      # must be LEFT unread. rx_renewal is the cruel decoy: the renewal workflow
+      # auto-creates rx_renewal messages, so a model is primed to treat them as
+      # actionable — but the instruction is clinical+scheduling ONLY.
+      unread_by_category:
+        clinical: 4
+        scheduling: 3
+        billing: 3
+        rx_renewal: 2
+    outputs:
+    - thread_ids
+    - unread_msg_ids
+    - all_msg_ids
+    - unread_msg_ids_by_category
+  targets:
+    # Every unread message in the inbox (pre-action). Used only for the
+    # protected-set invariant filter so siblings stay frozen.
+    unread_msg_ids: '{output.unread_msg_ids}'
+    # The category-split unread ids the agent must reconcile. clinical +
+    # scheduling are the actionable subset; billing + rx_renewal must be
+    # LEFT unread.
+    clinical_unread_msg_ids: '{output.unread_msg_ids_by_category.clinical}'
+    scheduling_unread_msg_ids: '{output.unread_msg_ids_by_category.scheduling}'
+    billing_unread_msg_ids: '{output.unread_msg_ids_by_category.billing}'
+    rx_renewal_unread_msg_ids: '{output.unread_msg_ids_by_category.rx_renewal}'
+canonical_diff:
+  # Positive signal: every unread clinical AND scheduling message is flipped to
+  # is_read=true. The bijection saturates over the combined 7-message actionable
+  # subset — missing any one (or opening only one category) fails the match.
+  update:
+    - entity: ClinicalMessage
+      desc: "Mark each unread clinical and scheduling message as read"
+      bijection:
+        over: "target['clinical_unread_msg_ids'] + target['scheduling_unread_msg_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_read: {eq: true}
+  invariant:
+    # The messages collection is the mutated collection. The is_read false->true
+    # flip is auto-exempted from this sweep, so this guards against any OTHER
+    # field mutation (subject/body/category edits) on non-actionable messages.
+    - collection: state.messages
+      filter: "a.id not in (target['clinical_unread_msg_ids'] + target['scheduling_unread_msg_ids'])"
+      preserve: ALL
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  constraints:
+    # The load-bearing trap: a one-click "mark all read" flips billing AND
+    # rx_renewal unread messages too, which the is_read invariant exemption
+    # would silently allow. This constraint reads final state directly (not the
+    # diff sweep) so it catches over-marking: every billing AND every
+    # prescription-renewal message that started unread MUST still be unread.
+    # CRITICAL because incorrectly clearing a protected message is the single
+    # most-tempting wrong action for this task (mark-all-read shortcut, or
+    # treating auto-generated rx_renewal messages as actionable).
+    - desc: "Every unread billing and prescription-renewal message was left unread (no mark-all-read shortcut, rx-renewal decoy resisted)"
+      expr: >
+        all(
+          (m.is_read == False)
+          for m in state.messages
+          if m.id in (target['billing_unread_msg_ids'] + target['rx_renewal_unread_msg_ids'])
+        )
+      severity: critical
+    # Cardinality guard: the agent must not under-act either. The set of
+    # messages still unread after the task must equal EXACTLY the protected
+    # billing + rx_renewal set (i.e. clinical+scheduling all cleared, billing
+    # and rx_renewal all preserved). Set-equality kills both over-act and
+    # under-act in a single check.
+    - desc: "Exactly the billing and prescription-renewal unread messages remain unread"
+      expr: >
+        {m.id for m in state.messages if m.is_read == False}
+        == set(target['billing_unread_msg_ids'] + target['rx_renewal_unread_msg_ids'])
+      severity: high
+  named_invariants:
+    - name: "Agent did not edit message content or touch non-actionable messages"
+      ref: invariant[0]
+      severity: medium
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

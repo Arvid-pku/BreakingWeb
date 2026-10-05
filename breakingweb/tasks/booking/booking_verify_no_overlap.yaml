@@ -1,0 +1,173 @@
+task_id: booking_verify_no_overlap
+env_id: booking
+title: Cancel Overlapping Reservation
+instruction_template: Review all your upcoming reservations. If any have overlapping
+  dates, cancel the one booked more recently. If no overlaps exist, no action is needed.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 12
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Ritz London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.3
+      review_count: 5100
+      price: 680.0
+      neighborhood: Piccadilly
+      address: 150 Piccadilly, London W1J 9BR
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Fitness center
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - room_id_1
+    - room_name_1
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_1}'
+      check_in: '2026-06-10'
+      check_out: '2026-06-15'
+      price_per_night: 680.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 20
+    outputs:
+    - res_id_1
+    - conf_num_1
+    - res_prop_id_1
+  - use: featured_property
+    params:
+      name: Hotel Amigo Brussels
+      city: Brussels
+      country: Belgium
+      star_rating: 5
+      review_score: 9.0
+      review_count: 2870
+      price: 390.0
+      neighborhood: Grand Place
+      address: Rue de l'Amigo 1-3, 1000 Brussels
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Concierge
+    outputs:
+    - prop_id_2
+    - prop_name_2
+    - room_id_2
+    - room_name_2
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_2}'
+      check_in: '2026-06-12'
+      check_out: '2026-06-17'
+      price_per_night: 390.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 5
+    outputs:
+    - res_id_2
+    - conf_num_2
+    - res_prop_id_2
+  - use: featured_property
+    params:
+      name: Hotel d'Angleterre Copenhagen
+      city: Copenhagen
+      country: Denmark
+      star_rating: 5
+      review_score: 9.1
+      review_count: 1980
+      price: 450.0
+      neighborhood: Kongens Nytorv
+      address: Kongens Nytorv 34, 1050 Copenhagen
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+    outputs:
+    - prop_id_3
+    - prop_name_3
+    - room_id_3
+    - room_name_3
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_3}'
+      check_in: '2026-07-01'
+      check_out: '2026-07-05'
+      price_per_night: 450.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 10
+    outputs:
+    - res_id_3
+    - conf_num_3
+    - res_prop_id_3
+  targets:
+    res_id_1: '{output.res_id_1}'
+    res_id_2: '{output.res_id_2}'
+    res_id_3: '{output.res_id_3}'
+canonical_diff:
+  # Reservation 1 (Jun 10-15, booked 20 days ago) overlaps with
+  # Reservation 2 (Jun 12-17, booked 5 days ago). The more recently
+  # booked is res_2 — the agent must cancel it.
+  update:
+  - entity: Reservation
+    collection: reservations
+    desc: Cancel the more recently booked overlapping reservation (res_2)
+    where:
+      id: {expr: "x == target['res_id_2']"}
+    changes:
+      status: {eq: cancelled}
+  invariant:
+  - collection: state.reservations
+    filter: "a.id == target['res_id_1'] or a.id == target['res_id_3']"
+    preserve: ALL
+  - collection: state.properties
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.saved_lists
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  named_invariants:
+  - name: The earlier-booked reservation and the non-overlapping reservation were preserved
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify properties
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not create or modify reviews
+    ref: invariant[2]
+    severity: low
+  - name: Agent did not modify saved lists
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not send or modify messages
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: high

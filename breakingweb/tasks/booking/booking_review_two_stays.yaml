@@ -1,0 +1,236 @@
+task_id: booking_review_two_stays
+env_id: booking
+title: Write Reviews for Two Completed Stays
+instruction_template: "You have two completed stays that need reviews. Please write\
+  \ reviews for both:\n1. For \"{target.prop_name_1}\" - Write a review with an overall\
+  \ score of 9.0,\n   title \"Exceptional experience\", positive comment \"Outstanding\
+  \ service and\n   beautiful rooms\", and no negative comment. Travel purpose: leisure,\n\
+  \   traveled with: couple.\n\n2. For \"{target.prop_name_2}\" - Write a review with\
+  \ an overall score of 7.5,\n   title \"Good but could improve\", positive comment\
+  \ \"Great location and\n   friendly staff\", negative comment \"Room was smaller\
+  \ than expected and\n   noise from the street\". Travel purpose: business, traveled\
+  \ with: solo.\n"
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 20
+primary_primitives:
+- verification
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Negresco
+      city: Nice
+      country: France
+      star_rating: 5
+      review_score: 9.1
+      review_count: 3210
+      price: 420.0
+      neighborhood: Promenade des Anglais
+      address: 37 Promenade des Anglais, 06000 Nice
+      amenities:
+      - Free WiFi
+      - Pool
+      - Spa
+      - Restaurant
+      - Bar
+      - Beach access
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - cheapest_room_id_1
+    - cheapest_room_name_1
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_1}'
+      check_in: '2026-02-10'
+      check_out: '2026-02-14'
+      price_per_night: 420.0
+      status: completed
+      guests: 2
+      booked_days_ago: 60
+    outputs:
+    - res_id_1
+    - conf_num_1
+    - res_1_property_id
+  - use: featured_property
+    params:
+      name: Berlin Mitte Business Hotel
+      city: Berlin
+      country: Germany
+      star_rating: 4
+      review_score: 8.0
+      review_count: 1567
+      price: 175.0
+      neighborhood: Mitte
+      address: Friedrichstrasse 85, 10117 Berlin
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Business center
+      - Fitness center
+      - Bar
+    outputs:
+    - prop_id_2
+    - prop_name_2
+    - cheapest_room_id_2
+    - cheapest_room_name_2
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_2}'
+      check_in: '2026-01-20'
+      check_out: '2026-01-23'
+      price_per_night: 175.0
+      status: completed
+      guests: 1
+      booked_days_ago: 80
+    outputs:
+    - res_id_2
+    - conf_num_2
+    - res_2_property_id
+  - use: featured_property
+    params:
+      name: Vienna Opera Hotel
+      city: Vienna
+      country: Austria
+      star_rating: 4
+      review_score: 8.7
+      price: 210.0
+    outputs:
+    - prop_id_3
+    - prop_name_3
+    - cheapest_room_id_3
+    - cheapest_room_name_3
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_3}'
+      check_in: '2025-12-15'
+      check_out: '2025-12-18'
+      status: completed
+      booked_days_ago: 120
+    outputs:
+    - res_id_3
+    - conf_num_3
+    - res_3_property_id
+  - use: add_review
+    params:
+      property_id: '{output.prop_id_3}'
+      overall_score: 8.5
+      title: Lovely stay in Vienna
+      positive: Beautiful hotel near the opera house
+      author_name: Jordan Parker
+    outputs:
+    - existing_review_id
+  targets:
+    prop_id_1: '{output.prop_id_1}'
+    prop_name_1: '{output.prop_name_1}'
+    res_id_1: '{output.res_id_1}'
+    prop_id_2: '{output.prop_id_2}'
+    prop_name_2: '{output.prop_name_2}'
+    res_id_2: '{output.res_id_2}'
+    prop_id_3: '{output.prop_id_3}'
+    existing_review_id: '{output.existing_review_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Negresco reservation
+      where:
+        id: {expr: "x == target['res_id_1']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Berlin Mitte reservation
+      where:
+        id: {expr: "x == target['res_id_2']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: Review
+      desc: Write review for prop_name_1 with score 9.0, correct title, positive comment about outstanding service and beautiful rooms, leisure/couple
+      properties:
+        property_id: {expr: "x == target['prop_id_1']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.0}
+        scores: {any: true}
+        title: {expr: "'Exceptional experience' in x"}
+        positive: {expr: "'outstanding service' in x.lower() and 'beautiful' in x.lower()"}
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Write review for prop_name_2 with score 7.5, correct title, positive about location and staff, negative about room size and noise, business/solo
+      properties:
+        property_id: {expr: "x == target['prop_id_2']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 7.5}
+        scores: {any: true}
+        title: {expr: "'Good but could improve' in x"}
+        positive: {expr: "'great location' in x.lower() and 'friendly staff' in x.lower()"}
+        negative: {expr: "'smaller' in x.lower() and ('noise' in x.lower() or 'walls' in x.lower())"}
+        room_type: {any: true}
+        travel_purpose: {eq: business}
+        traveled_with: {eq: solo}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reviews
+      filter: "a.property_id not in (target['prop_id_1'], target['prop_id_2'])"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.id not in (target['res_id_1'], target['res_id_2'])"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['prop_id_1'], target['prop_id_2'])"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent wrote the Hotel Negresco review correctly
+      ref: create[0]
+      severity: critical
+    - name: Agent wrote the Berlin Mitte hotel review correctly
+      ref: create[1]
+      severity: critical
+    - name: Agent did not modify or create reviews for other properties
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

@@ -1,0 +1,146 @@
+task_id: pp_message_pcp
+env_id: patient_portal
+title: Schedule and Confirm PCP Medication Review
+instruction_template: Review your medication list, then schedule exactly one follow-up appointment with your assigned primary
+  care physician (the PCP your patient profile is registered to, provider id {target.pcp_id}) at the earliest available slot
+  on that physician's own calendar. Other primary-care physicians appear in the directory and one of them may advertise an
+  even earlier slot, but you must book the earliest slot on YOUR assigned PCP's calendar specifically, not the globally
+  earliest PCP slot. Use the appointment reason exactly "Medication side effect review". This clinic requires a two-step
+  booking workflow, so after scheduling you must also complete the confirmation step on the appointment you just created.
+  Do not send any messages. Do not book with any other physician, and do not cancel, reschedule, modify, or confirm any
+  appointment that already exists on your calendar -- note that one of your existing PCP appointments is itself still awaiting
+  confirmation, but it is NOT yours to confirm; confirm only the brand-new appointment you create in this task.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 11
+primary_primitives:
+- backtracking
+secondary_primitives:
+- grounding
+start_path: /medications
+seed:
+  distractors: 13
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Hyperlipidemia
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - pcp
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - endocrinology
+      - orthopedics
+      - billing
+      count_per_specialty:
+        pcp: 2
+      must_include:
+      - pcp
+      earlier_sibling_decoy_specialty: pcp
+    outputs:
+    - provider_ids
+    - global_earliest_decoy_slot_dt
+    - global_earliest_decoy_provider_id
+  - use: pharmacy_list
+    params:
+      count: 3
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      expired_count: 2
+    outputs:
+    - active_rx_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 3
+      completed_count: 2
+      cancelled_count: 1
+      include_specialist: true
+      requires_confirmation_specialties:
+      - pcp
+    outputs:
+    - upcoming_ids
+    - pcp_apt_id
+    - next_appointment_id
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    active_rx_ids: '{output.active_rx_ids}'
+    pcp_apt_id: '{output.pcp_apt_id}'
+    existing_upcoming_apt_ids: '{output.upcoming_ids}'
+    global_earliest_decoy_slot_dt: '{output.global_earliest_decoy_slot_dt}'
+    global_earliest_decoy_provider_id: '{output.global_earliest_decoy_provider_id}'
+canonical_diff:
+  create:
+  - entity: Appointment
+    desc: Schedule and confirm one appointment with the assigned PCP at that PCP's earliest available slot for a medication
+      side effect review
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x == target['pcp_id']
+      reason:
+        eq: Medication side effect review
+      datetime:
+        expr: "x == min(s.datetime for p in initial.providers\n         if p.id == target['pcp_id'] for s in p.available_slots)\n"
+      confirmation_state:
+        eq: confirmed
+      confirmed_at:
+        expr: x is not None
+  invariant:
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+    comprehensive: true
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not send any messages
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify prescriptions
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[4]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not cancel, reschedule, modify, or confirm any pre-existing appointment
+    ref: invariant[6]
+    severity: critical

@@ -1,0 +1,55 @@
+variant_id: amazon_gift_purchase__product_twin
+base_task_id: amazon_gift_purchase
+target_primitive: grounding
+description: "Three near-duplicate SKUs share the target Kindle's brand, price, rating, and thumbnail; sort-by-price/rating fails to disambiguate. The first two cart-add calls silently no-op so the agent must verify the cart actually changed."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Kindle Paperwhite E-Reader - Pro Edition"
+      brand: Amazon
+      seller: Amazon
+      category: Electronics
+      price: 139.99
+      rating: 4.7
+      review_count: 820
+      match_image_of: Kindle Paperwhite E-Reader
+      description: "Pro-edition sibling with identical brand, price, and thumbnail; distinct SKU."
+    - type: product
+      name: "Kindle Paperwhite E-Reader 2-Pack"
+      brand: Amazon
+      seller: Amazon
+      category: Electronics
+      price: 139.99
+      rating: 4.7
+      review_count: 580
+      match_image_of: Kindle Paperwhite E-Reader
+      description: "Two-unit bundle with same listing branding; not the single-unit gift target."
+    - type: product
+      name: "Kindle Paperwhite E-Reader Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 139.99
+      rating: 4.7
+      review_count: 410
+      match_image_of: Kindle Paperwhite E-Reader
+      description: "Marketplace refurbished listing; sells alongside the target with identical thumbnail."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

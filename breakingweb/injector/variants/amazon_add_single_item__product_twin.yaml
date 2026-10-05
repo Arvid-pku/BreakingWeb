@@ -1,0 +1,47 @@
+variant_id: amazon_add_single_item__product_twin
+base_task_id: amazon_add_single_item
+target_primitive: grounding
+description: "Composite degradation: (a) pack-size siblings (2-pack bundle and travel-edition) match brand/rating/thumbnail; (b) the first cart-add call silently no-ops, so the agent must both ground on the exact single-unit target AND verify the add actually landed before reporting done."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Classic Leather Wallet (2-Pack)
+      brand: TimberCraft
+      seller: TimberCraft
+      category: Electronics
+      price: 64.99
+      rating: 4.4
+      review_count: 820
+      match_image_of: Classic Leather Wallet
+      description: Two-unit bundle of the same wallet design; same brand, same rating, same thumbnail — a distinct SKU that must not substitute for the single-unit target.
+    - type: product
+      name: Classic Leather Wallet - Travel Edition
+      brand: TimberCraft
+      seller: TimberCraft
+      category: Electronics
+      price: 33.49
+      rating: 4.4
+      review_count: 580
+      match_image_of: Classic Leather Wallet
+      description: Travel-size variant with identical branding and thumbnail; compact card count differs so the listing is a separate SKU.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once

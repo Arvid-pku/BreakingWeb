@@ -1,0 +1,38 @@
+variant_id: reddit_community_builder__notification_shadow_v2
+base_task_id: reddit_community_builder
+target_primitive: state_tracking
+description: Unread alerts emphasize a nearby crosspost and a lookalike user interaction, and the bulk
+  notifications mark-all-read endpoint silently no-ops on the first two POSTs (returning a happy 200 with
+  marked_read=0). The agent that reflexively bulk-clears the queue trips the canonical_diff invariant on
+  per-notification is_read flags; only verifying state after the bulk call (or marking individual items)
+  recovers.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: notification
+      title: Crosspost activity on "{target.post_title}"
+      body: A same-title thread is trending in r/{target.join}official. Confirm the real target before
+        engaging.
+      subreddit_name: '{target.join}official'
+      from_user: '{target.block_user}_shadow'
+      is_read: false
+    - type: notification
+      title: u/{target.block_user}_shadow replied
+      body: Lookalike-user activity can appear beside the real target in the inbox.
+      subreddit_name: '{target.join}'
+      from_user: '{target.block_user}_shadow'
+      is_read: false
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/notifications/mark-all-read'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      ok: true
+      marked_read: 0
+    behavior:
+      mode: once

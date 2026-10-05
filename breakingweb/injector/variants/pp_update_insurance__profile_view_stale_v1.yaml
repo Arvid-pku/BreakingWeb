@@ -1,0 +1,38 @@
+variant_id: pp_update_insurance__profile_view_stale_v1
+base_task_id: pp_update_insurance
+target_primitive: verification
+description: Profile fetch returns a stale insurance plan (wrong plan_name and member_id) for the first 3 reads. The agent
+  must refresh and verify the real plan before trusting any cached value, otherwise it will save back the wrong values or
+  report success while the real profile is unchanged.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/profile**'
+    stale_body:
+      id: ''
+      name: ''
+      sex: female
+      dob: ''
+      phone: (217) 555-9011
+      email: ''
+      insurance_plan:
+        plan_name: Legacy PPO 2019
+        member_id: BC-LEGACY-7421
+        group_number: G-19042
+        copay: '0.00'
+        deductible: '0.00'
+        deductible_met: '0.00'
+      pcp_id: ''
+      allergies: []
+      conditions: []
+      pharmacy_ids: []
+      emergency_contact:
+        name: ''
+        phone: ''
+        relationship: ''
+      applicable_screenings: []
+      default_pharmacy: null
+    stale_count: 3
+    behavior:
+      mode: once

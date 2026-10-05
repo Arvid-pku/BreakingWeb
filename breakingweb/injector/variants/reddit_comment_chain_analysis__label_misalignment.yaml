@@ -1,0 +1,14 @@
+variant_id: reddit_comment_chain_analysis__label_misalignment
+base_task_id: reddit_comment_chain_analysis
+target_primitive: grounding
+description: >
+  Form <label for=> attributes are shifted by +1 — labels point at
+  neighboring inputs. Agents that rely on accessibility associations
+  type into the wrong field; agents that use DOM position succeed.
+injections:
+  - layer: client
+    params:
+      action: label_input_misalignment
+      container: "form"
+      offset: +1
+      behavior: { mode: persistent }

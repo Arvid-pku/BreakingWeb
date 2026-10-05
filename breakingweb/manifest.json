@@ -1,0 +1,60 @@
+{
+  "version": "3.0.0",
+  "benchmark": "BreakingWeb",
+  "description": "Advanced multi-page simulated environments for evaluating agent cognitive primitives",
+  "primitives": [
+    "grounding", "planning", "state_tracking", "backtracking",
+    "patience", "exploration", "verification"
+  ],
+  "environments": [
+    {
+      "env_id": "gmail",
+      "title": "Gmail",
+      "base_url": "/env/gmail",
+      "description": "Email client with inbox, threads, search, labels, and settings."
+    },
+    {
+      "env_id": "robinhood",
+      "title": "Robinhood",
+      "base_url": "/env/robinhood",
+      "description": "Brokerage platform with portfolio, trading, options, transfers, and tax center."
+    },
+    {
+      "env_id": "amazon",
+      "title": "Amazon",
+      "base_url": "/env/amazon",
+      "description": "Shopping platform with product search, cart, checkout, and order management."
+    },
+    {
+      "env_id": "reddit",
+      "title": "Reddit",
+      "base_url": "/env/reddit",
+      "description": "Social platform with feeds, subreddits, posts, comments, voting, and messaging."
+    },
+    {
+      "env_id": "patient_portal",
+      "title": "Patient Portal",
+      "base_url": "/env/patient_portal",
+      "description": "MyChart-style healthcare portal -- appointments, prescriptions, labs, messages, referrals, claims, immunizations",
+      "difficulty_distribution": {
+        "easy": 10,
+        "medium": 15,
+        "hard": 15,
+        "expert": 15,
+        "frontier": 15
+      }
+    },
+    {
+      "env_id": "lms",
+      "title": "LMS",
+      "base_url": "/env/lms",
+      "description": "Canvas-style learning management system with courses, assignments, grades, modules, discussions, and calendar."
+    },
+    {
+      "env_id": "booking",
+      "title": "Booking.com",
+      "base_url": "/env/booking",
+      "description": "Travel platform with property search, reservations, reviews, saved lists, and Genius program."
+    }
+  ]
+}

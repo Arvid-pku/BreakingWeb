@@ -1,0 +1,20 @@
+variant_id: pp_check_immunizations__slot_search_stale_v1
+base_task_id: pp_check_immunizations
+target_primitive: planning
+description: The first slot lookup returns no availability. The agent must keep the sequencing plan intact and retry availability checks instead of abandoning the workflow.
+injections:
+# Aligned with the sibling slot_search_stale_v1 variants (e.g.
+# pp_schedule_annual_physical, pp_complex_scheduling): a single-shot
+# empty-slot response on the first GET; the second GET passes through
+# to real availability. The provider dropdown / slot picker re-queries
+# naturally once the user selects a provider or changes the date
+# filter, so the empty response is a filter rather than a wall.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/appointments/available-slots**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

@@ -1,0 +1,136 @@
+task_id: lms_identify_dropped_homework
+env_id: lms
+title: Identify the Lowest Homework Grade That Will Be Dropped
+instruction_template: In {target.course_code}, the syllabus allows dropping the lowest
+  homework score. Find which homework assignment has the lowest score and will be
+  dropped. Resubmit that assignment with file 'redo_lowest.pdf' to try to improve
+  it.
+difficulty: medium
+time_limit_seconds: 120
+expected_steps: 6
+primary_primitives:
+- verification
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 8
+      graded_fraction: 0.6
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - dropped_grade_ids
+    - lowest_homework_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    lowest_homework_id: '{output.lowest_homework_id}'
+
+canonical_diff:
+  update:
+    - entity: Assignment
+      desc: Resubmit the lowest homework assignment with redo_lowest.pdf
+      where:
+        id:
+          expr: "x == target['lowest_homework_id']"
+      changes:
+        submission_status:
+          in:
+          - submitted
+          - late
+        file_name:
+          eq: redo_lowest.pdf
+        attempt_count:
+          expr: "x >= 2"
+        submitted_at:
+          expr: "x is not None and state.get_assignment(target['lowest_homework_id']) is not None and x > state.get_assignment(target['lowest_homework_id']).due_at"
+  invariant:
+    - collection: state.assignments
+      filter: "a.id != target['lowest_homework_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+    - name: Agent resubmitted the lowest homework assignment
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other assignments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+
+secondary_primitives: []

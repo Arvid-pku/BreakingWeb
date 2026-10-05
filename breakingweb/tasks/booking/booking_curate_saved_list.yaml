@@ -1,0 +1,156 @@
+task_id: booking_curate_saved_list
+env_id: booking
+title: Remove and Add Properties in a Saved List
+instruction_template: 'Go to your saved lists and open the "{target.list_name}" list.
+  Remove the property "{target.remove_property_name}" from the list. Then search for
+  hotels in "Dublin" and add the property "{target.add_property_name}" to the same
+  list.
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 7
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Berlin Mitte Loft Hotel
+      city: Berlin
+      country: Germany
+      star_rating: 3
+      review_score: 8.0
+      review_count: 920
+      price: 140.0
+      property_type: Hotel
+      neighborhood: Mitte
+      address: 55 Friedrichstrasse, 10117 Berlin
+      amenities:
+      - Free WiFi
+      - Bar
+      - Bicycle rental
+      popular_facilities:
+      - Free WiFi
+      - Bar
+      distance_km: 0.9
+      rooms:
+      - name: Loft Room
+        price: 140.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: none
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: street
+    outputs:
+    - remove_prop_id
+    - remove_prop_name
+    - remove_room_id
+    - remove_room_name
+  - use: featured_property
+    params:
+      name: Dublin Temple Bar Hotel
+      city: Dublin
+      country: Ireland
+      star_rating: 4
+      review_score: 8.4
+      review_count: 1670
+      price: 195.0
+      property_type: Hotel
+      neighborhood: Temple Bar
+      address: 18 Fleet Street, Dublin 2
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Live music
+      popular_facilities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      distance_km: 0.3
+      rooms:
+      - name: City View Double
+        price: 195.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: city
+    outputs:
+    - add_prop_id
+    - add_prop_name
+    - add_room_id
+    - add_room_name
+  - use: create_saved_list
+    params:
+      name: Summer 2026 Shortlist
+      property_ids:
+      - '{output.remove_prop_id}'
+    outputs:
+    - list_id
+    - list_name
+  targets:
+    list_id: '{output.list_id}'
+    list_name: '{output.list_name}'
+    remove_property_id: '{output.remove_prop_id}'
+    remove_property_name: '{output.remove_prop_name}'
+    add_property_id: '{output.add_prop_id}'
+    add_property_name: '{output.add_prop_name}'
+canonical_diff:
+  update:
+    - entity: SavedList
+      desc: Remove Berlin hotel and add Dublin hotel from the target saved list
+      where:
+        id: {expr: "x == target['list_id']"}
+      changes:
+        property_ids:
+          expr: "target['remove_property_id'] not in x and target['add_property_id'] in x"
+        updated_at: {any: true}
+  invariant:
+    - collection: state.saved_lists
+      filter: "a.id != target['list_id']"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent removed the Berlin property and added the Dublin property to the target list
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify other saved lists
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

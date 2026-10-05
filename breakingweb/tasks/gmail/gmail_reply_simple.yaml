@@ -1,0 +1,106 @@
+task_id: gmail_reply_simple
+env_id: gmail
+title: Reply to an Email
+instruction_template: 'Find the email from Bob Martinez with subject "Meeting Tomorrow
+  at 2pm" and reply with exactly: "I''ll be there. Thanks!"'
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 10
+  steps:
+  - use: reply_simple
+    params: {}
+    outputs:
+    - target_email_id
+    - target_thread_id
+  targets:
+    target_email_id: '{output.target_email_id}'
+    target_thread_id: '{output.target_thread_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Send a reply to Bob Martinez's email with the required body
+      count: 1
+      properties:
+        from_addr:
+          any: true
+        from_name:
+          any: true
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['target_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          any: true
+        body:
+          eq: "I'll be there. Thanks!"
+        timestamp:
+          any: true
+        is_read:
+          eq: true
+        is_starred:
+          eq: false
+        labels:
+          superset:
+            - sent
+        thread_id:
+          expr: "x == target['target_thread_id']"
+        in_reply_to:
+          expr: "x == target['target_email_id']"
+        attachments:
+          any: true
+        archived:
+          eq: false
+        deleted:
+          eq: false
+        category:
+          eq: sent
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent the reply with the correct body
+      ref: create[0]
+      severity: high
+    - name: Agent did not send extra emails beyond one reply
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not create or modify drafts
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify contacts
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or modify labels
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not create or modify filters
+      ref: invariant[6]
+      severity: medium

@@ -1,0 +1,25 @@
+variant_id: amazon_order_audit_correction__exploration_v1
+base_task_id: amazon_order_audit_correction
+target_primitive: exploration
+description: >
+  Order detail pages return placeholder stale data on the first 3 views,
+  and the order list endpoint has a 3-second delay. The agent must persist
+  in exploring order details despite incomplete initial data and slow loading.
+injections:
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/orders/*"
+      action: stale_data
+      methods: ["GET"]
+      stale_count: 3
+      stale_body:
+        id: placeholder
+        items: []
+        status: loading
+        total: 0
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/orders"
+      action: delay
+      methods: ["GET"]
+      delay_ms: 3000

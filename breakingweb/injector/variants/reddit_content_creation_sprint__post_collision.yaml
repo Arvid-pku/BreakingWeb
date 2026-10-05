@@ -1,0 +1,112 @@
+variant_id: reddit_content_creation_sprint__post_collision
+base_task_id: reddit_content_creation_sprint
+target_primitive: grounding
+description: Three lookalike Python/MachineLearning communities and same-title
+  decoy posts collide on the exact create-post titles; the agent must create the
+  Python and ML posts in the canonical subreddits, not in the lookalikes. Pair
+  with silent_fail (fail_count:2) on the create-post endpoint so the first two
+  submissions silently no-op and the agent must verify via the feed.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: PythonOfficial
+      display_name: r/PythonOfficial
+      description: Official-sounding Python community. Case-and-word-differing
+        lookalike of r/Python — distinct URL.
+      subscribers: 420000
+    - type: subreddit
+      name: Python2
+      display_name: r/Python2
+      description: Lookalike Python community with a distinct URL slug.
+      subscribers: 98000
+    - type: subreddit
+      name: Python_
+      display_name: r/Python_
+      description: Underscore-suffixed lookalike of r/Python.
+      subscribers: 110000
+    - type: post
+      subreddit: PythonOfficial
+      title: '{target.py_title}'
+      author: shadow_mod
+      score: 318
+      comments: 24
+      body: Same title in a different, lookalike Python community.
+    - type: post
+      subreddit: Python2
+      title: '{target.py_title}'
+      author: lookalike_helper
+      score: 422
+      comments: 31
+      body: Same title in a second lookalike Python community; different score.
+    - type: post
+      subreddit: Python_
+      title: '{target.py_title}'
+      author: crosspost_helper
+      score: 215
+      comments: 19
+      body: Same title crossposted into a third lookalike Python community.
+    - type: subreddit
+      name: '{target.join}official'
+      display_name: r/{target.join}official
+      description: Official-sounding {target.join} community. Lookalike with a
+        distinct URL.
+      subscribers: 88000
+    - type: subreddit
+      name: '{target.join}_'
+      display_name: r/{target.join}_
+      description: Underscore-suffixed lookalike of r/{target.join}.
+      subscribers: 64000
+    - type: post
+      subreddit: '{target.join}official'
+      title: '{target.ml_title}'
+      author: shadow_mod
+      score: 212
+      comments: 14
+      body: Same title crossposted to the official-sounding lookalike.
+    - type: post
+      subreddit: '{target.join}_'
+      title: '{target.ml_title}'
+      author: crosspost_helper
+      score: 188
+      comments: 11
+      body: Same title crossposted to the underscore-suffixed lookalike.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: post_fake_retry
+        subreddit_id: sub_python
+        subreddit_name: Python
+        author_name: TechNomad_42
+        author_is_op: true
+        title: '{target.py_title}'
+        body: '{target.py_body}'
+        url: ''
+        post_type: text
+        score: 1
+        upvote_ratio: 1.0
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: false
+        is_hidden: false
+        vote_direction: 1
+        permalink: /r/Python/comments/post_fake_retry
+    behavior:
+      mode: once

@@ -1,0 +1,156 @@
+task_id: booking_reply_to_hotel
+env_id: booking
+title: Read and Reply to a Hotel Message
+instruction_template: 'Go to your messages and find the unread message from "{target.property_name}"
+  with the subject "{target.message_subject}". Read the message, then reply to the
+  property with the subject "Re: {target.message_subject}" and a body that says: "Thank
+  you for the information. I confirm that I will arrive around 3 PM and would appreciate
+  a quiet room on a higher floor if available."
+
+  '
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 10
+primary_primitives:
+- backtracking
+start_path: /home
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Grand Hotel Vienna
+      city: Vienna
+      country: Austria
+      star_rating: 5
+      review_score: 9.2
+      review_count: 3100
+      price: 350.0
+      property_type: Hotel
+      neighborhood: Innere Stadt
+      address: 1 Ringstrasse, 1010 Vienna
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Concierge
+      popular_facilities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      distance_km: 0.2
+      rooms:
+      - name: Classic Room
+        price: 350.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: city
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.property_id}'
+      room_type_id: '{output.cheapest_room_id}'
+      room_type_name: Classic Room
+      check_in: '2026-05-15'
+      check_out: '2026-05-19'
+      price_per_night: 350.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 3
+    outputs:
+    - reservation_id
+    - confirmation_number
+    - property_id
+  - use: send_message
+    params:
+      property_id: '{output.property_id}'
+      reservation_id: '{output.reservation_id}'
+      subject: Pre-arrival Information
+      body: Dear Guest, we would like to confirm your upcoming stay. Could you please
+        let us know your estimated arrival time? We also wanted to inform you that
+        our spa will be undergoing maintenance on May 16th. Please don't hesitate
+        to reach out if you have any special requests. Warm regards, Grand Hotel Vienna.
+    outputs:
+    - message_id
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    reservation_id: '{output.reservation_id}'
+    message_subject: Pre-arrival Information
+    message_id: '{output.message_id}'
+canonical_diff:
+  update:
+    - entity: Message
+      desc: Mark the incoming hotel message as read
+      where:
+        id: {expr: "x == target['message_id']"}
+      changes:
+        read: {eq: true}
+  create:
+    - entity: Message
+      desc: Send a reply to the hotel with the required subject and body content
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {eq: "Re: Pre-arrival Information"}
+        body:
+          expr: "'3 PM' in x and 'quiet room' in x.lower() and 'higher floor' in x.lower() and 'thank you' in x.lower()"
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.messages
+      filter: "a.id != target['message_id'] and not (a.sender == 'guest' and a.property_id == target['property_id'])"
+      preserve: ALL
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent marked the incoming hotel message as read
+      ref: update[0]
+      severity: high
+    - name: Agent sent a reply with the required subject and body
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other messages
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

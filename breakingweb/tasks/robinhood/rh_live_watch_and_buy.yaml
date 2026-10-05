@@ -1,0 +1,105 @@
+task_id: rh_live_watch_and_buy
+env_id: robinhood
+title: Watch Price and Market Buy on Dip
+instruction_template: Watch AAPL's price on the stock detail page. When it drops
+  below $182, immediately buy 10 shares at market price. Do not use limit
+  orders.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 15
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      AAPL:
+        keyframes:
+        - - 0
+          - 190.0
+        - - 12
+          - 179.0
+        - - 25
+          - 184.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Market buy of 10 AAPL shares placed after dip below $182
+    properties:
+      symbol: {eq: AAPL}
+      side: {eq: buy}
+      order_type: {eq: market}
+      quantity: {eq: 10}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'AAPL'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - desc: AAPL dip market buy filled for 10 shares
+    expr: any(o.symbol == 'AAPL' and o.side == 'buy' and o.order_type ==
+      'market' and o.quantity == Decimal('10') and o.status == 'filled' and
+      o.filled_quantity == o.quantity for o in state.orders)
+    severity: critical
+  - desc: AAPL market buy happened after the price dropped below $182
+    expr: any(o.symbol == 'AAPL' and o.side == 'buy' and o.order_type ==
+      'market' and o.filled_tick is not None and
+      state._price_engine.price_at_tick('AAPL', o.filled_tick) < Decimal('182')
+      for o in state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures patience, grounding, state_tracking by requiring
+  exact completion of the requested Robinhood workflow while ignoring distractor
+  account state.

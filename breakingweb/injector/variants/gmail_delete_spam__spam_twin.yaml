@@ -1,0 +1,18 @@
+variant_id: gmail_delete_spam__spam_twin
+base_task_id: gmail_delete_spam
+target_primitive: grounding
+description: A second email from a nearly identical spam domain sits beside the obvious junk message.
+  The agent must delete only the exact spam target rather than over-deleting.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Prize Central Support
+      from: winner-support@prizecentral.net
+      subject: You Won $1,000,000!!! Follow-up
+      body: Automated support note about a previous promotional email. This lookalike message is not the
+        exact target email.
+      labels:
+      - inbox

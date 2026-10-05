@@ -1,0 +1,155 @@
+task_id: reddit_research_respond
+env_id: reddit
+title: Research Topic and Respond
+instruction_template: 'Research and respond to content about space:
+
+
+  1. Search for "Mars" and find the post titled "{target.search_title}" in r/{target.search_sub}. Save it.
+
+
+  2. Open that post and leave a comment with exactly: "{target.search_comment}"
+
+
+  3. Navigate to r/{target.msg_sub} and find the post by u/{target.msg_author} titled "{target.msg_post_title}". Send a message to u/{target.msg_author} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+
+  4. Go to Settings and set default feed sort to "new".
+
+
+  Do not save other posts.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: space
+      title: NASA confirms Mars soil samples contain organic molecules consistent with ancient microbial life
+      body: The Perseverance rover's latest analysis shows compelling evidence.
+      author: NebulaDrifter
+      score: 78000
+    outputs:
+    - search_id
+    - search_title
+    - search_sub
+  - use: target_post
+    params:
+      subreddit: science
+      title: Breakthrough in quantum error correction achieves 99.9% fidelity across 100 qubits
+      body: Published in Nature Physics.
+      author: PhotonWave
+      score: 15000
+    outputs:
+    - msg_post_id
+    - msg_post_title
+    - msg_sub
+  targets:
+    search_title: '{output.search_title}'
+    search_sub: '{output.search_sub}'
+    search_id: '{output.search_id}'
+    search_comment: If confirmed, this would be the most significant discovery in human history. I wonder how they ruled out contamination from the rover itself.
+    msg_sub: '{output.msg_sub}'
+    msg_author: PhotonWave
+    msg_post_title: '{output.msg_post_title}'
+    msg_subject: Question about quantum error correction
+    msg_body: Fascinating paper! Is the 99.9% fidelity sustained or peak? And does it scale beyond 100 qubits?
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Saved the Mars search-result post
+    where:
+      id:
+        expr: x == target['search_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: settings
+    desc: Default feed sort set to new
+    where: {id: {any: true}}
+    changes:
+      default_feed_sort: {eq: new}
+  create:
+  - entity: Comment
+    desc: Exact comment on the Mars post
+    properties:
+      post_id:
+        expr: x == target['search_id']
+      body:
+        expr: x == target['search_comment']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Message
+    collection: state.sent_messages
+    desc: Exact message sent to PhotonWave about quantum error correction
+    properties:
+      to_user:
+        expr: x == target['msg_author']
+      subject:
+        expr: x == target['msg_subject']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: a.id != target['search_id']
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent saved the Mars search-result post
+    ref: update[0]
+    severity: high
+  - name: Agent posted the exact comment on the Mars post
+    ref: create[0]
+    severity: high
+  - name: Agent sent the exact message to PhotonWave
+    ref: create[1]
+    severity: high
+  - name: Agent did not save, unsave, vote on, or otherwise modify other posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify or delete inbox messages
+    ref: invariant[4]
+    severity: medium
+  constraints:
+  - expr: state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

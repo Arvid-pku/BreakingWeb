@@ -1,0 +1,136 @@
+task_id: lms_submission_sprint
+env_id: lms
+title: Semester-End Submission Sprint
+instruction_template: It's the end of the semester and you have multiple unsubmitted
+  assignments across your courses. Review all not-submitted assignments, prioritize
+  them by grade impact (considering points possible, category weight, and any late
+  penalties), and submit the top 3 highest-impact assignments first with file "sprint_submission.pdf".
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- planning
+start_path: /dashboard
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - PHYS201
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.4
+      missing_count: 2
+      late_count: 1
+    outputs:
+    - assignment_ids
+    - missing_assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+  targets:
+    advisor_name: '{output.advisor_name}'
+    missing_assignment_ids: '{output.missing_assignment_ids}'
+    course_codes: '{output.course_codes}'
+canonical_diff:
+  update:
+  - entity: Assignment
+    desc: Submit each of the top-3 highest-impact unsubmitted assignments with sprint_submission.pdf
+    bijection:
+      over: >-
+        [r[3] for r in sorted([(Decimal(str(initial.get_course(a.course_id).syllabus.grading_policy[a.weight_category].weight)) * Decimal(str(a.points_possible)) * (Decimal('1') - initial.late_penalty_for_assignment(a.id, session_start or datetime.now(timezone.utc))), Decimal(str(initial.get_course(a.course_id).syllabus.grading_policy[a.weight_category].weight)) * Decimal(str(a.points_possible)), -a.due_at.timestamp(), a.id) for a in initial.assignments if a.submission_status == 'not_submitted'], reverse=True)[:3]]
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      submission_status:
+        in:
+        - submitted
+        - late
+      file_name:
+        eq: sprint_submission.pdf
+      attempt_count:
+        expr: "x >= 1"
+      submitted_at:
+        expr: "x is not None"
+  invariant:
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent submitted the top-3 highest-impact assignments
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify modules
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[7]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[8]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[9]
+    severity: medium
+secondary_primitives: []

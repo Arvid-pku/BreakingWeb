@@ -1,0 +1,327 @@
+task_id: booking_expert_rebooking_workflow
+env_id: booking
+title: Cancel and Rebook with Better Hotel in Same City
+instruction_template: 'You are unhappy with your current reservation and want to find
+  a better alternative:
+
+  1. Find your confirmed reservation at "{target.original_name}" in {target.city}
+  (checking in {target.check_in}, checking out {target.check_out}, {target.guests}
+  guests). Cancel it.
+
+  2. Search for hotels in {target.city} and find a replacement with a higher review
+  score than your original reservation.
+
+  3. Book that replacement for the same dates ({target.check_in} to {target.check_out})
+  and same number of guests ({target.guests}). Book its cheapest room. Use the Mastercard
+  ending in 8888.
+
+  4. Send a message to the original hotel "{target.original_name}" with subject "Feedback
+  on Cancellation" and body "I found a hotel with better reviews for my dates. I may
+  consider rebooking in the future if improvements are made."
+
+  5. Update your travel preferences: set smoking to "non-smoking" and preferred bed
+  type to "queen".
+
+  6. Save the replacement hotel to a new list called "Upgraded Picks".
+
+  '
+difficulty: expert
+time_limit_seconds: 440
+expected_steps: 32
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Ibis Milan Centre
+      city: Milan
+      country: Italy
+      star_rating: 3
+      review_score: 7.2
+      review_count: 5670
+      price: 120.0
+      neighborhood: Centrale
+      address: Via Finocchiaro Aprile 2, 20124 Milan
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - 24-hour front desk
+      rooms:
+      - name: Standard Room
+        price: 120.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - original_id
+    - original_name
+    - original_room_id
+    - original_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.original_id}'
+      check_in: '2026-06-15'
+      check_out: '2026-06-20'
+      price_per_night: 120.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 20
+    outputs:
+    - original_res_id
+    - original_conf
+    - original_res_prop
+  - use: featured_property
+    params:
+      name: Palazzo Parigi Milan
+      city: Milan
+      country: Italy
+      star_rating: 5
+      review_score: 9.4
+      review_count: 2340
+      price: 480.0
+      neighborhood: Brera
+      address: Corso di Porta Nuova 1, 20121 Milan
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Garden
+      - Concierge
+      popular_facilities:
+      - Spa
+      - Restaurant
+      - Garden
+      rooms:
+      - name: Deluxe Room
+        price: 480.0
+        bed_type: king
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Grand Suite
+        price: 850.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+    outputs:
+    - replacement_id
+    - replacement_name
+    - replacement_room_id
+    - replacement_room_name
+  - use: decoy_property
+    params:
+      name: Milan Central B&B
+      city: Milan
+      country: Italy
+      star_rating: 2
+      review_score: 6.8
+      review_count: 890
+      price: 85.0
+      amenities:
+      - Free WiFi
+    outputs:
+    - decoy_property_id
+    - decoy_property_name
+  - use: decoy_property
+    params:
+      name: Armani Hotel Milano
+      city: Milan
+      country: Italy
+      star_rating: 5
+      review_score: 9.2
+      review_count: 3120
+      price: 620.0
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+    outputs:
+    - decoy_property_id_2
+    - decoy_property_name_2
+  - use: set_preferences
+    params:
+      smoking: false
+      preferred_bed_type: king
+    outputs:
+    - updated
+  targets:
+    original_id: '{output.original_id}'
+    original_name: '{output.original_name}'
+    original_res_id: '{output.original_res_id}'
+    original_score: '7.2'
+    replacement_id: '{output.replacement_id}'
+    replacement_name: '{output.replacement_name}'
+    city: Milan
+    check_in: '2026-06-15'
+    check_out: '2026-06-20'
+    guests: '2'
+canonical_diff:
+  update:
+  - entity: Reservation
+    desc: Cancel the original reservation
+    where:
+      id:
+        expr: x == target['original_res_id']
+    changes:
+      status:
+        eq: cancelled
+  - entity: travel_preferences
+    desc: Smoking off and preferred bed type set to queen
+    where: {id: {eq: "__singleton_travel_preferences__"}}
+    changes:
+      smoking: {eq: false}
+      preferred_bed_type: {eq: queen}
+  create:
+  - entity: Reservation
+    desc: Book replacement hotel with same dates using Mastercard
+    properties:
+      property_id:
+        expr: x == target['replacement_id']
+      property_name:
+        any: true
+      room_type_id:
+        any: true
+      room_type_name:
+        any: true
+      check_in:
+        eq: '2026-06-15'
+      check_out:
+        eq: '2026-06-20'
+      nights:
+        eq: 5
+      guests:
+        any: true
+      rooms:
+        any: true
+      price_per_night:
+        expr: "x == min(rt.price_per_night for p in initial.properties if p.id == target['replacement_id'] for rt in p.room_types if rt.is_available and rt.max_occupancy >= int(target['guests']))"
+      total_price:
+        any: true
+      taxes_and_fees:
+        any: true
+      currency:
+        any: true
+      status:
+        eq: confirmed
+      booked_at:
+        any: true
+      guest_info:
+        any: true
+      payment_method_id:
+        expr: >-
+          any(pm.id == x and pm.card_type == 'Mastercard' and pm.last_four == '8888' for pm in initial.payment_methods)
+      cancellation_policy:
+        any: true
+      confirmation_number:
+        any: true
+      is_genius_deal:
+        any: true
+      genius_discount:
+        any: true
+      meals_included:
+        any: true
+      rating_submitted:
+        any: true
+  - entity: Message
+    desc: Feedback message to original hotel about better reviews
+    properties:
+      property_id:
+        expr: x == target['original_id']
+      property_name:
+        any: true
+      reservation_id:
+        any: true
+      subject:
+        eq: Feedback on Cancellation
+      body:
+        expr: '''better reviews'' in x.lower()'
+      sender:
+        eq: guest
+      read:
+        any: true
+      created_at:
+        any: true
+  - entity: SavedList
+    desc: Create Upgraded Picks list with replacement hotel
+    properties:
+      name:
+        eq: Upgraded Picks
+      property_ids:
+        expr: target['replacement_id'] in x
+      created_at:
+        any: true
+      updated_at:
+        any: true
+  invariant:
+  - collection: state.reservations
+    filter: a.id != target['original_res_id'] and a.property_id != target['replacement_id']
+    preserve: ALL
+  - collection: state.messages
+    filter: a.sender == 'property' or a.property_id != target['original_id']
+    preserve: ALL
+  - collection: state.saved_lists
+    filter: a.name != 'Upgraded Picks'
+    preserve: ALL
+  - collection: state.properties
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.rebooking_suggestions
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent cancelled the original reservation
+    ref: update[0]
+    severity: critical
+  - name: Travel preferences updated (no smoking, queen bed)
+    ref: update[1]
+    severity: medium
+  - name: Agent booked replacement hotel with same dates
+    ref: create[0]
+    severity: critical
+  - name: Agent sent feedback message to original hotel
+    ref: create[1]
+    severity: medium
+  - name: Agent created Upgraded Picks list with replacement hotel
+    ref: create[2]
+    severity: high
+  - name: Agent did not modify other reservations
+    ref: invariant[0]
+    severity: high
+  - name: Agent only messaged the original hotel
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify other saved lists
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify properties
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not create or modify reviews
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create spurious notifications
+    ref: invariant[6]
+    severity: low
+  - name: Rebooking suggestions are system-generated side effects
+    ref: invariant[7]
+    severity: low

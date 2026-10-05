@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Health and beauty product">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="144" y="68" width="112" height="48" rx="14" fill="#232f3e"/>
+  <rect x="124" y="106" width="152" height="222" rx="30" fill="#fef3c7" stroke="#f59e0b" stroke-width="6"/>
+  <rect x="148" y="158" width="104" height="86" rx="14" fill="#ffffff"/>
+  <path d="M174 202h52M184 182h32M184 222h32" stroke="#232f3e" stroke-width="8" stroke-linecap="round"/>
+  <path d="M154 286h92" stroke="#ff9900" stroke-width="10" stroke-linecap="round"/>
+</svg>

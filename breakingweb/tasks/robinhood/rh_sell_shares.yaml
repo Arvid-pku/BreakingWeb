@@ -1,0 +1,98 @@
+task_id: rh_sell_shares
+env_id: robinhood
+title: Sell All Shares of a Stock
+instruction_template: Sell all of your {target.symbol} shares.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - TSLA
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - TSLA
+      - AAPL
+      - MSFT
+      quantities:
+      - '5'
+      - '10'
+      - '8'
+      cost_bases:
+      - '220.00'
+      - '175.00'
+      - '380.00'
+    outputs: []
+  targets:
+    symbol: TSLA
+    quantity: 5
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Filled market sell order for all target shares
+    properties:
+      symbol: {expr: "x == target['symbol']"}
+      side: {eq: sell}
+      order_type: {eq: market}
+      status: {eq: filled}
+      quantity: {expr: "x == target['quantity']"}
+      filled_quantity: {expr: "x == target['quantity']"}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction for target symbol
+    properties:
+      type: {eq: sell}
+      symbol: {expr: "x == target['symbol']"}
+      quantity: {expr: "x == target['quantity']"}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order fill notification
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  delete:
+  - entity: positions
+    desc: Target symbol position fully liquidated and removed
+    where:
+      symbol: {expr: "x == target['symbol']"}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'sell' and a.symbol != target['symbol']"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol != target['symbol']"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not sell other positions
+    ref: invariant[0]
+    severity: high
+secondary_primitives: []

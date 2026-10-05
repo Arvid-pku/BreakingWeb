@@ -1,0 +1,200 @@
+task_id: amazon_bulk_cart_build
+env_id: amazon
+title: Add Multiple Products to Cart with Specific Quantities
+instruction_template: 'Add the following products to your cart with the specified
+  quantities - "{target.product_1}" (quantity 2), "{target.product_2}" (quantity 1),
+  "{target.product_3}" (quantity 3), and "{target.product_4}" (quantity 1). Then proceed
+  to checkout using the shipping address for Jordan Parker at 742 Evergreen Terrace
+  and the Visa card ending in 4242.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 25
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: USB-C Charging Cable 6ft
+      brand: Anker
+      category: Electronics
+      price: 12.99
+      rating: 4.6
+      features:
+      - Fast charging
+      - Nylon braided
+      - 6-foot length
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_1
+    - product_name_1
+    - product_price_1
+  - use: featured_product
+    params:
+      name: Wireless Bluetooth Mouse
+      brand: Logitech
+      category: Electronics
+      price: 29.99
+      rating: 4.5
+      features:
+      - Ergonomic design
+      - Silent clicks
+      - USB receiver included
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_2
+    - product_name_2
+    - product_price_2
+  - use: featured_product
+    params:
+      name: Screen Cleaning Kit
+      brand: WHOOSH
+      category: Electronics
+      price: 9.99
+      rating: 4.4
+      features:
+      - Safe for all screens
+      - Microfiber cloth included
+      - Streak-free formula
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_3
+    - product_name_3
+    - product_price_3
+  - use: featured_product
+    params:
+      name: Laptop Cooling Pad
+      brand: Havit
+      category: Electronics
+      price: 35.99
+      rating: 4.3
+      features:
+      - 3 quiet fans
+      - Adjustable height
+      - LED lighting
+      - USB powered
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_4
+    - product_name_4
+    - product_price_4
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 10
+      price_range:
+      - 5.0
+      - 100.0
+    outputs:
+    - product_ids
+  targets:
+    product_1: '{output.product_name_1}'
+    product_2: '{output.product_name_2}'
+    product_3: '{output.product_name_3}'
+    product_4: '{output.product_name_4}'
+    pid_1: '{output.product_id_1}'
+    pid_2: '{output.product_id_2}'
+    pid_3: '{output.product_id_3}'
+    pid_4: '{output.product_id_4}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order with all four target products at specified quantities
+    properties:
+      items:
+        expr: "len(x) == 4 and any(it['product_id'] == target['pid_1'] and it['quantity']
+          == 2 for it in x) and any(it['product_id'] == target['pid_2'] and it['quantity']
+          == 1 for it in x) and any(it['product_id'] == target['pid_3'] and it['quantity']
+          == 3 for it in x) and any(it['product_id'] == target['pid_4'] and it['quantity']
+          == 1 for it in x)"
+      status: {eq: confirmed}
+      shipping_address_id: {expr: "any(a.id == x and a.full_name == 'Jordan Parker'
+          and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"}
+      payment_method_id: {expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four
+          == '4242' for p in state.payment_methods)"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not (any(it.get('product_id') == target['pid_1'] for it in (a.items or
+      [])) and any(it.get('product_id') == target['pid_3'] for it in (a.items or [])))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,23 @@
+variant_id: gmail_board_briefing_prep__label_trap
+base_task_id: gmail_board_briefing_prep
+target_primitive: exploration
+description: One briefing source email has been auto-moved to a board archive label. The agent must search
+  beyond the inbox to find all relevant material.
+injections:
+- layer: seed
+  params:
+    action: hide_in_non_obvious_location
+    subject_contains: board
+    move_to_label: Board Materials/Archive
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Email Rules
+      from: system@thornton.com
+      subject: 'Filter notification: email moved to Board Materials/Archive'
+      body: Your board-related filter auto-filed one message into Board Materials/Archive. Search outside
+        the inbox if you still need it.
+      labels:
+      - inbox

@@ -1,0 +1,314 @@
+task_id: booking_expert_cancel_chain
+env_id: booking
+title: Cancel Three Reservations with Personalized Messages and Saved List
+instruction_template: "Cancel three specific reservations and document them. Accept\
+  \ any cancellation fee shown \u2014 the hotels have different policies, so review\
+  \ and accept each fee individually when prompted.\n1. Find\
+  \ and cancel your reservation at \"{target.cancel_name_1}\".\n   Send a message\
+  \ to the property with subject \"Cancellation - Medical Emergency\" and body \"\
+  I must cancel due to a family medical emergency. I hope to visit in the future.\"\
+  \n2. Find and cancel your reservation at \"{target.cancel_name_2}\".\n   Send a\
+  \ message to the property with subject \"Cancellation - Work Conflict\" and body\
+  \ \"A mandatory work conference has been scheduled during my trip dates. Apologies\
+  \ for the inconvenience.\"\n3. Find and cancel your reservation at \"{target.cancel_name_3}\"\
+  .\n   Send a message to the property with subject \"Cancellation - Travel Restrictions\"\
+  \ and body \"Travel restrictions have been imposed for the region. I will rebook\
+  \ once they are lifted.\"\n4. Create a saved list called \"Cancelled Trips\" and\
+  \ add all three properties to it for future rebooking reference.\n"
+difficulty: expert
+time_limit_seconds: 450
+expected_steps: 35
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Excelsior Venice
+      city: Venice
+      country: Italy
+      star_rating: 5
+      review_score: 9.1
+      review_count: 3450
+      price: 480.0
+      neighborhood: Lido
+      address: Lungomare Guglielmo Marconi 41, 30126 Venice
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Beach access
+      - Room service
+    outputs:
+    - cancel_id_1
+    - cancel_name_1
+    - cancel_room_id_1
+    - cancel_room_name_1
+  - use: create_reservation
+    params:
+      property_id: '{output.cancel_id_1}'
+      check_in: '2026-07-15'
+      check_out: '2026-07-20'
+      price_per_night: 480.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 30
+      cancellation_policy:
+        type: free_cancellation
+        free_cancel_before_days: 7
+        penalty_percentage: 100
+        description: "Free cancellation until 7 days before"
+    outputs:
+    - cancel_res_id_1
+    - cancel_conf_1
+    - cancel_res_prop_1
+  - use: featured_property
+    params:
+      name: Raffles Istanbul
+      city: Istanbul
+      country: Turkey
+      star_rating: 5
+      review_score: 9.3
+      review_count: 2780
+      price: 420.0
+      neighborhood: Besiktas
+      address: Zorlu Center, 34340 Istanbul
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+    outputs:
+    - cancel_id_2
+    - cancel_name_2
+    - cancel_room_id_2
+    - cancel_room_name_2
+  - use: create_reservation
+    params:
+      property_id: '{output.cancel_id_2}'
+      check_in: '2026-08-05'
+      check_out: '2026-08-09'
+      price_per_night: 420.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 21
+      cancellation_policy:
+        type: partial_refund
+        penalty_percentage: 30
+        description: "30% cancellation fee"
+    outputs:
+    - cancel_res_id_2
+    - cancel_conf_2
+    - cancel_res_prop_2
+  - use: featured_property
+    params:
+      name: Belmond Reid's Palace Madeira
+      city: Funchal
+      country: Portugal
+      star_rating: 5
+      review_score: 9.0
+      review_count: 1890
+      price: 390.0
+      neighborhood: Funchal
+      address: Estrada Monumental 139, 9000-098 Funchal
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Garden
+      - Tennis court
+    outputs:
+    - cancel_id_3
+    - cancel_name_3
+    - cancel_room_id_3
+    - cancel_room_name_3
+  - use: create_reservation
+    params:
+      property_id: '{output.cancel_id_3}'
+      check_in: '2026-09-10'
+      check_out: '2026-09-15'
+      price_per_night: 390.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 14
+      cancellation_policy:
+        type: non_refundable
+        penalty_percentage: 100
+        description: "Non-refundable"
+    outputs:
+    - cancel_res_id_3
+    - cancel_conf_3
+    - cancel_res_prop_3
+  - use: featured_property
+    params:
+      name: Park Plaza Westminster London
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.2
+      review_count: 6780
+      price: 220.0
+    outputs:
+    - keep_id
+    - keep_name
+    - keep_room_id
+    - keep_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.keep_id}'
+      check_in: '2026-12-01'
+      check_out: '2026-12-04'
+      price_per_night: 220.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 5
+    outputs:
+    - keep_res_id
+    - keep_conf
+    - keep_res_prop
+  targets:
+    cancel_id_1: '{output.cancel_id_1}'
+    cancel_name_1: '{output.cancel_name_1}'
+    cancel_res_id_1: '{output.cancel_res_id_1}'
+    cancel_id_2: '{output.cancel_id_2}'
+    cancel_name_2: '{output.cancel_name_2}'
+    cancel_res_id_2: '{output.cancel_res_id_2}'
+    cancel_id_3: '{output.cancel_id_3}'
+    cancel_name_3: '{output.cancel_name_3}'
+    cancel_res_id_3: '{output.cancel_res_id_3}'
+    keep_res_id: '{output.keep_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel Venice reservation
+      where:
+        id: {expr: "x == target['cancel_res_id_1']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Cancel Istanbul reservation
+      where:
+        id: {expr: "x == target['cancel_res_id_2']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Cancel Madeira reservation
+      where:
+        id: {expr: "x == target['cancel_res_id_3']"}
+      changes:
+        status: {eq: cancelled}
+  create:
+    - entity: Message
+      desc: Send medical emergency cancellation message to Venice property
+      properties:
+        property_id: {expr: "x == target['cancel_id_1']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'medical emergency' in x.lower() or 'cancellation' in x.lower()"}
+        body: {expr: "'medical emergency' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+    - entity: Message
+      desc: Send work conflict cancellation message to Istanbul property
+      properties:
+        property_id: {expr: "x == target['cancel_id_2']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'work' in x.lower() or 'cancellation' in x.lower()"}
+        body: {expr: "'work conference' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+    - entity: Message
+      desc: Send travel restrictions cancellation message to Madeira property
+      properties:
+        property_id: {expr: "x == target['cancel_id_3']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'travel restrictions' in x.lower() or 'cancellation' in x.lower()"}
+        body: {expr: "'travel restrictions' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+    - entity: SavedList
+      desc: Create Cancelled Trips list with all three cancelled properties
+      properties:
+        name: {eq: "Cancelled Trips"}
+        property_ids:
+          expr: "target['cancel_id_1'] in x and target['cancel_id_2'] in x and target['cancel_id_3'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id not in (target['cancel_res_id_1'], target['cancel_res_id_2'], target['cancel_res_id_3'])"
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.property_id not in (target['cancel_id_1'], target['cancel_id_2'], target['cancel_id_3'])"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Cancelled Trips'"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled all three target reservations
+      ref: update[0]
+      severity: critical
+    - name: Agent sent medical emergency message to Venice property
+      ref: create[0]
+      severity: high
+    - name: Agent sent work conflict message to Istanbul property
+      ref: create[1]
+      severity: high
+    - name: Agent sent travel restrictions message to Madeira property
+      ref: create[2]
+      severity: high
+    - name: Agent created Cancelled Trips list with all three properties
+      ref: create[3]
+      severity: high
+    - name: Agent did not cancel or modify the London reservation
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify existing messages
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not create or modify reviews
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low
+    - name: Rebooking suggestions are system-generated side effects
+      ref: invariant[7]
+      severity: low

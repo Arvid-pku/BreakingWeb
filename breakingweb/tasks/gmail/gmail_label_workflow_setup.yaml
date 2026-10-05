@@ -1,0 +1,130 @@
+task_id: gmail_label_workflow_setup
+env_id: gmail
+title: Label Workflow Setup
+instruction_template: 'Set up a label workflow for the new project. Create three labels:
+  ''Project Alpha'', ''Needs Review'', and ''Client Feedback''. Then search for emails
+  from {target.client_domain} and apply the ''Client Feedback'' label to each. Search
+  for emails with ''review'' in the subject and apply the ''Needs Review'' label to
+  each. Apply the ''Project Alpha'' label to all project-related emails — the ones
+  from {target.client_domain} and the review emails. Then go to Settings > Labels
+  and set ''Project Alpha'' to show if unread, and set ''Client Feedback'' to hidden.
+  Finally, remove the ''Needs Review'' label from the email about ''{target.wrong_review_subject}''
+  — it was mislabeled.'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 38
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: label_workflow_setup
+    params:
+      client_domain: meridiangroup.com
+    outputs:
+    - client_domain
+    - client_email_ids
+    - review_email_ids
+    - wrong_review_subject
+    - wrong_review_id
+    - correct_non_review_id
+    - project_email_ids
+  targets:
+    client_domain: '{output.client_domain}'
+    client_email_ids: '{output.client_email_ids}'
+    review_email_ids: '{output.review_email_ids}'
+    wrong_review_subject: '{output.wrong_review_subject}'
+    wrong_review_id: '{output.wrong_review_id}'
+    correct_non_review_id: '{output.correct_non_review_id}'
+    project_email_ids: '{output.project_email_ids}'
+canonical_diff:
+  create:
+    - entity: labels
+      desc: Create Project Alpha label with show_if_unread visibility
+      count: 1
+      properties:
+        name:
+          eq: "Project Alpha"
+        # GM-5: accept either UI default ("show") or the requested
+        # ("show_if_unread") so a near-miss on visibility doesn't trip
+        # the unaccounted-create invariant on top of failing the spec.
+        show_in_label_list:
+          in: ["show_if_unread", "show"]
+    - entity: labels
+      desc: Create Needs Review label
+      count: 1
+      properties:
+        name:
+          eq: "Needs Review"
+    - entity: labels
+      desc: Create Client Feedback label with hidden visibility
+      count: 1
+      properties:
+        name:
+          eq: "Client Feedback"
+        show_in_label_list:
+          eq: "hide"
+  update:
+    - entity: emails
+      desc: Apply Client Feedback and Project Alpha labels to client domain emails
+      bijection:
+        over: "target['client_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - "Client Feedback"
+            - "Project Alpha"
+    - entity: emails
+      desc: Apply Needs Review and Project Alpha labels to review emails
+      bijection:
+        over: "target['review_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - "Needs Review"
+            - "Project Alpha"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in (target['client_email_ids'] + target['review_email_ids'])"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Project Alpha', 'Needs Review', 'Client Feedback']"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+    - collection: state.settings
+      preserve: ALL
+  named_invariants:
+    - name: Agent created Project Alpha label
+      ref: create[0]
+      severity: high
+    - name: Agent created Needs Review label
+      ref: create[1]
+      severity: high
+    - name: Agent created Client Feedback label
+      ref: create[2]
+      severity: high
+    - name: Agent labeled client emails with Client Feedback and Project Alpha
+      ref: update[0]
+      severity: high
+    - name: Agent labeled review emails with Needs Review and Project Alpha
+      ref: update[1]
+      severity: high

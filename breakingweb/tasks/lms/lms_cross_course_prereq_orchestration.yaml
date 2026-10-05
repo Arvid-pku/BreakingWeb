@@ -1,0 +1,259 @@
+task_id: lms_cross_course_prereq_orchestration
+env_id: lms
+title: Cross-Course Prerequisite Orchestration
+instruction_template: You need to unlock advanced modules across {target.course_code_1},
+  {target.course_code_2}, and {target.course_code_3} by completing their prerequisites
+  in the correct order. Each course has a module chain where completing one module
+  unlocks the next. Some modules require a minimum score on linked assignments.
+  Plan and execute the optimal completion order across all courses, completing all
+  available modules and their content items. You must complete at least 4 modules
+  total across all courses. After completing the modules, send a brief progress update
+  to your advisor ({target.advisor_name}).
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 45
+primary_primitives:
+- planning
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - CS201
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 5
+      graded_fraction: 0.5
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+  - use: module_sequence
+    params:
+      course_id: '{output.course_ids[0]}'
+      output_prefix: course_1
+      count: 5
+      chain_type: mixed
+      completed_count: 1
+    outputs:
+    - course_1_module_ids
+    - course_1_next_available_module_id
+    - course_1_first_locked_module_id
+  - use: module_sequence
+    params:
+      course_id: '{output.course_ids[1]}'
+      output_prefix: course_2
+      count: 4
+      chain_type: linear
+      completed_count: 1
+    outputs:
+    - course_2_module_ids
+    - course_2_next_available_module_id
+    - course_2_first_locked_module_id
+  - use: module_sequence
+    params:
+      course_id: '{output.course_ids[2]}'
+      output_prefix: course_3
+      count: 4
+      chain_type: linear
+      completed_count: 1
+    outputs:
+    - course_3_module_ids
+    - course_3_next_available_module_id
+    - course_3_first_locked_module_id
+  targets:
+    advisor_name: '{output.advisor_name}'
+    course_id_1: '{output.course_ids[0]}'
+    course_id_2: '{output.course_ids[1]}'
+    course_id_3: '{output.course_ids[2]}'
+    course_code_1: '{output.course_codes[0]}'
+    course_code_2: '{output.course_codes[1]}'
+    course_code_3: '{output.course_codes[2]}'
+    course_ids: '{output.course_ids}'
+    course_codes: '{output.course_codes}'
+    module_ids_course_1: '{output.course_1_module_ids}'
+    module_ids_course_2: '{output.course_2_module_ids}'
+    module_ids_course_3: '{output.course_3_module_ids}'
+    next_available_module_id_1: '{output.course_1_next_available_module_id}'
+    first_locked_module_id_1: '{output.course_1_first_locked_module_id}'
+    next_available_module_id_2: '{output.course_2_next_available_module_id}'
+    first_locked_module_id_2: '{output.course_2_first_locked_module_id}'
+    next_available_module_id_3: '{output.course_3_next_available_module_id}'
+    first_locked_module_id_3: '{output.course_3_first_locked_module_id}'
+canonical_diff:
+  update:
+  - entity: Module
+    desc: Complete the next available module in the first course after finishing all content items
+    where:
+      id:
+        expr: "x == target['next_available_module_id_1']"
+    changes:
+      status:
+        eq: completed
+      content_items:
+        expr: "all(item.get('completed') is True for item in x)"
+  - entity: Module
+    desc: Complete the unlocked follow-up module in the first course after finishing all content items
+    where:
+      id:
+        expr: "x == target['first_locked_module_id_1']"
+    changes:
+      status:
+        eq: completed
+      content_items:
+        expr: "all(item.get('completed') is True for item in x)"
+  - entity: Module
+    desc: Complete the next available module in the second course after finishing all content items
+    where:
+      id:
+        expr: "x == target['next_available_module_id_2']"
+    changes:
+      status:
+        eq: completed
+      content_items:
+        expr: "all(item.get('completed') is True for item in x)"
+  - entity: Module
+    desc: Complete the next available module in the third course after finishing all content items
+    where:
+      id:
+        expr: "x == target['next_available_module_id_3']"
+    changes:
+      status:
+        eq: completed
+      content_items:
+        expr: "all(item.get('completed') is True for item in x)"
+  - entity: Module
+    desc: Unlock the next advanced module in the first course after completing its follow-up module
+    where:
+      id:
+        expr: "x == target['module_ids_course_1'].split(',')[3].strip()"
+    changes:
+      status:
+        eq: available
+  - entity: Module
+    desc: Unlock the follow-up module in the second course
+    where:
+      id:
+        expr: "x == target['first_locked_module_id_2']"
+    changes:
+      status:
+        eq: available
+  - entity: Module
+    desc: Unlock the follow-up module in the third course
+    where:
+      id:
+        expr: "x == target['first_locked_module_id_3']"
+    changes:
+      status:
+        eq: available
+  invariant:
+  # Allow the backend's prerequisite-unlock cascade: completing a module
+  # flips later locked modules in the same course to status='available'.
+  # We exempt those by checking final status; a manually-completed extra
+  # module ends in status='completed' and is still flagged.
+  - collection: state.modules
+    filter: "a.id not in [target['next_available_module_id_1'], target['first_locked_module_id_1'], target['next_available_module_id_2'], target['first_locked_module_id_2'], target['next_available_module_id_3'], target['first_locked_module_id_3']] and a.status != 'available'"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.enrollments
+    preserve: ALL
+  - collection: state.assignments
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.student
+    preserve: ALL
+  constraints:
+  - desc: Agent sent a progress update to the advisor
+    expr: "any(target['advisor_name'] in (m.get('to', '') or '') and (m.get('subject', '') or '').strip() and (m.get('body', '') or '').strip() for m in state.sent_messages)"
+    severity: critical
+  - desc: Advisor message came from the student account
+    expr: "any(target['advisor_name'] in (m.get('to', '') or '') and m.get('from') == state.student.email for m in state.sent_messages)"
+    severity: high
+  - desc: Agent sent exactly one progress update
+    expr: "len(state.sent_messages) == 1"
+    severity: high
+  named_invariants:
+  - name: Agent completed the next available module in the first course
+    ref: update[0]
+    severity: high
+  - name: Agent completed the unlocked follow-up module in the first course
+    ref: update[1]
+    severity: high
+  - name: Agent completed the next available module in the second course
+    ref: update[2]
+    severity: high
+  - name: Agent completed the next available module in the third course
+    ref: update[3]
+    severity: high
+  - name: Agent unlocked the next advanced module in the first course
+    ref: update[4]
+    severity: high
+  - name: Agent unlocked the follow-up module in the second course
+    ref: update[5]
+    severity: high
+  - name: Agent unlocked the follow-up module in the third course
+    ref: update[6]
+    severity: high
+  - name: Agent did not modify other modules
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not drop or alter enrollments
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify assignments
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+secondary_primitives: []

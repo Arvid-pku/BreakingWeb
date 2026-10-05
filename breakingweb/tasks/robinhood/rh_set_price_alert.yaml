@@ -1,0 +1,45 @@
+task_id: rh_set_price_alert
+env_id: robinhood
+title: Set a Price Alert for a Stock
+instruction_template: "Set a price alert for GOOGL when it goes above $180.00."
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+  - grounding
+start_path: /
+
+seed:
+  distractors: 5
+  steps:
+    - use: stock_universe
+      params:
+        count: 20
+        must_include: ["GOOGL", "AAPL", "MSFT"]
+      outputs: []
+    - use: price_alerts
+      params:
+        count: 2
+      outputs: []
+  targets: {}
+
+canonical_diff:
+  create:
+  - entity: price_alerts
+    desc: Price alert for GOOGL above $180.00
+    properties:
+      symbol: {eq: GOOGL}
+      condition: {eq: above}
+      target_price: {eq: 180}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol != 'GOOGL'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL

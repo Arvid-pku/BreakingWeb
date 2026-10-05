@@ -1,0 +1,189 @@
+task_id: rh_live_bracket_order
+env_id: robinhood
+title: Bracket Order Strategy
+instruction_template: 'Execute a bracket strategy on MSFT: place a limit buy of 1
+  share at $400 or below. Once it fills, immediately set a stop-loss at $380 and a
+  take-profit limit sell at $430.'
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - MSFT
+      - AAPL
+      - TSLA
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      MSFT:
+        keyframes:
+        - - 0
+          - 412.0
+        - - 10
+          - 398.0
+        - - 25
+          - 420.0
+        - - 40
+          - 435.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: MSFT limit buy order placed at or below $400
+    properties:
+      symbol: {eq: MSFT}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      limit_price: {expr: "x is not None and Decimal(str(x)) <= Decimal('400')"}
+      status:
+        eq: filled
+      quantity:
+        eq: 1
+      filled_quantity:
+        eq: 1
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: MSFT stop-loss sell order placed near $380
+    properties:
+      symbol: {eq: MSFT}
+      side: {eq: sell}
+      order_type: {eq: stop}
+      stop_price: {expr: "x is not None and abs(Decimal(str(x)) - Decimal('380'))
+          < Decimal('5')"}
+      status:
+        eq: pending
+      quantity:
+        eq: 1
+      filled_quantity:
+        eq: 0
+      filled_price: {any: true}
+      limit_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: MSFT take-profit limit sell order placed near $430
+    properties:
+      symbol: {eq: MSFT}
+      side: {eq: sell}
+      order_type: {eq: limit}
+      limit_price: {expr: "x is not None and abs(Decimal(str(x)) - Decimal('430'))
+          < Decimal('5')"}
+      status:
+        eq: pending
+      quantity:
+        eq: 1
+      filled_quantity:
+        eq: 0
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: positions
+    desc: MSFT position created by filled bracket entry buy
+    properties:
+      symbol:
+        eq: MSFT
+      quantity:
+        eq: 1
+      avg_cost_basis:
+        any: true
+      current_price:
+        any: true
+      day_change_pct:
+        any: true
+      total_return:
+        any: true
+      total_return_pct:
+        any: true
+      asset_type:
+        any: true
+      name:
+        any: true
+      lots:
+        any: true
+  - entity: transactions
+    desc: Buy transaction recorded by the MSFT entry fill
+    properties:
+      type:
+        eq: buy
+      symbol:
+        eq: MSFT
+      quantity:
+        eq: 1
+      amount:
+        any: true
+      description:
+        any: true
+      timestamp:
+        any: true
+  - entity: notifications
+    desc: Order-fill notification emitted by the MSFT entry buy
+    properties:
+      type:
+        eq: order_fill
+      title:
+        any: true
+      message:
+        any: true
+      timestamp:
+        any: true
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'MSFT'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.transactions
+    filter: a.symbol != 'MSFT'
+    preserve: ALL
+  - collection: state.notifications
+    filter: a.type != 'order_fill'
+    preserve: ALL
+  constraints:
+  - desc: Bracket entry buy filled before exit orders were placed
+    expr: any(o.symbol == 'MSFT' and o.side == 'buy' and o.order_type == 'limit'
+      and o.status == 'filled' and o.filled_quantity == Decimal('1') for o in
+      state.orders) and all(o.status == 'pending' and o.filled_quantity ==
+      Decimal('0') for o in state.orders if o.symbol == 'MSFT' and o.side ==
+      'sell' and o.id not in [io.id for io in initial.orders])
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures planning, state_tracking, patience, verification by
+  requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

@@ -1,0 +1,18 @@
+variant_id: gmail_contact_enrichment__exploration_v1
+base_task_id: gmail_contact_enrichment
+target_primitive: exploration
+description: Key email moved to archived label + search bar persistently hidden behind
+  hover. Survives SPA navigation.
+injections:
+- layer: seed
+  params:
+    action: hide_in_non_obvious_location
+    email_id: enrichment_source_email
+    move_to_label: archived/old-correspondence
+- layer: client
+  params:
+    action: hide_affordance
+    selector: '[role=''search''], [aria-label*=''Search''], input[type=''search'']'
+    trigger: mouseover
+    behavior:
+      mode: persistent

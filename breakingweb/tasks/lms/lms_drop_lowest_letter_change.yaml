@@ -1,0 +1,266 @@
+task_id: lms_drop_lowest_letter_change
+env_id: lms
+title: Determine If Dropping Lowest Quiz Changes Letter Grade
+instruction_template: In {target.course_code}, determine whether applying the drop-lowest
+  policy changes your letter grade (A >= 90, B >= 80, C >= 70, D >= 60, F < 60). Read
+  the course's grades, then compute your weighted course grade BOTH with the drop-lowest
+  policy applied AND with every grade counted (no drop). Use the same weighting the
+  grade book uses, including any late penalty already applied to a grade, and re-normalize
+  weights over only the graded categories. If dropping the lowest changes your letter
+  grade to a higher one, submit 'letter_grade_report.pdf' for the homework that the
+  drop-lowest policy actually drops (the lowest by score-to-points ratio, which may
+  not be the one with the lowest raw points). If dropping the lowest does NOT change
+  your letter grade, instead mark the course's latest announcement as read to confirm
+  you have reviewed the drop policy. Do exactly one of these two actions. Do not submit
+  any other assignment, do not change any other announcement, and do not send any messages.
+difficulty: expert
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- verification
+start_path: /courses
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+    - advisor_name
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 9
+      graded_fraction: 0.7
+      late_count: 2
+    outputs:
+    - assignment_ids
+  - use: announcements_feed
+    params:
+      count: 5
+      unread_count: 2
+    outputs:
+    - announcement_ids
+  # grade_book runs AFTER announcements_feed so its latest_announcement_id
+  # output is scoped to the TARGET course (the instruction says "the course's
+  # latest announcement"). announcements_feed's own latest_announcement_id is
+  # the GLOBALLY newest, which can live in a non-target course — so it is NOT
+  # declared as an output here to avoid a mismatch with the instruction.
+  - use: grade_book
+    params:
+      # v2: deterministically FORCE the demanding "submit" branch. The random
+      # grade distribution almost never produced drop_changes_letter_grounded
+      # == 'true', so both frontier models trivially took the one-click "mark
+      # announcement" branch and the recompute-and-verify weak point was never
+      # exercised. This re-sculpts the target course's homework grades so the
+      # drop genuinely flips the coarse letter (B without-drop -> A with-drop),
+      # with a late penalty on the dropped grade (an un-penalized recompute
+      # reads NO flip and takes the wrong branch) and a live ratio trap (the
+      # dropped homework is lowest by score-to-points RATIO, not lowest raw
+      # earned points). Fully re-derivable from the visible Grades page.
+      force_drop_letter_flip: true
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - dropped_grade_ids
+    - drop_changes_letter
+    - drop_changes_letter_grounded
+    - lowest_hw_id
+    - lowest_dropped_hw_id
+    - latest_announcement_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    drop_changes_letter: '{output.drop_changes_letter}'
+    drop_changes_letter_grounded: '{output.drop_changes_letter_grounded}'
+    lowest_hw_id: '{output.lowest_hw_id}'
+    lowest_dropped_hw_id: '{output.lowest_dropped_hw_id}'
+    latest_announcement_id: '{output.latest_announcement_id}'
+canonical_diff:
+  oneof:
+  # Branch 1: only matches when applying drop-lowest RAISES the coarse letter
+  # grade. The discriminator is the GROUNDED flag (drop_changes_letter_grounded),
+  # recomputed by the LMSState engine over the FINAL persisted grades using the
+  # same weighted_score_for_course math the agent reads on the Grades page
+  # (late-penalty factor applied, weights re-normalized over graded categories)
+  # and the coarse A>=90/B>=80/C>=70/D>=60/F<60 scale named in the instruction.
+  # The target is lowest_dropped_hw_id: the homework the engine actually drops
+  # (lowest score-to-points RATIO), not the lowest raw points.
+  - update:
+    - entity: Assignment
+      desc: Submit the dropped homework with letter_grade_report.pdf (drop raises the letter grade)
+      where:
+        id:
+          expr: "x == target['lowest_dropped_hw_id'] and target['drop_changes_letter_grounded'] == 'true'"
+      changes:
+        submission_status:
+          in:
+          - submitted
+          - late
+        file_name:
+          eq: letter_grade_report.pdf
+        attempt_count:
+          expr: "x >= 2"
+        submitted_at:
+          expr: "x is not None and x >= session_start"
+    invariant:
+    - collection: state.assignments
+      filter: "a.id != target['lowest_dropped_hw_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    named_invariants:
+    - name: Agent submitted the dropped homework with the report file
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify other assignments
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[5]
+      severity: medium
+    # Marking an announcement read is the WRONG branch's action; escalate to
+    # critical so an agent that mis-derived the discriminator and read an
+    # announcement instead is heavily penalized.
+    - name: Agent did not mark any announcement read
+      ref: invariant[7]
+      severity: critical
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: critical
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: high
+  # Branch 2: only matches when applying drop-lowest does NOT change the coarse
+  # letter grade (drop_changes_letter_grounded == 'false'). The required action
+  # is to mark the target course's latest announcement read.
+  - update:
+    - entity: Announcement
+      desc: Mark the latest announcement as read (drop does not change the letter grade)
+      where:
+        id:
+          expr: "x == target['latest_announcement_id'] and target['drop_changes_letter_grounded'] == 'false'"
+      changes:
+        is_read:
+          eq: true
+    invariant:
+    - collection: state.announcements
+      filter: "a.id != target['latest_announcement_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    - collection: state.student
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    named_invariants:
+    - name: Agent marked the latest announcement as read
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify non-target announcements
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    # Submitting a homework is the WRONG branch's action; escalate to critical
+    # so an agent that mis-derived the discriminator and submitted instead is
+    # heavily penalized.
+    - name: Agent did not submit or modify any assignment
+      ref: invariant[3]
+      severity: critical
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: critical
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: high
+secondary_primitives: []

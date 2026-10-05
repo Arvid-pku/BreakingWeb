@@ -1,0 +1,193 @@
+task_id: pp_cross_reference_labs_meds
+env_id: patient_portal
+title: Cross-Reference Labs and Medications
+instruction_template: Review your active medications and recent lab results. There
+  is exactly one interacting medication pair and there are out-of-range resulted lab
+  results (flagged abnormal or critical) in this seed. Schedule exactly one follow-up
+  appointment with your PCP. Book it at the earliest in-person slot the PCP has available;
+  do not book a telehealth slot. Then complete the booking by confirming that appointment.
+  The appointment reason must start with the exact text "Drug interaction and abnormal
+  lab review:" and must, in that same reason string, satisfy all of the following.
+  First, name both medications in the interacting pair, each written exactly as it
+  appears in your medication list (medication name with dosage). Second, for every
+  out-of-range resulted lab test, include its test name followed by its resulted value
+  and its unit of measure exactly as shown on the lab result; when a lab has no unit,
+  include only the test name and the value. Third, for the single lab flagged critical,
+  also write the exact text "CRITICAL:" immediately followed by a space and that lab's
+  test name. Do not send any messages, do not request a refill or renewal on any medication,
+  do not request a referral, do not discontinue any medications, and do not cancel,
+  reschedule, or confirm any pre-existing appointment.
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 34
+primary_primitives:
+- state_tracking
+start_path: /medications
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Atrial Fibrillation
+      - Hyperlipidemia
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - pcp
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - cardiology
+      # Guarantee >=1 in-person PCP slot every seed (builder flips slots[0] to
+      # in-person when the PCP drew none) so the canonical "earliest in-person PCP
+      # slot" answer always exists; without this ~8% of seeds are unsolvable.
+      force_in_person_specialties:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 6
+      expired_count: 2
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+    - interacting_rx_ids
+    - interacting_medications
+  - use: lab_results_panel
+    params:
+      resulted_count: 8
+      pending_count: 2
+      abnormal_count: 4
+      critical_count: 1
+    outputs:
+    - resulted_lab_ids
+    - pending_lab_ids
+    - abnormal_lab_ids
+    - abnormal_lab_test_names
+    - abnormal_lab_test_codes
+    - abnormal_lab_value_labels
+    - critical_lab_test_name
+  targets:
+    pcp_id: '{output.pcp_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    interacting_rx_ids: '{output.interacting_rx_ids}'
+    interacting_medications: '{output.interacting_medications}'
+    resulted_lab_ids: '{output.resulted_lab_ids}'
+    pending_lab_ids: '{output.pending_lab_ids}'
+    abnormal_lab_ids: '{output.abnormal_lab_ids}'
+    abnormal_lab_test_names: '{output.abnormal_lab_test_names}'
+    abnormal_lab_test_codes: '{output.abnormal_lab_test_codes}'
+    abnormal_lab_value_labels: '{output.abnormal_lab_value_labels}'
+    critical_lab_test_name: '{output.critical_lab_test_name}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule and confirm one in-person PCP appointment at the earliest in-person slot, naming the interacting pair and every out-of-range resulted lab"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        type: {eq: "in-person"}
+        confirmation_state: {eq: "confirmed"}
+        booked_at:
+          expr: "x >= session_start"
+        reason:
+          expr: >
+            str(x).startswith("Drug interaction and abnormal lab review:")
+            and all(m in str(x) for m in target['interacting_medications'])
+            and all(lbl in str(x) for lbl in target['abnormal_lab_value_labels'])
+            and ("CRITICAL: " + target['critical_lab_test_name']) in str(x)
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id == target['pcp_id']
+                     for s in p.available_slots if s.type == "in-person")
+  invariant:
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+  constraints:
+    - desc: "Exactly one new appointment was scheduled (no extra bookings)"
+      expr: >
+        len([a for a in state.appointments
+             if a.status == "scheduled"
+             and a.id not in {x.id for x in initial.appointments}]) == 1
+      severity: critical
+    - desc: "The single new appointment is in-person, not telehealth"
+      expr: >
+        all(a.type == "in-person" for a in state.appointments
+            if a.status == "scheduled"
+            and a.id not in {x.id for x in initial.appointments})
+      severity: high
+    - desc: "No newly-created appointment is a telehealth booking"
+      expr: >
+        all(a.type != "telehealth" for a in state.appointments
+            if a.id not in {x.id for x in initial.appointments})
+      severity: critical
+    - desc: "The single new appointment was confirmed (confirmation_state == confirmed)"
+      expr: >
+        all(a.confirmation_state == "confirmed" for a in state.appointments
+            if a.status == "scheduled"
+            and a.id not in {x.id for x in initial.appointments})
+      severity: high
+    - desc: "Pre-existing appointments retain their original confirmation_state (no stray confirm)"
+      expr: >
+        all(a.confirmation_state == next(b.confirmation_state
+                for b in initial.appointments if b.id == a.id)
+            for a in state.appointments
+            if a.id in {x.id for x in initial.appointments})
+      severity: high
+  named_invariants:
+    - name: "Agent did not discontinue, refill, renew, or otherwise modify prescriptions"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[4]
+      severity: critical
+    - name: "Agent did not request or modify referrals"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

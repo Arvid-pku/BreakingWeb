@@ -1,0 +1,74 @@
+task_id: reddit_search_and_message
+env_id: reddit
+title: Search for Post and Message Author
+instruction_template: 'Search for posts about "renewable energy". Find the post titled "{target.post_title}" in r/{target.subreddit_name} by u/{target.post_author}. Send a private message to u/{target.post_author} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}" Do not send messages to anyone else.'
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 15
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Germany achieves 100% renewable energy for an entire week for the first time
+      body: Wind and solar output exceeded demand throughout the seven-day period.
+      author: NebulaDrifter
+      score: 34000
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    post_title: '{output.post_title}'
+    subreddit_name: '{output.subreddit_name}'
+    post_author: NebulaDrifter
+    msg_subject: Your renewable energy post
+    msg_body: Great post about Germany's renewable milestone! Do you have a link to the original source data?
+canonical_diff:
+  create:
+  - entity: Message
+      # Reddit has two Message collections (state.messages for the inbox,
+      # state.sent_messages for the outbox). Route this create to the outbox.
+    collection: sent_messages
+    desc: Compose the private message to the post author
+    properties:
+      to_user:
+        expr: "x == target['post_author']"
+      subject:
+        expr: "x == target['msg_subject']"
+      body:
+        expr: "x == target['msg_body']"
+      parent_id:
+        eq:
+      from_user:
+        expr: "x == state.owner_username"
+  invariant:
+  - collection: state.messages
+    filter: "True"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent composed the exact private message to the post author
+    ref: create[0]
+    severity: high
+  constraints:
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

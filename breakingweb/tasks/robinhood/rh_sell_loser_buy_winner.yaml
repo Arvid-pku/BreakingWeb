@@ -1,0 +1,151 @@
+task_id: rh_sell_loser_buy_winner
+env_id: robinhood
+title: Sell Worst Performer and Buy Best Performer
+instruction_template: Find the worst-performing stock in your portfolio by total
+  return %. Sell all of it, then buy as many full shares of your best-performing
+  stock as the proceeds allow, at market price.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 8
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      count: 5
+      include_losers: true
+    outputs:
+    - worst_symbol
+    - best_symbol
+  targets:
+    worst_symbol: '{output.worst_symbol}'
+    best_symbol: '{output.best_symbol}'
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Filled market sell order for worst-performing stock (all shares)
+    properties:
+      symbol: {expr: "x == target['worst_symbol']"}
+      side: {eq: sell}
+      order_type: {eq: market}
+      status: {eq: filled}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Filled market buy order for best-performing stock
+    properties:
+      symbol: {expr: "x == target['best_symbol']"}
+      side: {eq: buy}
+      order_type: {eq: market}
+      status: {eq: filled}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction for worst symbol
+    properties:
+      type: {eq: sell}
+      symbol: {expr: "x == target['worst_symbol']"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: transactions
+    desc: Buy transaction for best symbol
+    properties:
+      type: {eq: buy}
+      symbol: {expr: "x == target['best_symbol']"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Sell order fill notification
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  - entity: notifications
+    desc: Buy order fill notification
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  delete:
+  - entity: positions
+    desc: Worst-performing stock position fully sold
+    where:
+      symbol: {expr: "x == target['worst_symbol']"}
+  update:
+  - entity: positions
+    desc: Best-performing stock position increased
+    where:
+      symbol: {expr: "x == target['best_symbol']"}
+    changes:
+      quantity: {any: true}
+      avg_cost_basis: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "(a.side == 'sell' and a.symbol == target['best_symbol']) or (a.side ==
+      'buy' and a.symbol == target['worst_symbol'])"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol != target['worst_symbol'] and a.symbol != target['best_symbol']"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  constraints:
+  - desc: Loser sell and winner buy orders filled completely
+    expr: all(o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders if o.id not in [io.id for io in initial.orders]) and len([o
+      for o in state.orders if o.id not in [io.id for io in initial.orders]]) >=
+      2
+    severity: critical
+  - desc: Bought as many full shares as the sell proceeds allowed (instruction says "as many full shares ... as the proceeds allow")
+    expr: |
+      (sum(o.filled_quantity for o in state.orders
+           if o.side == 'buy' and o.symbol == target['best_symbol']
+           and o.status == 'filled'
+           and o.id not in [io.id for io in initial.orders])
+       >= int(sum(o.filled_quantity * o.filled_price for o in state.orders
+                  if o.side == 'sell' and o.symbol == target['worst_symbol']
+                  and o.status == 'filled'
+                  and o.id not in [io.id for io in initial.orders])
+              / next(s.price for s in state.stocks if s.symbol == target['best_symbol']))
+          - 1)
+    severity: high
+secondary_primitives: []

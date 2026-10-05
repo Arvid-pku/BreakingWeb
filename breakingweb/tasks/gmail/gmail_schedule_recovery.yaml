@@ -1,0 +1,99 @@
+task_id: gmail_schedule_recovery
+env_id: gmail
+title: Schedule Recovery
+instruction_template: 'You previously confirmed "Wednesday, 10:00 AM" for the Q2 planning
+  sync with {target.hana_name}, but that time may no longer be valid. Review the full
+  thread "Q2 Planning Sync — Time Proposal" and any related emails from {target.hana_name}.
+  If the confirmed time has been cancelled, find the replacement time she proposed
+  and send a CORRECTION reply in the original thread with exact text: "Disregard my
+  previous confirmation. The correct time is Thursday, 2:00 PM." Do NOT confirm Friday
+  4:00 PM (suggested by colleague {target.max_name} in an unrelated email, which conflicts
+  with your recurring team standup mentioned in the "Weekly Standup — Standing Invite"
+  thread).'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: schedule_recovery
+    params: {}
+    outputs:
+    - hana_name
+    - hana_email
+    - max_name
+    - max_email
+    - priya_name
+    - original_thread_id
+    - proposal_email_id
+    - user_confirmation_email_id
+    - cancellation_email_id
+    - new_time_email_id
+    - max_suggestion_email_id
+    - standup_email_id
+    - decoy_priya_email_id
+  targets:
+    hana_name: '{output.hana_name}'
+    hana_email: '{output.hana_email}'
+    max_name: '{output.max_name}'
+    max_email: '{output.max_email}'
+    priya_name: '{output.priya_name}'
+    original_thread_id: '{output.original_thread_id}'
+    proposal_email_id: '{output.proposal_email_id}'
+    user_confirmation_email_id: '{output.user_confirmation_email_id}'
+    cancellation_email_id: '{output.cancellation_email_id}'
+    new_time_email_id: '{output.new_time_email_id}'
+    max_suggestion_email_id: '{output.max_suggestion_email_id}'
+    standup_email_id: '{output.standup_email_id}'
+    decoy_priya_email_id: '{output.decoy_priya_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Send correction reply in the Q2 Planning Sync thread
+      count: 1
+      properties:
+        in_reply_to:
+          expr: >-
+            x in [target['proposal_email_id'],
+                  target['cancellation_email_id'],
+                  target['user_confirmation_email_id']]
+        to:
+          expr: "x == [target['hana_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Disregard my previous confirmation. The correct time is Thursday, 2:00 PM."
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent the correction reply with correct text
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

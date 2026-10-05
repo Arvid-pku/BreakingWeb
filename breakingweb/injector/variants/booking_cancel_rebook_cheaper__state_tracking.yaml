@@ -1,0 +1,18 @@
+variant_id: booking_cancel_rebook_cheaper__state_tracking_v1
+base_task_id: booking_cancel_rebook_cheaper
+target_primitive: state_tracking
+description: After cancellation, the trips page shows a stale cached version for
+  5 seconds before refreshing, and available rooms change between search and booking.
+injections:
+- layer: server
+  params:
+    action: stale_cache
+    endpoints:
+    - path_pattern: "reservations$"
+      method: GET
+      stale_duration_ms: 5000
+      note: Returns pre-cancellation data for 5s after cancel
+- layer: seed
+  params:
+    action: dynamic_availability
+    note: One room becomes unavailable between search and booking attempt

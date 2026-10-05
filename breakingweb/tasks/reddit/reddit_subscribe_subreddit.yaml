@@ -1,0 +1,86 @@
+task_id: reddit_subscribe_subreddit
+env_id: reddit
+title: Subscribe to a Subreddit
+instruction_template: >
+  Navigate to r/{target.subreddit_name} and join the community by clicking
+  the Join button. Do not unsubscribe from any communities you are currently
+  subscribed to.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 4
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  targets:
+    subreddit_name: "Piracy"
+    initial_subscriptions: "{output.subscriptions}"
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribe to the target subreddit
+      # `where` reads entity_dict which only contains id + changed fields
+      # (evaluator_diff.py:853-855). Look the name up via state.get_subreddit
+      # using the candidate id bound to `x`.
+    where:
+      id:
+        expr: "state.get_subreddit(x).name == target['subreddit_name']"
+    changes:
+      is_subscribed:
+        eq: true
+  invariant:
+  - collection: state.subreddits
+    filter: "a.name != target['subreddit_name']"
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent subscribed to the target subreddit
+    ref: update[0]
+    severity: high
+  - name: Agent did not alter other subreddits' subscription state
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify posts
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify messages
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high

@@ -1,0 +1,110 @@
+task_id: rh_verify_no_action_needed
+env_id: robinhood
+title: Pause Recurring Investments in Declining Stocks
+instruction_template: Review your recurring investments. If any are investing in stocks
+  that have dropped more than 30% from their purchase price, pause those recurring
+  investments. Otherwise, confirm everything looks fine and take no action.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 12
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - AAPL
+      - MSFT
+      - VOO
+      - SCHD
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - VOO
+      - SCHD
+      quantities:
+      - '25'
+      - '15'
+      - '40'
+      - '30'
+      cost_bases:
+      - '175.00'
+      - '390.00'
+      - '700.00'
+      - '120.00'
+    outputs: []
+  - use: recurring_investments
+    params:
+      count: 4
+      symbols:
+      - AAPL
+      - MSFT
+      - VOO
+      - SCHD
+      frequencies:
+      - weekly
+      - monthly
+      overpaying_count: 0
+    outputs:
+    - total_active_before
+    - recurring_investment_ids
+  targets:
+    total_active_before: '{output.total_active_before}'
+    recurring_investment_ids: '{output.recurring_investment_ids}'
+canonical_diff:
+  # VOO cost_basis=700 vs current~437–470 (varies by seed) → dropped 33–38% → pause
+  # SCHD cost_basis=120 vs current~78 → dropped 35% → pause
+  # AAPL and MSFT are at a gain → no action on those
+  update:
+  - entity: RecurringInvestment
+    collection: recurring_investments
+    desc: Pause recurring investment in VOO (dropped >30% from purchase price)
+    where:
+      id: {expr: "any(ri.id == x and ri.symbol == 'VOO' for ri in initial.recurring_investments)"}
+    changes:
+      status: {eq: paused}
+  - entity: RecurringInvestment
+    collection: recurring_investments
+    desc: Pause recurring investment in SCHD (dropped >30% from purchase price)
+    where:
+      id: {expr: "any(ri.id == x and ri.symbol == 'SCHD' for ri in initial.recurring_investments)"}
+    changes:
+      status: {eq: paused}
+  invariant:
+  - collection: state.recurring_investments
+    filter: "a.symbol in ('AAPL', 'MSFT')"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  named_invariants:
+  - name: AAPL and MSFT recurring investments were not paused
+    ref: invariant[0]
+    severity: critical
+secondary_primitives: []

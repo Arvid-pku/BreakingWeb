@@ -1,0 +1,66 @@
+task_id: reddit_save_from_feed
+env_id: reddit
+title: Save a Post from Your Feed
+instruction_template: Find the post titled "{target.post_title}" in your home feed and save it. Do not save any other posts.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 4
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: movies
+      title: Denis Villeneuve says Dune Messiah will be his final Dune film
+      body: In a new interview, the director confirmed this will complete his vision for the franchise.
+      score: 31200
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    post_id: '{output.post_id}'
+    post_title: '{output.post_title}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Save the target post
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      is_saved:
+        eq: true
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent saved the target post
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify any other posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high

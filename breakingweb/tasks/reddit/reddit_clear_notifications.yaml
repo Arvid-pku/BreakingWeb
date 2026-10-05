@@ -1,0 +1,59 @@
+task_id: reddit_clear_notifications
+env_id: reddit
+title: Clear All Notifications
+instruction_template: Go to your Notifications page and mark all notifications as read. Do not delete any notifications or change any settings.
+difficulty: easy
+time_limit_seconds: 60
+expected_steps: 3
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 0
+  actors: {}
+  steps:
+  - use: target_notification
+    params:
+      type: award
+      title: You received a Helpful award!
+      body: A redditor found your comment helpful.
+      is_read: false
+      subreddit_name: programming
+    outputs:
+    - notification_id
+  targets: {}
+canonical_diff:
+  # Positive update + invariants form. The update bijection iterates
+  # every initially-unread notification id and requires the agent to
+  # mark each one as read. Adding this positive entry flips
+  # constraint_only=False, enabling the unaccounted-collateral sweep
+  # over sibling collections (matcher.py:330).
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: "[n.id for n in initial.notifications if not n.is_read]"
+      variable: v
+    desc: "Mark every unread notification as read"
+    where:
+      id: {expr: "x == v"}
+    changes:
+      is_read: {eq: true}
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.notifications
+    filter: "True"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL

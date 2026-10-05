@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Drinkware bottle">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="160" y="58" width="80" height="48" rx="12" fill="#232f3e"/>
+  <rect x="134" y="94" width="132" height="246" rx="42" fill="#0f766e"/>
+  <rect x="154" y="130" width="92" height="172" rx="28" fill="#14b8a6"/>
+  <rect x="166" y="174" width="68" height="22" rx="11" fill="#ffffff" opacity=".85"/>
+  <path d="M138 262h124" stroke="#ff9900" stroke-width="10"/>
+</svg>

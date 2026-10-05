@@ -1,0 +1,31 @@
+variant_id: rh_limit_order_with_check__ticker_twin
+base_task_id: rh_limit_order_with_check
+target_primitive: grounding
+description: Search results include confusingly similar ticker symbols next to the real target. The agent
+  must verify the exact symbol before trading or adding it to a watchlist.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_stocks
+    multiplier: 2
+    decoys:
+    - symbol: AMZX
+      name: Amazon Extended Trust
+      price: 168.2
+    - symbol: AMZD
+      name: Amazon Income Notes
+      price: 43.1
+    - symbol: AAPLX
+      name: Apple Holdings Trust
+      price: 189.4
+    - symbol: APLE
+      name: Apple Hospitality REIT
+      price: 16.9
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: TSLAQ
+      condition: above
+      target_price: 250.00
+      status: triggered

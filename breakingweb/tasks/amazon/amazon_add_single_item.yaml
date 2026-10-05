@@ -1,0 +1,125 @@
+task_id: amazon_add_single_item
+env_id: amazon
+title: Add a Single Item to Cart
+instruction_template: >
+  Find the product "{target.product_name}" and add exactly 1 to your
+  shopping cart.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 7
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Classic Leather Wallet
+      brand: TimberCraft
+      category: Electronics
+      price: 34.99
+      rating: 4.4
+      features:
+      - Genuine leather
+      - RFID blocking
+      - Slim bifold design
+      - 8 card slots
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 5
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+canonical_diff:
+  create:
+  - entity: CartItem
+    desc: Target product added to cart with quantity 1
+    properties:
+      product_id: {expr: "x == target['product_id']"}
+      quantity: {eq: 1}
+      product_name: {any: true}
+      unit_price: {any: true}
+      variant_selections: {any: true}
+      added_at: {any: true}
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    filter: "a.product_id != target['product_id']"
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not add extra items to cart
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

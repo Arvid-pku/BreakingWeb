@@ -1,0 +1,207 @@
+task_id: pp_complex_claim_dispute
+env_id: patient_portal
+title: Multi-Claim Dispute Resolution
+instruction_template: "Review your insurance claims. Several of your denied claims
+  are still within their appeal window, but your billing advocate can only file the
+  TWO most time-critical appeals this cycle. Using the claim appeal action, appeal
+  ONLY the two appealable denied claims whose appeal deadline is soonest (earliest
+  appeal_deadline first). A denied claim counts as appealable only when its Explanation
+  of Benefits (EOB) is already available AND its appeal deadline has not yet passed.
+  From that appealable set, file appeals for exactly the two with the EARLIEST appeal
+  deadlines. Do NOT appeal the other appealable claims with later deadlines, do NOT
+  appeal denied claims whose EOB is not yet available or whose appeal deadline has
+  already passed, and do not touch any other claim."
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- backtracking
+start_path: /billing
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Back Pain
+      - Hypertension
+      - Knee Osteoarthritis
+      insurance_tier: basic
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - orthopedics
+      - cardiology
+      - radiology
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - orthopedics
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 8
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: referral_chain
+    params:
+      approved_count: 3
+      pending_count: 0
+    outputs:
+    - approved_ref_ids
+  - use: lab_results_panel
+    params:
+      resulted_count: 3
+      abnormal_count: 1
+    outputs:
+    - resulted_lab_ids
+  - use: insurance_claims
+    params:
+      approved_count: 3
+      denied_count: 5
+      denied_no_eob_count: 2
+      denied_past_deadline_count: 2
+      processing_count: 2
+      with_eob: true
+      near_appeal_deadline: true
+      # Give eligible (denied+EOB) claims deterministic comfortably-spaced deadlines
+      # (rank1=4d, rank2=18d, then +14d/step) so the two-most-urgent are unambiguous;
+      # the only intentional same-deadline tie is parked on the last two eligible
+      # claims (well past the top-2 boundary) where the cid tiebreaker is harmless.
+      monotonic_appealable_deadlines: true
+    outputs:
+    - denied_claim_ids
+    - appealable_claim_id
+    - approved_claim_ids
+    - appealable_denied_claim_ids
+    - appealable_denied_count
+    - top_2_urgent_appealable_claim_ids
+    - appealable_claim_ids_by_deadline
+    - processing_claim_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    denied_claim_ids: '{output.denied_claim_ids}'
+    approved_claim_ids: '{output.approved_claim_ids}'
+    appealable_denied_claim_ids: '{output.appealable_denied_claim_ids}'
+    appealable_denied_count: '{output.appealable_denied_count}'
+    top_2_urgent_appealable_claim_ids: '{output.top_2_urgent_appealable_claim_ids}'
+    appealable_claim_ids_by_deadline: '{output.appealable_claim_ids_by_deadline}'
+canonical_diff:
+  update:
+    # Saturating bijection over the TWO most-URGENT appealable denied claims —
+    # the two with the EARLIEST appeal_deadline among the genuinely-appealable
+    # set (status==denied AND eob_available AND deadline not passed). The answer
+    # set is the PRECOMPUTED `top_2_urgent_appealable_claim_ids` (a STRICT subset
+    # of the appealable set). The backend will happily appeal ANY appealable
+    # denied claim, so it does NOT filter the non-urgent appealable claims for
+    # the agent — the agent must itself rank by appeal_deadline and select the
+    # two soonest. Saturation is required (both slots must match) and the
+    # named_invariant on this op forbids appealing any extra claim.
+    - entity: InsuranceClaim
+      desc: "Appeal exactly the two most-urgent appealable denied claims (earliest appeal_deadline; status -> appealed)"
+      bijection:
+        over: "target['top_2_urgent_appealable_claim_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        status: {eq: "appealed"}
+        # Gate guard: every claim that ends up appealed must have had its EOB
+        # available (one of the three backend appeal gates). A no-EOB denied
+        # decoy that was force-flipped to appealed cannot satisfy this, so the
+        # bijection slot for that decoy would fail to match.
+        eob_available: {expr: "x == True"}
+  invariant:
+    # Every claim NOT in the urgent-two answer set must be frozen. This now
+    # INCLUDES the non-urgent appealable denied claims (later deadlines) — which
+    # the backend WOULD let the agent appeal — making over-appealing a genuine,
+    # server-unblocked hazard. Filter scope exposes `a` + `target` only, so we
+    # use the precomputed scalar list `top_2_urgent_appealable_claim_ids`
+    # directly. comprehensive:true flags any unaccounted claim mutation.
+    - collection: state.claims
+      filter: "a.id not in target['top_2_urgent_appealable_claim_ids']"
+      preserve: ALL
+      comprehensive: true
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.providers
+      preserve: ALL
+  constraints:
+    # Cardinality guard: exactly two claims may end up in status 'appealed'.
+    # Catches under-appealing (filed only one urgent appeal) and over-appealing
+    # (filed a third — e.g. a later-deadline appealable claim the backend would
+    # have accepted) in a single expr the agent cannot satisfy by partial work.
+    - expr: "len([c for c in state.claims if c.status == 'appealed']) == 2"
+      severity: critical
+      desc: "Exactly two claims were appealed (no more, no fewer)"
+    # Urgency discriminator: the two appealed claims must be precisely the two
+    # earliest-deadline appealable claims. Expressed against the precomputed
+    # urgent-two list so the agent must rank by appeal_deadline, not by
+    # patient_responsibility or any other field. NOTE: in this seed the two
+    # HIGHEST-balance appealable claims are NOT the two most urgent, so an agent
+    # that appeals by dollar amount (a tempting wrong heuristic) fails here.
+    - expr: "set(c.id for c in state.claims if c.status == 'appealed') == set(target['top_2_urgent_appealable_claim_ids'])"
+      severity: critical
+      desc: "The two appealed claims are exactly the two with the earliest appeal deadlines"
+  named_invariants:
+    - name: "Agent did not appeal a non-urgent / non-appealable claim or modify/pay any claim outside the urgent-two set"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not appeal extra claims beyond the two most-urgent appealable denied claims"
+      ref: update[0]
+      severity: critical
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+    - name: "Agent did not modify providers"
+      ref: invariant[8]
+      severity: medium
+secondary_primitives: []

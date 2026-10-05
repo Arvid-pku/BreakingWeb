@@ -1,0 +1,223 @@
+task_id: amazon_multi_order_workflow
+env_id: amazon
+title: Place Two Separate Category Orders
+instruction_template: 'Place two separate orders. Order 1 should contain the electronics
+  items "{target.elec1_name}" and "{target.elec2_name}". Order 2 should contain the
+  books "{target.book1_name}" and "{target.book2_name}". Use the shipping address
+  for Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242 for
+  both orders. Make sure these are two distinct orders, not one combined order.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- planning
+secondary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 18
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Smart Home Hub Gen 3
+      brand: Amazon
+      category: Electronics
+      price: 99.99
+      rating: 4.5
+      features:
+      - Zigbee compatible
+      - Voice control
+      - Matter support
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_e1
+    - product_name_e1
+    - product_price_e1
+  - use: featured_product
+    params:
+      name: Wireless Charging Pad Duo
+      brand: Samsung
+      category: Electronics
+      price: 49.99
+      rating: 4.3
+      features:
+      - Dual device charging
+      - Qi compatible
+      - LED indicator
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_e2
+    - product_name_e2
+    - product_price_e2
+  - use: featured_product
+    params:
+      name: Clean Code Handbook
+      brand: Prentice Hall
+      category: Books
+      price: 39.99
+      rating: 4.7
+      features:
+      - Paperback
+      - 464 pages
+      - Programming classic
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_b1
+    - product_name_b1
+    - product_price_b1
+  - use: featured_product
+    params:
+      name: Designing Data-Intensive Applications
+      brand: OReilly Media
+      category: Books
+      price: 44.99
+      rating: 4.9
+      features:
+      - Paperback
+      - 616 pages
+      - Distributed systems
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_b2
+    - product_name_b2
+    - product_price_b2
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 200.0
+    outputs:
+    - catalog_elec
+  - use: product_catalog
+    params:
+      category: Books
+      count: 8
+      price_range:
+      - 10.0
+      - 60.0
+    outputs:
+    - catalog_books
+  targets:
+    elec1_name: Smart Home Hub Gen 3
+    elec1_id: '{output.product_id_e1}'
+    elec2_name: Wireless Charging Pad Duo
+    elec2_id: '{output.product_id_e2}'
+    book1_name: Clean Code Handbook
+    book1_id: '{output.product_id_b1}'
+    book2_name: Designing Data-Intensive Applications
+    book2_id: '{output.product_id_b2}'
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Electronics order with both electronics items only (size 2)
+    properties:
+      items:
+        expr: "len(x) == 2 and any(it['product_id'] == target['elec1_id'] for it in x) and any(it['product_id'] == target['elec2_id'] for it in x)"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Books order with both book items only (size 2)
+    properties:
+      items:
+        expr: "len(x) == 2 and any(it['product_id'] == target['book1_id'] for it in x) and any(it['product_id'] == target['book2_id'] for it in x)"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen Terrace' for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

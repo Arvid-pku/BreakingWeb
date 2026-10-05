@@ -1,0 +1,26 @@
+variant_id: reddit_feed_curation_expert__subreddit_collision
+base_task_id: reddit_feed_curation_expert
+target_primitive: grounding
+description: Two sibling communities (r/scienceDiscussion and r/Truescience, chosen by distinct naming attacks) mirror r/science's subscriber count and description, plus a same-title post in the wrong place. The agent must act in the exact subreddit named in the task, not a near-identical twin.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: scienceDiscussion
+      display_name: r/scienceDiscussion
+      description: Peer-reviewed scientific research and discussion across disciplines. Sub-focus community that specialises in one niche of the main sub.
+      subscribers: 31620000
+    - type: subreddit
+      name: Truescience
+      display_name: r/Truescience
+      description: Peer-reviewed scientific research and discussion across disciplines. Self-declared 'original' or 'rebooted' community that often appears in search beside the real sub.
+      subscribers: 13940000
+    - type: post
+      subreddit: scienceDiscussion
+      title: Interesting discussion thread
+      author: shadow_mod
+      score: 144
+      comments: 21
+      body: Same headline posted into the wrong, lookalike subreddit.

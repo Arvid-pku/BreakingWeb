@@ -1,0 +1,12 @@
+variant_id: gmail_change_setting__exploration_v4
+base_task_id: gmail_change_setting
+target_primitive: exploration
+description: The "Undo Send" setting has been moved from the General tab to the
+  Advanced tab in Settings. The agent must explore the secondary tab row to find
+  it — a realistic pattern where important controls are buried in non-default tabs.
+injections:
+- layer: client
+  params:
+    action: set_feature_flag
+    flag: undo_send_advanced
+    value: true

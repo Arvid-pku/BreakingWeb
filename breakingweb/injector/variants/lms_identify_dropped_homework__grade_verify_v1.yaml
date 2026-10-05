@@ -1,0 +1,37 @@
+variant_id: lms_identify_dropped_homework__grade_verify_v1
+base_task_id: lms_identify_dropped_homework
+target_primitive: verification
+description: A key LMS read or write initially returns a misleading success or stale
+  snapshot. The agent must verify the real persisted outcome.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    stale_body:
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      weighted_score: null
+      category_scores: {}
+      grades: []
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Grade review worksheet
+      assignment_type: homework
+      submission_status: graded
+      score: '92'
+      feedback: Reference score from a lower-weight practice item.
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Grade review clarification
+      body: Reminder that grade calculations should use the active syllabus weights.
+      priority: normal

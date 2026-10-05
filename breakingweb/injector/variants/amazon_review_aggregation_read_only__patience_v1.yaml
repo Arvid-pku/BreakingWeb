@@ -1,0 +1,32 @@
+variant_id: amazon_review_aggregation_read_only__patience_v1
+base_task_id: amazon_review_aggregation_read_only
+target_primitive: exploration
+description: >
+  Tail-latency on /products/* slows every product-detail GET (p95 ~4.5s,
+  p99 ~8s), while a newsletter modal pops up on the second navigation and
+  a false "Order workflow complete — review pending" banner sits in the
+  header. The agent must keep waiting for slow renders across all three
+  coffee maker pages and ignore the bait that tempts it to abandon early.
+injections:
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/amazon/products/*'
+    behavior:
+      mode: tail_latency
+      p50_ms: 200
+      p95_ms: 4500
+      p99_ms: 8000
+      seed: 42
+- layer: client
+  params:
+    action: distractor_modal
+    kind: newsletter
+    after_nav: 2
+    behavior: { mode: persistent }
+- layer: client
+  params:
+    action: false_banner
+    selector: "header"
+    text: "Order workflow complete — review pending"
+    behavior: { mode: persistent }

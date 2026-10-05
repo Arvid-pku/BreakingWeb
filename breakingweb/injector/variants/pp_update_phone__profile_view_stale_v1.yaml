@@ -1,0 +1,96 @@
+variant_id: pp_update_phone__profile_view_stale_v1
+base_task_id: pp_update_phone
+target_primitive: verification
+description: >-
+  Layered verification stressor that punishes trust-the-200 behavior. (A) The
+  first demographics save returns a LOUD 200 that echoes the agent's own
+  submitted values ("Saved.") while the backend silently drops the write
+  (misleading_success) -- the toast mirrors exactly what the agent typed, so an
+  agent that trusts the success will leave the real profile unchanged. (B) The
+  first profile re-fetch returns a STALE body whose phone/email/emergency_contact
+  are drifted to PLAUSIBLE-BUT-WRONG look-alikes (not blanks) while every other
+  identity field is intact, so the staleness is not obvious and the agent cannot
+  shortcut on "profile looks empty -> refresh"; it must reconcile field-by-field
+  against the carrier confirmation and re-submit. (C) Client save_drift mangles
+  the phone field on the optimistic UI so a submitted value can silently revert,
+  forcing post-write verification. Only an agent that re-derives the exact
+  target AND verifies persistence after the swallowed write satisfies the exact
+  eq predicates and the phone != initial / no-cross-wire constraints.
+injections:
+- layer: network
+  params:
+    # (A) misleading_success: the FIRST demographics write returns a 200 whose
+    # body echoes the agent's own submitted phone/email/emergency_contact (the
+    # toast reads "Saved." and mirrors exactly what was typed), but the write is
+    # NOT applied to the backend (call_next is skipped). fail_count:1 swallows
+    # only the first save, so a verified retry persists. This is the core
+    # verification trap: the success body looks perfect, yet GET /profile still
+    # shows the old data -- the agent must distrust the toast and re-save.
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/profile/demographics'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      id: patient_1
+      phone: '{request.phone}'
+      email: '{request.email}'
+      emergency_contact: '{request.emergency_contact}'
+      message: Saved.
+    behavior:
+      mode: once
+- layer: network
+  params:
+    # (B) stale_data on the profile GET: the FIRST read returns drifted
+    # look-alikes for the contact fields (phone with transposed digits, email
+    # with a hyphen, an EC phone that matches the patient's new number -- the
+    # cross-wire bait) while name/dob/sex/insurance/pcp/allergies/conditions are
+    # intact so the page does NOT look obviously broken. The agent cannot trust
+    # the displayed contact values and must reconcile against the carrier
+    # confirmation. Eval is state-grounded, so this only misleads the read; the
+    # authoritative backend write still decides the score.
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/profile**'
+    stale_count: 1
+    stale_body:
+      id: patient_1
+      name: Jordan Casey
+      sex: female
+      dob: '1986-04-12'
+      phone: (555) 867-5390
+      email: jordan.casey@meridian-health.org
+      insurance_plan:
+        plan_name: Silver PPO Plan
+        member_id: MBR-PENDING
+        group_number: GRP-PENDING
+        copay: '30'
+        deductible: '2000'
+        deductible_met: '0'
+      pcp_id: prov_1
+      allergies: []
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      pharmacy_ids: []
+      emergency_contact:
+        name: Morgan Pratt
+        phone: (555) 867-5309
+        relationship: Parent
+      applicable_screenings: []
+      default_pharmacy: null
+    behavior:
+      mode: once
+- layer: client
+  params:
+    # (C) save_drift on the demographics form phone field: on submit, the
+    # optimistic UI mangles the phone value (text fallback appends a trailing
+    # character) so the displayed/submitted value can silently diverge from
+    # what the agent intended, forcing post-write verification rather than
+    # trusting the form's own state.
+    action: save_drift
+    form_selector: form
+    field: phone
+    offset: 1
+    apply_count: 1
+    behavior:
+      mode: persistent

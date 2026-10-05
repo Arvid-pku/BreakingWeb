@@ -1,0 +1,70 @@
+variant_id: booking_search_and_book__property_twin
+base_task_id: booking_search_and_book
+target_primitive: grounding
+description: Near-identical Le Marais properties appear alongside the target,
+  AND the first POST to /reservations silently fails (returns 200 with a
+  fake confirmation number but persists nothing). Agent must verify the
+  booking actually landed in addition to picking the right hotel.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/reservations'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      ok: true
+      reservation_id: "res_pending"
+      confirmation_number: "CONF-PENDING"
+      message: "Reservation request received"
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Four near-typo siblings of "Le Marais Grand Hotel". rs > target's
+    # 8.9 to lure rating sorts. Only the real one has a "Deluxe King
+    # Room", so an agent that picks a decoy can't complete the booking
+    # step (decoys carry only the default base-template room).
+    - type: property
+      name: Le Marais Grande Hotel       # Grand → Grande (extra e)
+      city: Paris
+      country: France
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.1
+      review_count: 860
+      price: 290.0
+      description: Nearly identical property name with slightly different review profile.
+    - type: property
+      name: Le Maraix Grand Hotel        # Marais → Maraix
+      city: Paris
+      country: France
+      property_type: Hotel
+      star_rating: 4
+      review_score: 9.0
+      review_count: 640
+      price: 288.0
+      description: Similar branding can distract from the exact property match.
+    - type: property
+      name: Le Marais Grandd Hotel       # Grand → Grandd (double d)
+      city: Paris
+      country: France
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.2
+      review_count: 720
+      price: 292.0
+      description: Doubled consonant on the descriptor word.
+    - type: property
+      name: Le Marrais Grand Hotel       # Marais → Marrais (double r)
+      city: Paris
+      country: France
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.3
+      review_count: 540
+      price: 287.0
+      description: Doubled consonant in the neighborhood name.

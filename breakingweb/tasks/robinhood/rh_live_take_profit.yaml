@@ -1,0 +1,119 @@
+task_id: rh_live_take_profit
+env_id: robinhood
+title: Take Profit with Limit Sell
+instruction_template: You own 10 shares of TSLA bought at an average of $220. Set
+  a limit sell for your entire TSLA position at $260 or above to lock in profits.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 8
+primary_primitives:
+- patience
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - TSLA
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - TSLA
+      quantities:
+      - '10'
+      cost_bases:
+      - '220.00'
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      TSLA:
+        keyframes:
+        - - 0
+          - 248.0
+        - - 20
+          - 265.0
+        - - 35
+          - 260.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: TSLA limit sell of 10 shares at ≥$260, filled
+    properties:
+      symbol: {eq: TSLA}
+      side: {eq: sell}
+      order_type: {eq: limit}
+      quantity: {eq: 10}
+      limit_price: {expr: "x is not None and x >= Decimal('260')"}
+      status: {eq: filled}
+      filled_quantity: {eq: 10}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded by the TSLA fill
+    properties:
+      type: {eq: sell}
+      symbol: {eq: TSLA}
+      quantity: {eq: 10}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted by the TSLA sell
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+  delete:
+  - entity: positions
+    desc: TSLA position fully liquidated by the sell-fill of all 10 shares
+    where:
+      symbol: {eq: TSLA}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol != 'TSLA'"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  constraints:
+  - desc: TSLA take-profit order filled at or above the $260 trigger
+    expr: any(o.symbol == 'TSLA' and o.side == 'sell' and o.order_type ==
+      'limit' and o.status == 'filled' and o.filled_tick is not None and
+      o.filled_price is not None and o.filled_price >= Decimal('260') for o in
+      state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures planning, patience, grounding by requiring exact completion
+  of the requested Robinhood workflow while ignoring distractor account state.

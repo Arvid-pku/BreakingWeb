@@ -1,0 +1,67 @@
+variant_id: gmail_vacation_preparation__state_tracking
+base_task_id: gmail_vacation_preparation
+target_primitive: state_tracking
+description: Multiple action failures stress sequencing of vacation setup (filters,
+  labels, settings, delegation)
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/labels'
+    methods: [POST, PUT, PATCH]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+      message: Label creation temporarily failed
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/filters'
+    methods: [POST, PUT, PATCH]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+      message: Filter creation temporarily failed
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/settings'
+    methods:
+    - PUT
+    - PATCH
+    response_body:
+      settings:
+        id: settings_gmail
+        signature: ''
+        forwarding_address: ''
+        display_density: comfortable
+        vacation_responder_enabled: false
+        vacation_responder_message: ''
+        auto_advance: newer
+        language: English (US)
+        input_tools_enabled: true
+        right_to_left: false
+        max_page_size: 50
+        undo_send_seconds: 5
+        default_reply_behavior: reply
+        hover_actions_enabled: true
+        send_and_archive: false
+        default_text_style: Sans Serif
+    fail_count: 2
+    behavior:
+      mode: once
+      message: Settings update appeared successful but actually failed
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 15
+    topical_count: 6
+    topical_subjects:
+    - 'Re: Out of office setup'
+    - 'Fwd: Vacation delegation needed'
+    - 'Thread: Auto-reply configuration'
+    - 'Re: Email management while away'
+    - 'Fwd: OOO checklist'
+    - 'Re: Handoff instructions'

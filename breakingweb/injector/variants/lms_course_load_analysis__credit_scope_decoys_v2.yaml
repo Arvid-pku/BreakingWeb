@@ -1,0 +1,62 @@
+variant_id: lms_course_load_analysis__credit_scope_decoys_v2
+base_task_id: lms_course_load_analysis
+target_primitive: planning
+description: Non-enrolled (completed/waitlisted) decoy courses with attractive credit
+  hours are added to the record, a contradictory advisor "you are clear to add" notice
+  is posted, and the grades endpoint returns a stale snapshot once. The agent must
+  plan the credit-weighted decision over ONLY its currently-enrolled courses and
+  recompute each course's weighted grade from the persisted data, not trust the
+  decoys or the short-circuit notice.
+injections:
+# SEED layer — attack the credit-scope discriminator. Inject extra NON-ENROLLED
+# decoy courses (completed) carrying real, attractive credit hours. They do not
+# change the enrolled set (so can_add_course / lowest_performing_course_id stay
+# valid), but an agent that sums credits over every visible course inflates the
+# current credit total, projects a GPA >= 3.0, and flips the safe/not-safe branch.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: course
+      course_code: HIST201
+      title: Modern World History
+      credits: 4
+      status: completed
+      final_grade: 'A'
+    - type: course
+      course_code: ART201
+      title: Studio Art Practicum
+      credits: 3
+      status: waitlisted
+    - type: announcement
+      course_code: HIST201
+      title: Transcript note - completed coursework
+      body: Your completed coursework still appears in your records for transcript purposes.
+      priority: normal
+# SERVER layer — post a contradictory advisor notice claiming the decision is
+# already settled ("clear to add"), tempting the agent to short-circuit the
+# credit-weighted recomputation instead of deriving the projected GPA itself.
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    course_id: '{target.lowest_performing_course_id}'
+    type: announcement
+    title: Advisor note - course load
+    body: 'Advisor note: based on a quick look you appear clear to add another course
+      this term. Confirm against your own credit-weighted projection before acting.'
+    priority: urgent
+    minutes_offset: 25
+# NETWORK layer — return a stale grades snapshot once so the agent cannot trust the
+# first weighted-grade read and must re-fetch to identify the true lowest-weighted
+# enrolled course. Raises state-tracking cost on the second discriminator.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    stale_body:
+      weighted_score: null
+      category_scores: {}
+      grades: []
+    stale_count: 1
+    behavior:
+      mode: once

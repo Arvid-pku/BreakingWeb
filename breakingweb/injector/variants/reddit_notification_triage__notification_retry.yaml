@@ -1,0 +1,17 @@
+variant_id: reddit_notification_triage__notification_retry
+base_task_id: reddit_notification_triage
+target_primitive: backtracking
+description: First two writes return a fake 200 with a realistic body but never persist. Frontier agents that only retry on visible errors need to verify state via re-read; otherwise the canonical_diff predicate fails.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/notifications/mark-all-read'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      ok: true
+      marked_read: 0
+    behavior:
+      mode: once

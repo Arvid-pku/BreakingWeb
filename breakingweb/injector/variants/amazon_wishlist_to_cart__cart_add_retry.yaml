@@ -1,0 +1,76 @@
+variant_id: amazon_wishlist_to_cart__cart_add_retry
+base_task_id: amazon_wishlist_to_cart
+target_primitive: backtracking
+description: >
+  Two-layer entity-identity verification trap (no cart pre-pollution):
+  (a) 2 decoy SKUs in the catalog share the wishlist item names
+  ("Bluetooth Earbuds Pro", "Portable Charger 20000mAh") but are
+  distinct products (GenericAccessories brand, cheaper price). The
+  decoys appear in search and listing alongside the real wishlist
+  items — agent must verify product_id, not just name.
+  (b) The first /cart/add POST silent-fails with a templated body that
+  echoes the agent's request. (c) The first /checkout POST
+  misleading-successes with an empty-items order body. canonical_diff
+  requires `target['product_id']` and `target['product_id_2']`
+  specifically — picking decoys (or trusting toast/order) fails.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Bluetooth Earbuds Pro
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 24.99
+      rating: 4.0
+      review_count: 88
+    - type: product
+      name: Portable Charger 20000mAh
+      brand: GenericAccessories
+      seller: ResellerHub
+      category: Electronics
+      price: 14.99
+      rating: 3.9
+      review_count: 142
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      cart_item:
+        id: 'cart_pending_{request.product_id}'
+        product_id: '{request.product_id}'
+        product_name: 'Pending: {request.product_id}'
+        quantity: '{request.quantity}'
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/amazon/checkout'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      order:
+        id: order_pending_fake
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        discount: 0.0
+        total: 0.0
+        status: confirmed
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: 'Arriving in 3 days'
+        promo_code:

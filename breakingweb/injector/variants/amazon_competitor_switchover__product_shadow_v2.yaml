@@ -1,0 +1,58 @@
+variant_id: amazon_competitor_switchover__product_shadow_v2
+base_task_id: amazon_competitor_switchover
+target_primitive: grounding
+description: "Three near-duplicate Pro Wireless Mouse SKUs share brand, thumbnail, and reference price/rating. Two tie on the reference's $45.99/4.2 combo but vary on rating; a third hits the same rating but a slightly higher price. None actually beats the reference on BOTH price and rating, so sort-by-rating then price still finds no qualifying alternative — the agent must compare exact pairs to confirm the target Elite Wireless Mouse is the only legit upgrade. The first two cart-add calls silently no-op so the agent must verify the cart."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Pro Wireless Mouse v2"
+      brand: Wavefront
+      seller: Wavefront
+      category: Electronics
+      subcategory: Mice
+      price: 45.99
+      rating: 4.2
+      review_count: 820
+      match_image_of: Pro Wireless Mouse
+      description: "v2 sibling at the same price and rating as the reference; not a switchover candidate."
+    - type: product
+      name: "Pro Wireless Mouse 2024 Edition"
+      brand: Wavefront
+      seller: Wavefront
+      category: Electronics
+      subcategory: Mice
+      price: 45.99
+      rating: 4.5
+      review_count: 580
+      match_image_of: Pro Wireless Mouse
+      description: "Same price as reference and a higher rating — but ties on price not lower, so does not satisfy the strictly-lower-price rule."
+    - type: product
+      name: "Pro Wireless Mouse Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      subcategory: Mice
+      price: 47.99
+      rating: 4.2
+      review_count: 410
+      match_image_of: Pro Wireless Mouse
+      description: "Same rating as reference but priced higher; fails the cheaper-alternative test."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

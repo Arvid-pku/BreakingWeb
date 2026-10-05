@@ -1,0 +1,21 @@
+variant_id: rh_diagnose_portfolio_drop__market_notice_shadow
+base_task_id: rh_diagnose_portfolio_drop
+target_primitive: verification
+description: Notifications overemphasize a broad market move and a non-critical ticker. The agent must
+  still identify the actual losing positions before creating protective alerts.
+injections:
+- layer: seed
+  params:
+    action: add_decoy_notifications
+    multiplier: 2
+    decoys:
+    - type: price_alert
+      title: SPY market stress alert
+      message: The S&P 500 is sliding faster than usual today. Broad market noise may not explain your
+        portfolio-specific drop.
+      is_read: false
+    - type: price_alert
+      title: '{target.worst_symbol} watchlist headline'
+      message: Headline move detected on a watchlist symbol. Confirm portfolio losses directly before
+        placing alerts.
+      is_read: false

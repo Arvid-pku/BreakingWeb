@@ -1,0 +1,31 @@
+variant_id: lms_compare_late_policies__assignment_update_shadow_v2
+base_task_id: lms_compare_late_policies
+target_primitive: state_tracking
+description: Relevant LMS state is updated after the first clue, so the agent must
+  keep tracking the current object and not anchor on the initial snapshot.
+injections:
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    course_id: '{target.most_lenient_course_id}'
+    type: announcement
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/grades/*'
+    stale_body:
+      assignment_id: '{target.missing_assignment_id}'
+      assignment_title: Assignment
+      score: null
+      points_possible: '100'
+      feedback: null
+      submission_status: graded
+      grade: null
+    stale_count: 1
+    behavior:
+      mode: once

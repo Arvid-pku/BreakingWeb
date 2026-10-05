@@ -1,0 +1,30 @@
+variant_id: pp_pay_claim__claim_pay_verification_v1
+base_task_id: pp_pay_claim
+target_primitive: verification
+description: The first claim payment returns a fake success while leaving the balance unpaid. The agent must verify the patient responsibility actually changed to zero.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/claims/*/pay'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: clm_fake_paid
+      service_date: '2026-01-10'
+      provider_id: prov_fake
+      appointment_id: apt_fake
+      procedure_code: '99213'
+      diagnosis_code: I10
+      status: approved
+      amount_billed: '180.00'
+      amount_covered: '140.00'
+      patient_responsibility: '0.00'
+      eob_available: true
+      appeal_deadline: '2026-12-31T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    behavior:
+      mode: once

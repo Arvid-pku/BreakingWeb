@@ -1,0 +1,267 @@
+task_id: gmail_cross_team_filter_audit
+env_id: gmail
+title: Cross-Team Filter Audit with Conflict Resolution
+instruction_template: 'Three team leads have each sent you an email requesting Gmail
+  filters for their teams:
+
+  - Alice Martinez (alice.martinez@frontend.company.org): "Frontend team filter requests"
+
+  - Bob Nakamura (bob.nakamura@backend.company.org): "Backend infra filter requests"
+
+  - Clara Johansson (clara.johansson@data.company.org): "Data team filter requests"
+
+
+  Read all three emails and identify any conflicts — filters from different teams
+  that match the same from-address with different actions. Then:
+
+  (1) Compose and send an email to admin@company.org with subject "Filter conflict
+  report" listing each conflict: the from-address, the two conflicting team leads,
+  and each lead''s requested action. Do not propose a resolution — only report the
+  conflicts.
+
+  (2) Create all filters that do NOT conflict (whose from-address is requested by
+  only one team lead). Read each email carefully — Clara''s email has a 4th request
+  in a separate paragraph at the bottom.
+
+  (3) For each team lead, create a label named "Team/{LeadLastName}" and apply it
+  to all emails in the inbox from that lead''s domain (*@frontend.company.org, *@backend.company.org,
+  *@data.company.org).
+
+
+'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 75
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: cross_team_filter_audit
+    params: {}
+    outputs:
+    - alice_email_id
+    - bob_email_id
+    - clara_email_id
+    - derek_email_id
+    - newsletter_decoy_id
+    - forwarded_chain_email_id
+    - frontend_domain_email_ids
+    - backend_domain_email_ids
+    - data_domain_email_ids
+    - conflict_addresses
+    - non_conflicting_filter_specs
+  targets:
+    alice_email_id: '{output.alice_email_id}'
+    bob_email_id: '{output.bob_email_id}'
+    clara_email_id: '{output.clara_email_id}'
+    derek_email_id: '{output.derek_email_id}'
+    newsletter_decoy_id: '{output.newsletter_decoy_id}'
+    forwarded_chain_email_id: '{output.forwarded_chain_email_id}'
+    frontend_domain_email_ids: '{output.frontend_domain_email_ids}'
+    backend_domain_email_ids: '{output.backend_domain_email_ids}'
+    data_domain_email_ids: '{output.data_domain_email_ids}'
+    conflict_addresses: '{output.conflict_addresses}'
+    non_conflicting_filter_specs: '{output.non_conflicting_filter_specs}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Send filter conflict report email to admin
+      count: 1
+      properties:
+        to:
+          expr: "x == ['admin@company.org']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: "Filter conflict report"
+        body:
+          substring_all:
+            - deploy@ci.company.org
+            - errors@sentry.company.org
+        in_reply_to:
+          eq: null
+    - entity: labels
+      desc: Create Team/Martinez label
+      count: 1
+      properties:
+        name:
+          eq: "Team/Martinez"
+    - entity: labels
+      desc: Create Team/Nakamura label
+      count: 1
+      properties:
+        name:
+          eq: "Team/Nakamura"
+    - entity: labels
+      desc: Create Team/Johansson label
+      count: 1
+      properties:
+        name:
+          eq: "Team/Johansson"
+    - entity: filters
+      desc: Create filter for reviews@github-frontend with Frontend/Reviews label
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "reviews@github-frontend.company.org"
+        add_labels:
+          set_eq:
+            - Frontend/Reviews
+    - entity: filters
+      desc: Create filter for design@figma with Frontend/Design label and star
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "design@figma.company.org"
+        add_labels:
+          set_eq:
+            - Frontend/Design
+        star:
+          eq: true
+    - entity: filters
+      desc: Create filter for alerts@pagerduty with Backend/Alerts label, star and archive
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "alerts@pagerduty.company.org"
+        add_labels:
+          set_eq:
+            - Backend/Alerts
+        star:
+          eq: true
+        archive:
+          eq: true
+    - entity: filters
+      desc: Create filter for metrics@grafana with Backend/Metrics label
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "metrics@grafana.company.org"
+        add_labels:
+          set_eq:
+            - Backend/Metrics
+    - entity: filters
+      desc: Create filter for pipelines@airflow with Data/Pipelines label and archive
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "pipelines@airflow.company.org"
+        add_labels:
+          set_eq:
+            - Data/Pipelines
+        archive:
+          eq: true
+    - entity: filters
+      desc: Create filter for notebooks@jupyter with Data/Notebooks label
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "notebooks@jupyter.company.org"
+        add_labels:
+          set_eq:
+            - Data/Notebooks
+    - entity: filters
+      desc: Create filter for queries@warehouse with Data/Queries label and mark read
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "queries@warehouse.company.org"
+        add_labels:
+          set_eq:
+            - Data/Queries
+        mark_read:
+          eq: true
+  update:
+    - entity: emails
+      desc: Apply Team/Martinez label to all frontend domain emails
+      bijection:
+        over: "target['frontend_domain_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - "Team/Martinez"
+    - entity: emails
+      desc: Apply Team/Nakamura label to all backend domain emails
+      bijection:
+        over: "target['backend_domain_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - "Team/Nakamura"
+    - entity: emails
+      desc: Apply Team/Johansson label to all data domain emails
+      bijection:
+        over: "target['data_domain_email_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        labels:
+          superset:
+            - "Team/Johansson"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['frontend_domain_email_ids'] and a.id not in target['backend_domain_email_ids'] and a.id not in target['data_domain_email_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Team/Martinez', 'Team/Nakamura', 'Team/Johansson', 'Frontend/Reviews', 'Frontend/Design', 'Backend/Alerts', 'Backend/Metrics', 'Data/Pipelines', 'Data/Notebooks', 'Data/Queries']"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent filter conflict report to admin
+      ref: create[0]
+      severity: high
+    - name: Agent created Team/Martinez label
+      ref: create[1]
+      severity: high
+    - name: Agent created Team/Nakamura label
+      ref: create[2]
+      severity: high
+    - name: Agent created Team/Johansson label
+      ref: create[3]
+      severity: high
+    - name: Agent created non-conflicting filters
+      ref: create[4]
+      severity: high
+    - name: Agent labeled frontend domain emails
+      ref: update[0]
+      severity: high
+    - name: Agent labeled backend domain emails
+      ref: update[1]
+      severity: high
+    - name: Agent labeled data domain emails
+      ref: update[2]
+      severity: high

@@ -1,0 +1,313 @@
+task_id: reddit_full_platform_overhaul
+title: Full Platform Overhaul
+instruction_template: '1. Unsave all posts from r/memes. Unsubscribe from r/memes.
+
+  2. Subscribe to r/{target.join}, r/Piracy, r/dataisbeautiful.
+
+  3. Block u/CryptoSkeptic.
+
+  4. Create post in r/{target.join}: title "{target.post_title}" body "{target.post_body}".
+
+  5. In r/worldnews find "{target.wn_title}". Upvote, save, comment: "{target.wn_comment}"
+
+  6. In r/programming find "{target.prog_title}". Save it.
+
+  7. Send message to u/{target.msg_to} subject "{target.msg_sub}" body: "{target.msg_body}"
+
+  8. Settings: theme "dark", compact on, feed sort "top", comment sort "new", disable all email notifications, disable show online status.
+
+  9. Mark all messages and notifications read.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- state_tracking
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_ids
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Global carbon emissions fall for first time without economic recession
+      body: IEA data.
+      score: 55000
+    outputs:
+    - wn_id
+    - wn_title
+    - wn_sub
+  - use: target_post
+    params:
+      subreddit: programming
+      title: How we reduced our CI/CD pipeline from 45 minutes to 3 minutes
+      body: Caching and parallelization.
+      author: CompileError
+      score: 11000
+    outputs:
+    - prog_id
+    - prog_title
+    - prog_sub
+  - use: target_comment
+    params:
+      post_id: '{output.prog_id}'
+      body: Test selection based on code coverage diff is the biggest win here.
+      author: DeepDiver
+      score: 2100
+    outputs:
+    - reply_id
+    - reply_body
+  - use: target_message
+    params:
+      from_user: DigitalSage
+      subject: Collaboration request
+      body: Want to work together?
+      is_read: false
+    outputs:
+    - r_id
+    - r_sub_msg
+    - r_from
+  - use: target_message
+    params:
+      from_user: ryushin6
+      subject: FREE NFT DROP!!!
+      body: Spam.
+      is_read: false
+    outputs:
+    - del_id
+    - del_sub_msg
+    - del_from
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Why blockchain will never replace traditional databases
+      body: A CTO's perspective.
+      author: CryptoSkeptic
+      score: 800
+    outputs:
+    - block_post_id
+    - block_post_title
+    - block_post_sub
+  targets:
+    initial_subscriptions: '{output.subscriptions}'
+    join: MachineLearning
+    wn_title: '{output.wn_title}'
+    wn_id: '{output.wn_id}'
+    wn_comment: Renewables are delivering. This is the turning point.
+    prog_title: '{output.prog_title}'
+    prog_id: '{output.prog_id}'
+    sub1: '{output.wn_sub}'
+    p1: '{output.wn_title}'
+    c1: Finally good climate news.
+    sub2: '{output.prog_sub}'
+    p2: '{output.prog_title}'
+    c2: Great CI/CD improvements.
+    r1_auth: DeepDiver
+    r1_hint: code coverage
+    r1_text: Coverage diff is the key insight.
+    ra: DeepDiver
+    rh: code coverage
+    rt: Coverage diff is the key insight.
+    reply_id: '{output.reply_id}'
+    r_from: '{output.r_from}'
+    r_sub: '{output.r_sub_msg}'
+    r_body: Sounds great, let us connect next week.
+    del_sub: '{output.del_sub_msg}'
+    del_id: '{output.del_id}'
+    vote_sub: '{output.wn_sub}'
+    vote_title: '{output.wn_title}'
+    save_sub: '{output.prog_sub}'
+    save_title: '{output.prog_title}'
+    comment_sub: '{output.prog_sub}'
+    comment_title: '{output.prog_title}'
+    ct: Excellent pipeline optimization.
+    pt: Practical guide to deploying ML models with FastAPI
+    pb: From local dev to production Kubernetes.
+    post_title: Practical guide to deploying ML models with FastAPI
+    post_body: From local dev to production Kubernetes.
+    msg_to: CompileError
+    mt: CompileError
+    msg_sub: Your CI/CD post
+    ms: Your CI/CD post
+    msg_body: Loved your pipeline optimization post. Would you share the caching config?
+    mb: Loved your pipeline optimization post. Would you share the caching config?
+    block_post_id: '{output.block_post_id}'
+canonical_diff:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    desc: Mark every unread notification as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Message
+    collection: messages
+    bijection:
+      over: '[m.id for m in initial.messages if not m.is_read]'
+      variable: v
+    desc: Mark every unread inbox message as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Upvote and save the worldnews target post
+    where:
+      id:
+        expr: x == target['wn_id']
+    changes:
+      vote_direction:
+        eq: 1
+      is_saved:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Save the programming target post
+    where:
+      id:
+        expr: x == target['prog_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    collection: posts
+    bijection:
+      over: '[p.id for p in initial.posts if p.subreddit_name == ''memes'' and p.id in initial.saved_post_ids]'
+      variable: v
+    desc: 'Unsave the memes posts (instruction: unsave all posts from r/memes)'
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_saved:
+        eq: false
+  - entity: Subreddit
+    collection: subreddits
+    bijection:
+      over: '[target[''join''], ''Piracy'', ''dataisbeautiful'']'
+      variable: v
+    desc: Subscribe to each required subreddit
+    where:
+      id:
+        expr: state.get_subreddit(x).name == v
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Subreddit
+    collection: subreddits
+    desc: Unsubscribe from r/memes
+    where:
+      id:
+        expr: state.get_subreddit(x).name == 'memes'
+    changes:
+      is_subscribed:
+        eq: false
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      compact_view: {eq: true}
+      default_feed_sort: {eq: top}
+      default_comment_sort: {eq: new}
+      email_comment_reply: {eq: false}
+      email_post_reply: {eq: false}
+      email_mentions: {eq: false}
+      email_messages: {eq: false}
+      email_digest: {eq: false}
+      show_online_status: {eq: false}
+  create:
+  - entity: Post
+    collection: posts
+    desc: Create the post in r/{join} with exact title and body
+    properties:
+      subreddit_name:
+        expr: x == target['join']
+      title:
+        expr: x == target['post_title']
+      body:
+        expr: x == target['post_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    collection: comments
+    desc: Comment on the worldnews post containing the target text
+    properties:
+      post_id:
+        expr: x == target['wn_id']
+      body:
+        expr: x == target['wn_comment']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Message
+    collection: sent_messages
+    desc: Send the message to the target recipient with exact body
+    properties:
+      to_user:
+        expr: x == target['msg_to']
+      subject:
+        expr: x == target['msg_sub']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: "'CryptoSkeptic' in state.blocked_users and all(u in initial.blocked_users or u == 'CryptoSkeptic' for u in state.blocked_users)"
+    desc: Required blocked-users side effect enforced
+    severity: critical
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

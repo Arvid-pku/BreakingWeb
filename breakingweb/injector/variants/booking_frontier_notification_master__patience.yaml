@@ -1,0 +1,12 @@
+variant_id: booking_frontier_notification_master__patience_v1
+base_task_id: booking_frontier_notification_master
+target_primitive: patience
+description: Every API response is delayed by 2-4 seconds, testing whether the agent
+  waits for each operation to complete.
+injections:
+- layer: server
+  params:
+    action: slow_responses
+    endpoints:
+    - path_pattern: .*
+      delay_ms: 3000

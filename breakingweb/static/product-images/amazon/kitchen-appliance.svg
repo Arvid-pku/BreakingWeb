@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Kitchen appliance">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <path d="M140 92h86c52 0 94 42 94 94v26H174c-44 0-80-36-80-80 0-22 18-40 40-40z" fill="#e5e7eb" stroke="#94a3b8" stroke-width="8"/>
+  <path d="M154 116h66c38 0 70 31 70 70v2H176c-34 0-62-28-62-62 0-6 5-10 10-10z" fill="#ffffff"/>
+  <path d="M104 218h224v54c0 20-16 36-36 36H140c-20 0-36-16-36-36z" fill="#111827"/>
+  <path d="M132 244h168" stroke="#475569" stroke-width="12" stroke-linecap="round"/>
+  <path d="M168 308h96l18 38H150z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="8"/>
+  <circle cx="256" cy="156" r="18" fill="#ff9900"/>
+  <path d="M202 218c0 34-20 64-44 64s-44-30-44-64z" fill="#f59e0b"/>
+  <path d="M190 218c0 24-14 44-32 44s-32-20-32-44z" fill="#fcd34d"/>
+</svg>

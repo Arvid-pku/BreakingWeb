@@ -1,0 +1,28 @@
+variant_id: amazon_duplicate_order_cleanup__duplicate_shadow
+base_task_id: amazon_duplicate_order_cleanup
+target_primitive: grounding
+description: >
+  A third near-duplicate order sits in order history for a product with
+  almost the same name as the target — same brand, same category, same
+  price, placed between the two target timestamps. The agent must cancel
+  only the newer of the two TRUE duplicates and not touch the decoy.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Stainless Steel Pour Kettle 1.2L Deluxe
+      brand: BrightHearth
+      category: Home & Kitchen
+      price: 64.50
+      rating: 4.5
+      match_image_of: Stainless Steel Pour Kettle 1.2L
+      description: Deluxe sibling SKU — same brand, price, and thumbnail; a distinct product from the target kettle.
+    - type: order
+      product_name: Stainless Steel Pour Kettle 1.2L Deluxe
+      quantity: 1
+      unit_price: 64.50
+      status: confirmed
+      placed_hours_ago: 36
+      estimated_delivery: Arriving in 3 days

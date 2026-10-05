@@ -1,0 +1,101 @@
+task_id: reddit_curate_saved
+env_id: reddit
+title: Curate Saved Posts Collection
+instruction_template: 'You previously saved a post by mistake. Go to your Saved page, find the post titled "{target.unsave_post_title}" and unsave it.
+
+  Then navigate to r/technology and save the post titled "{target.save_post_title}".
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: personalfinance
+      title: Is a Roth IRA conversion worth it if I'm already in the 32% bracket?
+      body: My accountant suggested converting my traditional IRA but the tax hit seems brutal.
+      score: 3200
+    outputs:
+    - unsave_post_id
+    - unsave_post_title
+    - unsave_subreddit_name
+  - use: saved_posts
+    params:
+      post_ids:
+      - '{output.unsave_post_id}'
+    outputs:
+    - saved_post_ids
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Cloudflare Blocks Largest-Ever DDoS Attack at 5.6 Tbps
+      body: The attack targeted a major financial services provider and lasted approximately 80 seconds before mitigation kicked in.
+      score: 9870
+      flair_text: Security
+    outputs:
+    - save_post_id
+    - save_post_title
+    - save_subreddit_name
+  targets:
+    unsave_post_title: '{output.unsave_post_title}'
+    unsave_post_id: '{output.unsave_post_id}'
+    save_post_title: '{output.save_post_title}'
+    save_post_id: '{output.save_post_id}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Unsave the Roth IRA post
+    where:
+      id:
+        expr: "x == target['unsave_post_id']"
+    changes:
+      is_saved:
+        eq: false
+  - entity: Post
+    desc: Save the Cloudflare post
+    where:
+      id:
+        expr: "x == target['save_post_id']"
+    changes:
+      is_saved:
+        eq: true
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['unsave_post_id'] and a.id != target['save_post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent unsaved the Roth IRA post
+    ref: update[0]
+    severity: high
+  - name: Agent saved the Cloudflare post
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+secondary_primitives: []

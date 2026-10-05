@@ -1,0 +1,86 @@
+variant_id: pp_provider_transition__slot_search_stale_v1
+base_task_id: pp_provider_transition
+target_primitive: planning
+description: >
+  The planning spine of this task is the ordered book->verify->confirm sequence
+  for the referral's NAMED endocrinologist. This variant attacks that sequence
+  at every joint. (1) The first three available-slot lookups return no
+  availability, so the agent must keep the earliest-slot derivation plan alive
+  and retry instead of abandoning the workflow or booking the wrong (closed-panel)
+  provider. (2) The first appointment-create POST returns a fake "scheduled"
+  response WITHOUT persisting, so the agent must verify the appointment actually
+  exists in the real appointment list before moving on. (3) The first confirm
+  POST returns a fake "confirmed" response WITHOUT persisting, so the appointment
+  is left with confirmation_state=="pending" unless the agent re-reads the
+  appointment and re-confirms. (3) targets the exact load-bearing predicate the
+  strongest models miss: the second step of the mandatory endocrinology
+  confirmation workflow.
+injections:
+# 1) Planning sub-plan: persist the earliest-slot derivation through repeated
+#    empty slot views (escalated from stale_count:1 to 3).
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/appointments/available-slots**'
+    stale_body:
+      items: []
+    stale_count: 3
+    behavior:
+      mode: once
+# 2) Planning/verification: the first booking silently fails to persist. The
+#    agent must verify the appointment exists before attempting to confirm it.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/appointments/create'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: apt_e7b913aa4c
+      provider_id: prov_3
+      datetime: '2026-06-15T13:00:00+00:00'
+      duration_minutes: 30
+      type: in-person
+      status: scheduled
+      reason: Endocrinology transfer of care
+      notes: ''
+      linked_referral_id: ref_1
+      pre_auth_status: not_required
+      booked_at: '2026-06-01T08:00:00+00:00'
+      location: Main Campus
+      requires_confirmation: true
+      confirmation_state: pending
+      confirmed_at: null
+    behavior:
+      mode: once
+# 3) Planning sequencing: the first CONFIRM silently fails to persist. A
+#    swallowed fake "confirmed" body is indistinguishable from real success, so
+#    an agent that does not re-read the appointment leaves confirmation_state at
+#    "pending" and fails the mandatory two-step workflow. This is the exact step
+#    the strongest models forget.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/appointments/*/confirm**'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: apt_e7b913aa4c
+      provider_id: prov_3
+      datetime: '2026-06-15T13:00:00+00:00'
+      duration_minutes: 30
+      type: in-person
+      status: scheduled
+      reason: Endocrinology transfer of care
+      notes: ''
+      linked_referral_id: ref_1
+      pre_auth_status: not_required
+      booked_at: '2026-06-01T08:00:00+00:00'
+      location: Main Campus
+      requires_confirmation: true
+      confirmation_state: confirmed
+      confirmed_at: '2026-06-01T08:05:00+00:00'
+    behavior:
+      mode: once

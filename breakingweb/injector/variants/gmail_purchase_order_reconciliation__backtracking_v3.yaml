@@ -1,0 +1,19 @@
+variant_id: gmail_purchase_order_reconciliation__backtracking_v3
+base_task_id: gmail_purchase_order_reconciliation
+target_primitive: backtracking
+description: Mid-task PO number correction forcing memory update
+injections:
+- layer: seed
+  params:
+    action: add_contradictory_update
+    email_id: po_correction
+    thread_id: po_correction_t
+    from_name: Procurement
+    from: procurement@thornton.com
+    to:
+    - me@thornton.com
+    subject: 'CORRECTION: PO-2024-0892 should be PO-2024-0893'
+    body: Data entry error discovered. PO number changed.
+    labels:
+    - inbox
+    timestamp: '2026-01-15T15:00:00Z'

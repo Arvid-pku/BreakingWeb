@@ -1,0 +1,19 @@
+variant_id: lms_submission_sprint__assignment_ordering_shift_v1
+base_task_id: lms_submission_sprint
+target_primitive: planning
+description: Ordering cues are perturbed and the first snapshot can be incomplete,
+  so the agent must re-plan against the current LMS state.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 42
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/assignments'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

@@ -1,0 +1,29 @@
+variant_id: rh_deposit_funds__transfer_retry
+base_task_id: rh_deposit_funds
+target_primitive: backtracking
+description: The first transfer submission fails transiently. The agent must verify the transfer exists and retry if needed.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/transfers'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/transfers'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Transfer submitted.
+      toast: Your deposit is being processed.
+    behavior:
+      mode: once

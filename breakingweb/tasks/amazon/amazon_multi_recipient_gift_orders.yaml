@@ -1,0 +1,263 @@
+task_id: amazon_multi_recipient_gift_orders
+env_id: amazon
+title: Send Gifts to Three Recipients via Separate Orders
+instruction_template: 'Send gifts to three recipients in three separate orders: 1.
+  Add a new address for {target.recip_1_name}: {target.recip_1_street}, {target.recip_1_city},
+  WA {target.recip_1_zip}. 2. Add a new address for {target.recip_2_name}: {target.recip_2_street},
+  {target.recip_2_city}, CA {target.recip_2_zip}. 3. Search for ''{target.gift_1}''
+  and purchase it, shipping to {target.recip_1_name}''s address. 4. Search for ''{target.gift_2}''
+  and purchase it, shipping to {target.recip_2_name}''s address. 5. Search for ''{target.gift_3}''
+  and purchase it, shipping to an existing address already on your account (not Jamie''s
+  or Taylor''s).
+
+  '
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /
+seed:
+  distractors: 20
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Wireless Charging Pad Premium
+      brand: ChargeMax
+      category: Electronics
+      price: 34.99
+      rating: 4.6
+      features:
+      - 15W fast charging
+      - LED indicator
+      - Anti-slip surface
+      - Universal compatibility
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_g1
+    - product_name_g1
+    - product_price_g1
+  - use: featured_product
+    params:
+      name: Artisan Tea Collection Box
+      brand: PureGlow
+      category: Health & Beauty
+      price: 28.99
+      rating: 4.5
+      features:
+      - 12 tea varieties
+      - Wooden gift box
+      - Organic certified
+      - Individually wrapped
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_g2
+    - product_name_g2
+    - product_price_g2
+  - use: featured_product
+    params:
+      name: Luxury Scented Candle Set
+      brand: BrightHearth
+      category: Home & Kitchen
+      price: 42.99
+      rating: 4.7
+      features:
+      - Soy wax blend
+      - 3-piece set
+      - 50-hour burn time
+      - Gift-ready packaging
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_g3
+    - product_name_g3
+    - product_price_g3
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 15.0
+      - 70.0
+    outputs:
+    - catalog_electronics
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 6
+      price_range:
+      - 15.0
+      - 50.0
+    outputs:
+    - catalog_home
+  targets:
+    gift_1: '{output.product_name_g1}'
+    gift_pid_1: '{output.product_id_g1}'
+    gift_2: '{output.product_name_g2}'
+    gift_pid_2: '{output.product_id_g2}'
+    gift_3: '{output.product_name_g3}'
+    gift_pid_3: '{output.product_id_g3}'
+    recip_1_name: Jamie Thompson
+    recip_1_street: 321 Birch Lane
+    recip_1_city: Seattle
+    recip_1_state: WA
+    recip_1_zip: '98101'
+    recip_2_name: Taylor Kim
+    recip_2_street: 890 Cedar Drive
+    recip_2_city: San Francisco
+    recip_2_state: CA
+    recip_2_zip: '94102'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: Recipient 1 address created (Jamie)
+    properties:
+      full_name: {expr: "x == target['recip_1_name']"}
+      street_address: {expr: "target['recip_1_street'] in x"}
+      city: {expr: "x == target['recip_1_city']"}
+      state: {expr: "x == target['recip_1_state']"}
+      zip_code: {expr: "x == target['recip_1_zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: Address
+    desc: Recipient 2 address created (Taylor)
+    properties:
+      full_name: {expr: "x == target['recip_2_name']"}
+      street_address: {expr: "target['recip_2_street'] in x"}
+      city: {expr: "x == target['recip_2_city']"}
+      state: {expr: "x == target['recip_2_state']"}
+      zip_code: {expr: "x == target['recip_2_zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: Order
+    desc: Gift 1 shipped to Jamie
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['gift_pid_1'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recip_1_name'] for a in state.addresses)"
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Gift 2 shipped to Taylor
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['gift_pid_2'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recip_2_name'] for a in state.addresses)"
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Order
+    desc: Gift 3 shipped to an existing (non-Jamie, non-Taylor) address
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['gift_pid_3'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name not in [target['recip_1_name'], target['recip_2_name']]
+          for a in state.addresses)"
+      payment_method_id: {any: true}
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name not in [target['recip_1_name'], target['recip_2_name']]"
+    preserve: ALL
+  - collection: state.orders
+    filter: "a.id.startswith('order_initial_')"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,54 @@
+task_id: rh_watchlist_organize
+env_id: robinhood
+title: Create and Populate Multiple Watchlists
+instruction_template: Create a new watchlist called "Tech Leaders" and add AAPL, MSFT,
+  GOOGL, NVDA, and META to it. Then create another watchlist called "Dividend Kings"
+  and add KO, JNJ, PG, XOM, and HD to it.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 18
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - NVDA
+      - META
+      - KO
+      - JNJ
+      - PG
+      - XOM
+      - HD
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: watchlists
+    desc: New "Tech Leaders" watchlist with AAPL, MSFT, GOOGL, NVDA, META
+    properties:
+      name: {eq: Tech Leaders}
+      symbols: {superset: [AAPL, MSFT, GOOGL, NVDA, META]}
+  - entity: watchlists
+    desc: New "Dividend Kings" watchlist with KO, JNJ, PG, XOM, HD
+    properties:
+      name: {eq: Dividend Kings}
+      symbols: {superset: [KO, JNJ, PG, XOM, HD]}
+  invariant:
+  - collection: state.watchlists
+    filter: "a.name != 'Tech Leaders' and a.name != 'Dividend Kings'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []

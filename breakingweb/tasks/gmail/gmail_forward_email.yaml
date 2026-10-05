@@ -1,0 +1,61 @@
+task_id: gmail_forward_email
+env_id: gmail
+title: Forward an Invoice Email
+instruction_template: 'Find the email from Carol Wang with subject "Invoice #1234
+  — March Services" and forward it to dave@thornton.com with the note "Please review
+  this invoice."'
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 10
+primary_primitives:
+- backtracking
+secondary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 10
+  steps:
+  - use: forward_email
+    params: {}
+    outputs:
+    - target_email_id
+  targets:
+    target_email_id: '{output.target_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward the invoice email to dave@thornton.com with the required note
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['target_email_id']"
+        to:
+          expr: "x == ['dave@thornton.com']"
+        body:
+          substring: "Please review this invoice"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded the correct invoice email
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox
+      ref: invariant[0]
+      severity: high
+    - name: Agent sent exactly one email
+      ref: create[0]
+      severity: medium

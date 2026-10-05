@@ -1,0 +1,67 @@
+task_id: reddit_hide_post
+env_id: reddit
+title: Hide a Post from Feed
+instruction_template: Find the post titled "{target.post_title}" in r/{target.subreddit_name} and hide it. Do not hide any other posts.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 4
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: funny
+      title: My cat learned to open the fridge and now she judges everything I eat
+      body: She just sits there, staring at my leftovers with pure disappointment.
+      score: 45000
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  targets:
+    post_id: '{output.post_id}'
+    post_title: '{output.post_title}'
+    subreddit_name: '{output.subreddit_name}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Hide the target post
+    where:
+      id:
+        expr: "x == target['post_id']"
+    changes:
+      is_hidden:
+        eq: true
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['post_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent hid the target post
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify any other posts
+    ref: invariant[0]
+    severity: high
+  constraints:
+  - expr: sorted(state.hidden_post_ids) == sorted([p.id for p in state.posts if p.is_hidden])
+    desc: Hidden-post primitive list matches hidden post flags
+    severity: high

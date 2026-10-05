@@ -1,0 +1,17 @@
+variant_id: reddit_delete_own_comment__delete_retry
+base_task_id: reddit_delete_own_comment
+target_primitive: verification
+description: First two writes return a fake 200 with a realistic body but never persist. Frontier agents that only retry on visible errors need to verify state via re-read; otherwise the canonical_diff predicate fails.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/comments/*'
+    methods:
+    - DELETE
+    fail_count: 2
+    response_body:
+      success: true
+      comment_id: comment_fake_delete
+    behavior:
+      mode: once

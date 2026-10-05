@@ -1,0 +1,81 @@
+variant_id: lms_drop_lowest_letter_change__announcement_verify_v1
+base_task_id: lms_drop_lowest_letter_change
+target_primitive: verification
+description: The grades read first returns a STALE, un-penalized snapshot (no
+  late penalty, nothing dropped) that makes the drop look like it does NOT change
+  the letter grade, and the first submit silently "succeeds" without persisting.
+  The agent must re-fetch the real engine-computed grades, re-derive the with/
+  without-drop letters using the late penalty, and verify the persisted submission.
+injections:
+# (1) STALE GRADES READ (verification, load-bearing). The grades page is the
+# computation SOURCE for this task. On the first read we return a misleading
+# snapshot where the dropped/late homework is shown at its RAW score with NO
+# late penalty and is_dropped=false, and the weighted_score is the naive
+# un-penalized value (90.25 = an A). An agent that trusts this first read
+# concludes the drop does NOT raise the letter (no flip) and takes the WRONG
+# branch. The agent must re-fetch and trust the engine-grounded values
+# (late penalty applied, drop re-derived) to see the real flip.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    stale_count: 1
+    stale_body:
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      # Naive un-penalized weighted score -> reads as an A both ways -> no flip.
+      weighted_score: '90.25'
+      category_scores:
+        homework: '90.25'
+      grades:
+      - assignment_id: '{target.lowest_dropped_hw_id}'
+        weight_category: homework
+        score: '80'
+        points_possible: '100'
+        late_penalty_applied: '0'
+        is_dropped: false
+    behavior:
+      mode: once
+# (2) MISLEADING SUBMIT WRITE (verification). The first submit of the dropped
+# homework returns a 200 success toast but does NOT persist. The canonical
+# already requires attempt_count >= 2, so the agent must verify the persisted
+# submission_status/file_name and re-submit -- a verification, not a retry,
+# weak point.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/lms/assignments/*/submit'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      assignment:
+        id: '{target.lowest_dropped_hw_id}'
+        submission_status: submitted
+        file_name: letter_grade_report.pdf
+        attempt_count: 2
+      submitted: true
+    behavior:
+      mode: once
+# (3) ANNOUNCEMENT decoys (seed). Older sibling announcements in the target
+# course that an agent who mis-derives the branch might mark read. Explicit
+# historical posted_at keeps them strictly older than the base seed's
+# announcements so they never become the course's "latest" announcement.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update follow-up
+      body: Archived clarification that does not replace the active announcement.
+      priority: normal
+      posted_at: '2025-10-01T10:00:00+00:00'
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update correction
+      body: Earlier logistics note for a prior announcement batch.
+      priority: urgent
+      posted_at: '2025-09-15T10:00:00+00:00'

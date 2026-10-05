@@ -1,0 +1,166 @@
+task_id: rh_portfolio_transition
+env_id: robinhood
+title: Growth to Income Portfolio Transition
+instruction_template: 'Switch your portfolio from a growth strategy to an income strategy.
+  Sell all positions with a dividend yield below 1% using limit orders at the current
+  bid price. With the total proceeds, allocate: 50% equally among the top 3 highest-yielding
+  stocks from your "{target.watchlist_name}" watchlist, 30% to BND, and 20% to SCHD.
+  Place all buy orders.'
+difficulty: frontier
+time_limit_seconds: 550
+expected_steps: 35
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - TSLA
+      - AMZN
+      - GOOGL
+      - META
+      - NVDA
+      - BND
+      - SCHD
+      - T
+      - VZ
+      - MO
+      - PM
+      - XOM
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 6
+      growth_focused: true
+    outputs: []
+  - use: watchlist
+    params:
+      name: Income Ideas
+      symbols:
+      - T
+      - VZ
+      - MO
+      - PM
+      - XOM
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    watchlist_name: Income Ideas
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Buy order for BND (30% allocation)
+    properties:
+      symbol: {eq: BND}
+      side: {eq: buy}
+      order_type: {any: true}
+      quantity: {any: true}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Buy order for SCHD (20% allocation)
+    properties:
+      symbol: {eq: SCHD}
+      side: {eq: buy}
+      order_type: {any: true}
+      quantity: {any: true}
+      status: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Limit sell order for each low-yield position
+    bijection:
+      over: "initial.positions_below_dividend_yield(Decimal('1'))"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: sell}
+      order_type: {eq: limit}
+      status: {eq: pending}
+      quantity: {expr: "x == initial.get_position(v).quantity"}
+      limit_price: {expr: "x == initial.get_stock(v).bid"}
+      stop_price: {any: true}
+      filled_quantity: {eq: 0}
+      filled_price: {eq: null}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Buy order for each top-3 highest-yield watchlist stock
+    bijection:
+      over: "initial.top_yield_symbols_from_watchlist(target['watchlist_name'], 3)"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: buy}
+      status: {any: true}
+      order_type: {any: true}
+      quantity: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'sell' and a.symbol not in initial.positions_below_dividend_yield(Decimal('1'))"
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.orders
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []
+primitive_thesis: Measures planning, state_tracking, exploration, grounding, verification
+  by requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

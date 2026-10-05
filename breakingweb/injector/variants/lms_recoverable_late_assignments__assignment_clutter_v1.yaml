@@ -1,0 +1,29 @@
+variant_id: lms_recoverable_late_assignments__assignment_clutter_v1
+base_task_id: lms_recoverable_late_assignments
+target_primitive: exploration
+description: Extra assignment noise expands the LMS search surface. The agent must
+  keep exploring until it finds the real target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      title: Weekly submission practice copy
+      assignment_type: homework
+      submission_status: not_submitted
+    - type: assignment
+      title: Weekly submission archived version
+      assignment_type: homework
+      submission_status: graded
+      score: '88'
+      feedback: This is an older graded copy.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/courses/*/assignments'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

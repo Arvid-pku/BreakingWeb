@@ -1,0 +1,193 @@
+task_id: lms_three_module_chain
+env_id: lms
+title: Unlock and Complete the Next Prerequisite Chain Segment
+instruction_template: In {target.course_code}, the modules form a single prerequisite
+  chain where each module unlocks the next via its unlock condition (some links are a
+  plain prerequisite, others require the prior module to be completed with a passing
+  score). Several other "available" modules in this course are NOT part of that chain.
+  Identify the chain by following the unlock links, find the chain module that is
+  currently available, and complete the next three modules of the chain in
+  prerequisite order. A module can only be marked done after every one of its content
+  items is completed. Do not complete any module that is not one of those three
+  (including any other module that merely shows as available), leave all other modules
+  untouched, and do not send any messages.
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 28
+primary_primitives:
+- planning
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: module_sequence
+    params:
+      course_id: '{output.target_course_id}'
+      count: 7
+      chain_type: mixed
+      completed_count: 2
+      content_items_per_module: 3
+      decoy_count: 3
+      decoy_positions:
+      - 1
+      - 2
+      - 4
+      decoy_title_style: chain
+      chain_segment: 3
+    outputs:
+    - module_ids
+    - next_available_module_id
+    - first_locked_module_id
+    - chain_module_ids
+    - next_chain_module_ids
+    - cascade_unlocked_module_id
+    - decoy_module_ids
+    - completed_module_ids
+    - last_completed_module_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    module_ids: '{output.module_ids}'
+    next_available_module_id: '{output.next_available_module_id}'
+    first_locked_module_id: '{output.first_locked_module_id}'
+    chain_module_ids: '{output.chain_module_ids}'
+    next_chain_module_ids: '{output.next_chain_module_ids}'
+    cascade_unlocked_module_id: '{output.cascade_unlocked_module_id}'
+    decoy_module_ids: '{output.decoy_module_ids}'
+    completed_module_ids: '{output.completed_module_ids}'
+    last_completed_module_id: '{output.last_completed_module_id}'
+canonical_diff:
+  update:
+    - entity: Module
+      desc: Complete exactly the next three prerequisite-chain modules (re-derived from
+        the unlock links), finishing every content item before marking each one done
+      bijection:
+        # Precomputed in the seed builder: the ordered next-three completable
+        # chain modules. The agent must re-derive this same set by following the
+        # prerequisite links from the currently-available chain module, NOT by
+        # picking any module that merely shows status "available" (decoys do).
+        over: "target['next_chain_module_ids'].split(',')"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        status:
+          eq: completed
+        unlock_condition:
+          # Mixed chain: real chain modules (after the first) gate on a
+          # HETEROGENEOUS mix of "prerequisite" and "min_score" conditions,
+          # while the off-chain decoys gate on "none". Membership over the two
+          # real chain gate types (not a single eq) is what pins the agent to
+          # the chain: it must recognise a min_score-gated module as part of the
+          # SAME chain even though its unlock_condition string differs.
+          in:
+          - prerequisite
+          - min_score
+        content_items:
+          expr: "all(item.get('completed') is True for item in x)"
+  invariant:
+    - collection: state.modules
+      # Freeze every module the agent should NOT change. The mutated set is the
+      # three target chain modules; additionally the server auto-unlocks the
+      # single successor chain module (locked -> available) as a cascade when
+      # the last target is completed, so that one id is also excluded. Every
+      # other module — including the three off-chain decoy modules that sit in
+      # the same course and show status "available" — must be preserved exactly.
+      filter: "a.id not in (target['next_chain_module_ids'].split(',') + [target['cascade_unlocked_module_id']])"
+      preserve: ALL
+      comprehensive: true
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  - desc: Agent did not complete any off-chain decoy module
+    expr: "all(m.status != 'completed' for m in state.modules if m.id in target['decoy_module_ids'].split(','))"
+    severity: critical
+  - desc: Agent completed exactly the seeded-completed modules plus the requested three (no over- or under-completion)
+    expr: "len([m for m in state.modules if m.status == 'completed']) == len([m for m in initial.modules if m.status == 'completed']) + len(target['next_chain_module_ids'].split(','))"
+    severity: high
+  - desc: The completed set is exactly the seeded-completed modules union the requested chain segment (no off-chain or out-of-segment module was completed)
+    expr: "set(m.id for m in state.modules if m.status == 'completed') == set(m.id for m in initial.modules if m.status == 'completed') | set(target['next_chain_module_ids'].split(','))"
+    severity: critical
+  - desc: The first segment module the agent completed was the currently-available chain module (segment start), not a decoy or a later module
+    expr: "target['next_chain_module_ids'].split(',')[0] == target['next_available_module_id'] and next((m for m in initial.modules if m.id == target['next_available_module_id']), None) is not None and next(m for m in initial.modules if m.id == target['next_available_module_id']).status == 'available'"
+    severity: high
+  - desc: Each newly completed chain module gates only on a prior chain module (heterogeneous prerequisite/min_score chain followed in order, never an off-chain decoy)
+    expr: "all(all(spec.split(':')[0] in (target['chain_module_ids'].split(',')) for spec in m.unlock_value) for m in state.modules if m.id in target['next_chain_module_ids'].split(',') and m.unlock_condition in ('prerequisite', 'min_score'))"
+    severity: high
+  named_invariants:
+    - name: Agent completed the next three prerequisite-chain modules
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify other or decoy modules
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium
+secondary_primitives: []

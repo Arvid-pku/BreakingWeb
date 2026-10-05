@@ -1,0 +1,23 @@
+variant_id: reddit_compose_message__message_retry
+base_task_id: reddit_compose_message
+target_primitive: backtracking
+description: First two writes return a fake 200 with a realistic body but never persist. Frontier agents that only retry on visible errors need to verify state via re-read; otherwise the canonical_diff predicate fails.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/messages'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      message:
+        id: msg_fake_send
+        from_user: ''
+        to_user: ''
+        subject: ''
+        body: ''
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_read: false
+    behavior:
+      mode: once

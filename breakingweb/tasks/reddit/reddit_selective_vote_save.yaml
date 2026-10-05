@@ -1,0 +1,169 @@
+task_id: reddit_selective_vote_save
+title: Selective Voting and Saving
+instruction_template: '1. In r/worldnews, find "{target.up_title}" and upvote it.
+
+  2. In r/technology, find "{target.down_title}" and downvote it.
+
+  3. In r/science, find "{target.save_title}" and save it (do not vote on it).
+
+  4. In r/gaming, find "{target.comment_title}" and comment with exactly: "{target.comment_text}"
+
+  5. Mark all messages as read.
+
+  6. Set comment sort to "top".'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: EU passes landmark right to disconnect law for all member states
+      body: Employers cannot contact workers outside hours.
+      score: 63000
+    outputs:
+    - up_id
+    - up_title
+    - up_sub
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Startup raised $100M to build AI that replaces software engineers
+      body: Bold claims with no public demo.
+      score: 3400
+    outputs:
+    - down_id
+    - down_title
+    - down_sub
+  - use: target_post
+    params:
+      subreddit: science
+      title: Ancient DNA reveals Vikings were far more diverse than previously thought
+      body: Published in Nature.
+      score: 29000
+    outputs:
+    - save_id
+    - save_title
+    - save_sub
+  - use: target_post
+    params:
+      subreddit: gaming
+      title: After 500 hours I finally 100% completed Elden Ring DLC and I have thoughts
+      body: What a journey.
+      author: PixelNomad
+      score: 18000
+    outputs:
+    - comment_id
+    - comment_title
+    - comment_sub
+  targets:
+    up_title: '{output.up_title}'
+    up_id: '{output.up_id}'
+    down_title: '{output.down_title}'
+    down_id: '{output.down_id}'
+    save_title: '{output.save_title}'
+    save_id: '{output.save_id}'
+    comment_title: '{output.comment_title}'
+    comment_id: '{output.comment_id}'
+    comment_text: 500 hours is dedication. The Consort Radahn fight alone took me 40 attempts.
+canonical_diff:
+  update:
+  - entity: Message
+    collection: state.messages
+    desc: All initially-unread inbox messages marked as read
+    bijection:
+      over: '[m.id for m in initial.messages if not m.is_read]'
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    desc: EU worldnews target post upvoted
+    where:
+      id:
+        expr: x == target['up_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Post
+    desc: AI startup technology target post downvoted
+    where:
+      id:
+        expr: x == target['down_id']
+    changes:
+      vote_direction:
+        eq: -1
+  - entity: Post
+    desc: Viking science target post saved (do not vote)
+    where:
+      id:
+        expr: x == target['save_id']
+    changes:
+      is_saved:
+        eq: true
+      vote_direction:
+        eq: 0
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_comment_sort: {eq: top}
+  create:
+  - entity: Comment
+    desc: Exact comment posted on Elden Ring gaming target post
+    properties:
+      post_id:
+        expr: x == target['comment_id']
+      body:
+        expr: x == target['comment_text']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

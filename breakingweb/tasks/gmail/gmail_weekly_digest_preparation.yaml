@@ -1,0 +1,209 @@
+task_id: gmail_weekly_digest_preparation
+env_id: gmail
+title: Compile weekly digest email, archive processed messages, create filters
+instruction_template: "A reference email from manager@team.thornton.com with subject\
+  \ \"Weekly Digest Categories\" defines 4 sender-domain buckets:\n- Bucket A \"Engineering\"\
+  : eng.thornton.com, devops.thornton.com\n- Bucket B \"Business\": sales.thornton.com,\
+  \ fin.thornton.com, legal.thornton.com\n- Bucket C \"External\": northstarco.com,\
+  \ evergreenind.com\n- Bucket D \"Operations\": facilities.thornton.com, itsupport.thornton.com\n\
+  \nComplete these steps in order:\n1. Find all unread emails received in the past\
+  \ 7 days (exclude the reference email itself).\n2. Categorize each by its From-address\
+  \ domain into the 4 buckets above. Emails from domains not listed in any bucket\
+  \ should be categorized as \"Uncategorized\".\n3. Compose and send a new email to\
+  \ team-all@team.thornton.com with subject \"Weekly Digest -- Week of {target.current_monday}\"\
+  \ containing the digest body formatted as:\n\n   Week of {target.current_monday}\n\
+  \n   [Bucket Name]: [count] emails\n   - [starred subject 1]\n   - [starred subject\
+  \ 2]\n   ...\n\n   (Repeat for each bucket. Only list starred subject lines, not\
+  \ all subjects. If no emails are starred in a bucket, write \"None starred\" instead\
+  \ of listing subjects.)\n\n   End with an \"Uncategorized\" section with count and\
+  \ subjects of any uncategorized emails.\n4. Archive all emails that were categorized\
+  \ into Buckets A-D (do NOT archive uncategorized emails or the reference email).\n\
+  5. Create 2 Gmail filters:\n   - Filter 1: from eng.thornton.com OR devops.thornton.com\
+  \ -> add label 'Engineering' and skip inbox.\n   - Filter 2: from northstarco.com\
+  \ OR evergreenind.com -> add label 'External' and star.\n"
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: weekly_digest_preparation
+    params: {}
+    outputs:
+    - current_monday
+    - reference_email_id
+    - bucket_a_ids
+    - bucket_b_ids
+    - bucket_c_ids
+    - bucket_d_ids
+    - uncategorized_ids
+    - old_email_ids
+    - read_sales_email_id
+    - starred_a_subject
+    - starred_b_subject
+    - starred_c_subject
+    - adversarial_sales_id
+    - monitoring_email_id
+  targets:
+    current_monday: '{output.current_monday}'
+    reference_email_id: '{output.reference_email_id}'
+    bucket_a_ids: '{output.bucket_a_ids}'
+    bucket_b_ids: '{output.bucket_b_ids}'
+    bucket_c_ids: '{output.bucket_c_ids}'
+    bucket_d_ids: '{output.bucket_d_ids}'
+    uncategorized_ids: '{output.uncategorized_ids}'
+    old_email_ids: '{output.old_email_ids}'
+    read_sales_email_id: '{output.read_sales_email_id}'
+    starred_a_subject: '{output.starred_a_subject}'
+    starred_b_subject: '{output.starred_b_subject}'
+    starred_c_subject: '{output.starred_c_subject}'
+    adversarial_sales_id: '{output.adversarial_sales_id}'
+    monitoring_email_id: '{output.monitoring_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose and send weekly digest email to team-all
+      count: 1
+      properties:
+        to:
+          expr: "x == ['team-all@team.thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          expr: "'Weekly Digest' in x"
+        body:
+          substring_all:
+            - Engineering
+            - Business
+            - External
+            - Operations
+            - Uncategorized
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: filters
+      desc: Create filter 1 for engineering domains with Engineering label and skip inbox
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@eng.thornton.com"
+            - "*@devops.thornton.com"
+        add_labels:
+          set_eq:
+            - Engineering
+        archive:
+          eq: true
+    - entity: filters
+      desc: Create filter 2 for external domains with External label and star
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@northstarco.com"
+            - "*@evergreenind.com"
+        add_labels:
+          set_eq:
+            - External
+        star:
+          eq: true
+  update:
+    - entity: emails
+      desc: Archive bucket A emails
+      bijection:
+        over: "target['bucket_a_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Archive bucket B emails
+      bijection:
+        over: "target['bucket_b_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Archive bucket C emails
+      bijection:
+        over: "target['bucket_c_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Archive bucket D emails
+      bijection:
+        over: "target['bucket_d_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id not in target['bucket_a_ids']
+        and a.id not in target['bucket_b_ids']
+        and a.id not in target['bucket_c_ids']
+        and a.id not in target['bucket_d_ids']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the weekly digest email
+      ref: create[0]
+      severity: high
+    - name: Agent created engineering domain filter
+      ref: create[1]
+      severity: high
+    - name: Agent created external domain filter
+      ref: create[2]
+      severity: high
+    - name: Agent archived bucket A emails
+      ref: update[0]
+      severity: high
+    - name: Agent archived bucket B emails
+      ref: update[1]
+      severity: high
+    - name: Agent archived bucket C emails
+      ref: update[2]
+      severity: high
+    - name: Agent archived bucket D emails
+      ref: update[3]
+      severity: high
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

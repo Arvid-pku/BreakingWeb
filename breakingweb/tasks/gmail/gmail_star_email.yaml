@@ -1,0 +1,74 @@
+task_id: gmail_star_email
+env_id: gmail
+title: Star a Specific Email
+instruction_template: Find the email from Alice Chen with subject "Project Update
+  — Q1 Milestones" and star it.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 5
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 10
+  steps:
+  - use: star_email
+    params: {}
+    outputs:
+    - target_email_id
+  targets:
+    target_email_id: '{output.target_email_id}'
+canonical_diff:
+  update:
+    - entity: emails
+      desc: Star the target email from Alice Chen
+      where:
+        id:
+          expr: "x == target['target_email_id']"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - starred
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['target_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent starred the target email
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not create or modify drafts
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not send emails
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify contacts
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or modify labels
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not create or modify filters
+      ref: invariant[6]
+      severity: medium

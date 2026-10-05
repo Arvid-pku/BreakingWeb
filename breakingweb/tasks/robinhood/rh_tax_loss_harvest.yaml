@@ -1,0 +1,194 @@
+task_id: rh_tax_loss_harvest
+env_id: robinhood
+title: Tax-Loss Harvest with Wash Sale Avoidance and Reinvestment
+instruction_template: Review your realized and unrealized gains/losses for the year.
+  Sell positions with unrealized losses to offset your realized gains, but avoid wash
+  sales by NOT selling anything you purchased within the last 30 days. After selling,
+  reinvest the total proceeds into {target.replacement_etf} to maintain market exposure.
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 40
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+      - AMD
+      - INTC
+      - VOO
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 8
+      multi_lot: true
+      include_losers: true
+      loser_count: 3
+      gain_forced_symbols:
+      - VOO
+    outputs:
+    - loss_symbols
+    - gain_symbols
+  - use: transaction_ledger
+    params:
+      months: 2
+      include_recent_buys: true
+      recent_buy_count: 2
+    outputs:
+    - recent_buy_symbols
+  - use: tax_documents
+    params:
+      include_gains: true
+    outputs: []
+  - use: filled_orders
+    params:
+      count: 5
+      symbols:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      order_types:
+      - limit
+      - market
+    outputs: []
+  targets:
+    loss_symbols: '{output.loss_symbols}'
+    gain_symbols: '{output.gain_symbols}'
+    recent_buy_symbols: '{output.recent_buy_symbols}'
+    replacement_etf: VOO
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order placed for each eligible loss position (tax-loss harvest)
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Buy order placed for the replacement ETF
+    properties:
+      symbol: {expr: "x == target['replacement_etf']"}
+      side: {eq: buy}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded for each eligible loss position
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      type: {eq: sell}
+      symbol: {expr: "x == v"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: transactions
+    desc: Buy transaction recorded for replacement ETF
+    properties:
+      type: {eq: buy}
+      symbol: {expr: "x == target['replacement_etf']"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted for each harvest sell
+    bijection:
+      over: "[s for s in target['loss_symbols'] if s not in target['recent_buy_symbols']]"
+      variable: v
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  - entity: notifications
+    desc: Order-fill notification for replacement ETF buy
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  update:
+  - entity: positions
+    desc: Replacement ETF position quantity grew via the buy
+    where:
+      symbol: {expr: "x == target['replacement_etf']"}
+    changes:
+      quantity: {any: true}
+  delete:
+  - entity: positions
+    desc: Fully-sold loss positions removed from portfolio
+    bijection:
+      over: "[p for p in initial.positions if p.symbol in target['loss_symbols'] and p.symbol not in target['recent_buy_symbols']]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  invariant:
+  - collection: state.orders
+    filter: "(a.side == 'sell' and a.symbol not in target['loss_symbols']) or (a.side == 'sell' and a.symbol in target['recent_buy_symbols']) or (a.side == 'buy' and a.symbol != target['replacement_etf'])"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol not in (target['loss_symbols'] + [target['replacement_etf']])"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol not in (target['loss_symbols'] + [target['replacement_etf']])"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+secondary_primitives: []

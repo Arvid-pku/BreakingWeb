@@ -1,0 +1,57 @@
+variant_id: pp_update_insurance__write_verify_drift_v1
+base_task_id: pp_update_insurance
+target_primitive: verification
+description: >
+  Re-aimed at the WRITE-VERIFY loop (the task's verification primitive). The
+  previous variant degraded the /profile GET, which is irrelevant because the
+  authoritative values live in the billing thread, not the profile read — so it
+  never bit. This variant attacks the actual write endpoints. BOTH insurance and
+  demographics writes return a LOUD fake 200 success (toast "Saved") on the first
+  attempt WITHOUT persisting, so an agent that trusts the optimistic response
+  declares done while the profile is unchanged. It must re-GET the profile and
+  detect that plan_name / member_id / phone / email did NOT change, then retry.
+  A same-thread billing decoy that mixes the corrected and stale member ids is
+  also injected, so an agent re-reading the inbox under retry pressure can grab
+  the wrong value on the second pass.
+injections:
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/profile/insurance'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Insurance updated
+      toast: Your insurance details have been saved.
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/profile/demographics'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Contact details updated
+      toast: Your contact details have been saved.
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # An OLDER billing "confirmation" message (timestamped well before the
+    # authoritative card) that MIXES values: it cites the new plan name but the
+    # superseded member id, so an agent re-reading the inbox under retry
+    # pressure can re-grab the wrong member id on the second pass. It is
+    # intentionally older than the authoritative card so it never displaces the
+    # canonical answer (recency disambiguation still resolves to the real card).
+    - type: message
+      category: billing
+      from_type: provider
+      subject: Insurance Card Update
+      timestamp: '2026-05-09T08:00:00+00:00'
+      body: >-
+        Reminder regarding your insurance on file. Our records show plan
+        {target.new_plan_name} with member ID {target.stale_member_id}. If a
+        newer card notice has since been issued, follow that instead.

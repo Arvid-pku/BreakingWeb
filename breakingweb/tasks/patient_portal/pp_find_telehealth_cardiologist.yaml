@@ -1,0 +1,122 @@
+task_id: pp_find_telehealth_cardiologist
+env_id: patient_portal
+title: Find and Schedule Telehealth Cardiologist
+instruction_template: Find the next available telehealth appointment with a cardiologist
+  and schedule it. Use your existing approved referral for cardiology.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 10
+primary_primitives:
+- exploration
+start_path: /appointments
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Heart palpitations
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - endocrinology
+      - orthopedics
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: false
+      must_have_specialties:
+      - cardiology
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 1
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    providers_by_specialty: '{output.providers_by_specialty}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one telehealth appointment with a cardiologist at the next available slot across the cardiology pool"
+      properties:
+        status: {eq: "scheduled"}
+        type: {eq: "telehealth"}
+        provider_id:
+          expr: "x in target['providers_by_specialty'].get('cardiology', [])"
+        datetime:
+          # PP-3: filter slots to telehealth only — the instruction asks
+          # for the next telehealth cardiology slot. The bare min() could
+          # otherwise return an in-person slot.
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['providers_by_specialty'].get('cardiology', [])
+                     for s in p.available_slots
+                     if s.type == 'telehealth')
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

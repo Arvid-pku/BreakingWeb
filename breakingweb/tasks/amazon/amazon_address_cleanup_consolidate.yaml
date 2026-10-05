@@ -1,0 +1,157 @@
+task_id: amazon_address_cleanup_consolidate
+env_id: amazon
+title: Consolidate Addresses and Set a New Default
+instruction_template: 'Delete every saved address EXCEPT your default one. Then add
+  a new shipping address with name "{target.new_name}", street "{target.new_street}",
+  city "{target.new_city}", state "{target.new_state}", ZIP "{target.new_zip}" and
+  set it as the new default.
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 22
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: address_batch
+    params:
+      entries:
+      - full_name: Jordan Parker
+        is_default: false
+    outputs:
+    - address_ids
+    - default_addr_id
+    - non_default_addr_ids
+  targets:
+    default_addr_id: addr_1
+    non_default_addr_ids:
+    - addr_2
+    - addr_3
+    - addr_4
+    new_name: Taylor Lin
+    new_street: 88 Harbor View Drive
+    new_city: San Diego
+    new_state: CA
+    new_zip: '92101'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New address added with target details and is_default=True
+    properties:
+      full_name:
+        expr: x == target['new_name']
+      street_address:
+        expr: target['new_street'] in x
+      city:
+        expr: x == target['new_city']
+      state:
+        expr: x == target['new_state']
+      zip_code:
+        expr: x == target['new_zip']
+      is_default:
+        eq: true
+      apt_suite:
+        any: true
+      country:
+        any: true
+      phone:
+        any: true
+  update:
+  - entity: Address
+    desc: Previous default address demoted to is_default=False (side effect of new
+      default, weight 0)
+    weight: 0.0
+    where:
+      id:
+        expr: x == target['default_addr_id']
+    changes:
+      is_default:
+        eq: false
+  delete:
+  - entity: Address
+    desc: First non-default address deleted
+    where:
+      id:
+        expr: x in target['non_default_addr_ids']
+  - entity: Address
+    desc: Second non-default address deleted
+    where:
+      id:
+        expr: x in target['non_default_addr_ids']
+  - entity: Address
+    desc: Third non-default address deleted
+    where:
+      id:
+        expr: x in target['non_default_addr_ids']
+  invariant:
+  - collection: state.addresses
+    filter: a.id == target['default_addr_id'] or a.id in target['non_default_addr_ids']
+      or a.full_name == target['new_name']
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.wishlist
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify addresses outside the cleanup scope
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[12]
+    severity: medium

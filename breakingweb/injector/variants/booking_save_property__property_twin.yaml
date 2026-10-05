@@ -1,0 +1,67 @@
+variant_id: booking_save_property__property_twin
+base_task_id: booking_save_property
+target_primitive: grounding
+description: Near-identical properties appear alongside the true target, AND the
+  first POST to /saved-lists/*/properties silently fails (returns 200 but
+  doesn't persist). The agent must (a) pick the right typo-disambiguated hotel
+  and (b) verify the save actually landed on the backend.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/saved-lists/**/properties'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      ok: true
+      message: "Property added to list"
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Four near-typo siblings of "Riverside Palace Hotel" with rs > 9.2.
+    # The task says 'find the property "{name}"' so careful name-match
+    # still picks the real one — but rating sort puts every decoy on top.
+    - type: property
+      name: Riverside Palaace Hotel       # double a
+      city: London
+      country: United Kingdom
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.4
+      review_count: 860
+      price: 370.0
+      description: Nearly identical property name with slightly different review profile.
+    - type: property
+      name: Riverside Palace Hotell       # extra l
+      city: London
+      country: United Kingdom
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.3
+      review_count: 640
+      price: 355.0
+      description: Similar branding can distract from the exact property match.
+    - type: property
+      name: Riverside Palace Hottel       # tt for t
+      city: London
+      country: United Kingdom
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.5
+      review_count: 720
+      price: 360.0
+      description: Look-alike with consonant duplication mid-word.
+    - type: property
+      name: Riverside Pallace Hotel       # double l
+      city: London
+      country: United Kingdom
+      property_type: Hotel
+      star_rating: 5
+      review_score: 9.6
+      review_count: 980
+      price: 375.0
+      description: Same brand prefix, doubled consonant trap.

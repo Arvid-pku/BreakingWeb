@@ -1,0 +1,120 @@
+task_id: gmail_board_briefing_prep
+env_id: gmail
+title: Board Briefing Preparation
+instruction_template: 'The CEO''s assistant sent you an email listing the topics
+  for tomorrow''s board meeting. Find that instruction email first and read which
+  topics it lists. Then, for each topic, find the most recent email directly from
+  the topic sender (not a forward or FYI from someone else). Forward each of those
+  emails to {target.ceo_email}, including the topic name in the forwarding note body
+  (e.g., "Board topic: <topic name>").'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 40
+primary_primitives:
+- exploration
+secondary_primitives:
+- state_tracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: board_briefing_prep
+    params: {}
+    outputs:
+    - ceo_email
+    - topic_a
+    - topic_b
+    - topic_c
+    - topic_a_latest_id
+    - topic_b_latest_id
+    - topic_c_latest_id
+    - instruction_email_id
+    - chain_forward_decoy_id
+    - adversarial_distractor_id
+    - decoy_ids
+  targets:
+    ceo_email: '{output.ceo_email}'
+    topic_a: '{output.topic_a}'
+    topic_b: '{output.topic_b}'
+    topic_c: '{output.topic_c}'
+    topic_a_latest_id: '{output.topic_a_latest_id}'
+    topic_b_latest_id: '{output.topic_b_latest_id}'
+    topic_c_latest_id: '{output.topic_c_latest_id}'
+    instruction_email_id: '{output.instruction_email_id}'
+    chain_forward_decoy_id: '{output.chain_forward_decoy_id}'
+    adversarial_distractor_id: '{output.adversarial_distractor_id}'
+    decoy_ids: '{output.decoy_ids}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward Topic A latest email to CEO with topic name in body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['topic_a_latest_id']"
+        to:
+          expr: "x == [target['ceo_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['topic_a'] in x"
+    - entity: sent
+      desc: Forward Topic B latest email to CEO with topic name in body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['topic_b_latest_id']"
+        to:
+          expr: "x == [target['ceo_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['topic_b'] in x"
+    - entity: sent
+      desc: Forward Topic C latest email to CEO with topic name in body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['topic_c_latest_id']"
+        to:
+          expr: "x == [target['ceo_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['topic_c'] in x"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded Topic A to CEO
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded Topic B to CEO
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded Topic C to CEO
+      ref: create[2]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high

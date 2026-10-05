@@ -1,0 +1,257 @@
+task_id: booking_find_genius_deal
+env_id: booking
+title: Find and Book a Genius-Discounted Property in Barcelona
+instruction_template: 'Search for hotels in "Barcelona" and find the cheapest Genius-discounted
+  property whose ALL-IN total (base + taxes + city fee + cleaning fee + any resort
+  fee, minus the Genius discount which applies ONLY to the base price, not to fees)
+  is at most $800 for a 4-night stay for 2 guests. Genius discount applies only to
+  the base price, not to the taxes/fees. Read the fee breakdown on the booking page
+  before you confirm, because the property with the lowest nightly rate is NOT always
+  the cheapest all-in once resort fees and taxes are added. Book that property''s
+  cheapest Genius room for 4 nights checking in on 2026-07-01 and checking out on
+  2026-07-05 for 2 guests. Use the default Visa payment method (ending in 4242). Enter
+  your name and email from your account profile.
+
+  '
+difficulty: medium
+time_limit_seconds: 220
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /home
+seed:
+  distractors: 8
+  # Skip the real-hotels distractor pool: booking_real_hotels.json contains
+  # several Barcelona Genius properties (e.g. "Chic & Basic Born", 20%) which
+  # can produce alternative "cheapest Genius ≤ $800" answers and conflict
+  # with the grader's fixed-property_id lock below. The seed already provides
+  # a controlled comparison set (winner + two zero-Genius decoys + one
+  # higher-discount-but-resort-fee fee-trap), so disabling the pool keeps the
+  # search space deterministic without changing the intended difficulty.
+  skip_real_hotels: true
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Barcelona Genius Boutique
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.7
+      review_count: 1120
+      price: 195.0
+      property_type: Boutique Hotel
+      neighborhood: Eixample
+      address: 88 Passeig de Gracia, 08008 Barcelona
+      genius_discount_pct: 15
+      amenities:
+      - Free WiFi
+      - Rooftop terrace
+      - Spa
+      - Air conditioning
+      popular_facilities:
+      - Free WiFi
+      - Rooftop terrace
+      - Spa
+      distance_km: 1.5
+      rooms:
+      - name: Genius Superior Room
+        price: 195.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: 229.0
+        view_type: city
+      - name: Genius Deluxe Suite
+        price: 310.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: 365.0
+        view_type: city
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: decoy_property
+    params:
+      name: Hotel Ramblas Classic
+      city: Barcelona
+      country: Spain
+      star_rating: 3
+      review_score: 7.9
+      review_count: 890
+      price: 155.0
+      property_type: Hotel
+      neighborhood: Barri Gotic
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      - Restaurant
+      distance_km: 0.5
+    outputs:
+    - decoy_property_1_id
+    - decoy_property_1_name
+  - use: decoy_property
+    params:
+      name: Sagrada Family View Hotel
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.3
+      review_count: 1650
+      price: 230.0
+      property_type: Hotel
+      neighborhood: Eixample
+      genius_discount_pct: 0
+      amenities:
+      - Free WiFi
+      - Pool
+      - Gym
+      distance_km: 2.0
+    outputs:
+    - decoy_property_2_id
+    - decoy_property_2_name
+  # Fee-trap Genius property: lower nightly rate than the target (and
+  # tempting "cheaper per night"), but its resort property_type adds
+  # $25/night resort_fee and its smaller 10% Genius discount applies only
+  # to the base. So once you do the math, the target Barcelona Genius
+  # Boutique (15% discount, hotel, no resort fee) is actually cheaper
+  # all-in. This traps agents who sort by nightly rate or Genius price.
+  - use: featured_property
+    params:
+      name: Diagonal Mar Genius Resort
+      city: Barcelona
+      country: Spain
+      star_rating: 4
+      review_score: 8.5
+      review_count: 1440
+      price: 180.0
+      property_type: resort
+      neighborhood: Diagonal Mar
+      address: 1 Passeig del Taulat, 08019 Barcelona
+      genius_discount_pct: 10
+      amenities:
+      - Free WiFi
+      - Pool
+      - Spa
+      - Beach access
+      - Restaurant
+      - Air conditioning
+      popular_facilities:
+      - Free WiFi
+      - Pool
+      - Beach access
+      distance_km: 4.5
+      rooms:
+      - name: Genius Ocean View Room
+        price: 180.0
+        bed_type: queen
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: 200.0
+        view_type: sea
+      - name: Genius Beach Suite
+        price: 260.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: 290.0
+        view_type: sea
+    outputs:
+    - fee_trap_prop_id
+    - fee_trap_prop_name
+    - fee_trap_room_id
+    - fee_trap_room_name
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    room_id: '{output.cheapest_room_id}'
+    room_name: Genius Superior Room
+    fee_trap_prop_id: '{output.fee_trap_prop_id}'
+    fee_trap_prop_name: '{output.fee_trap_prop_name}'
+    # All-in 4-night budget cap.
+    # Target (Barcelona Genius Boutique, $195/n, hotel, 15% genius):
+    #   base 780 + tax(10%) 78 + city(4*4) 16 + cleaning 40 - disc 117 = $797.
+    # Fee-trap (Diagonal Mar Genius Resort, $180/n, resort, 10% genius):
+    #   base 720 + tax 72 + city 16 + resort(25*4) 100 + cleaning 40 - disc 72 = $876.
+    # Target fits under $800; fee-trap does not despite lower nightly rate.
+    budget: 800.0
+canonical_diff:
+  create:
+    - entity: Reservation
+      desc: Book the cheapest-all-in Genius Superior Room for 4 nights
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        room_type_id: {expr: "x == target['room_id']"}
+        room_type_name: {eq: "Genius Superior Room"}
+        check_in: {eq: "2026-07-01"}
+        check_out: {eq: "2026-07-05"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {expr: "x <= target['budget']"}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {expr: "x.full_name == initial.owner_name and x.email == initial.owner_email"}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {eq: true}
+        genius_discount: {expr: "x > 0"}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['property_id']"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent booked the Genius property Genius Superior Room with correct dates
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

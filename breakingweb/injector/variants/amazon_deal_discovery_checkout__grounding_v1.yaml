@@ -1,0 +1,16 @@
+variant_id: amazon_deal_discovery_checkout__grounding_v1
+base_task_id: amazon_deal_discovery_checkout
+target_primitive: grounding
+description: >
+  The deals endpoint returns empty results on the first request. The agent
+  must retry or navigate differently to find the actual deals.
+injections:
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/deals*"
+      action: stale_data
+      methods: ["GET"]
+      stale_count: 1
+      stale_body:
+        products: []
+        total: 0

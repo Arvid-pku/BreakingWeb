@@ -1,0 +1,16 @@
+variant_id: gmail_action_item_extraction__haystack
+base_task_id: gmail_action_item_extraction
+target_primitive: exploration
+description: >
+  The target email body is inflated with 5000 tokens of realistic thread
+  boilerplate. The answer is in the middle. A skim-aware agent finds it;
+  a gorging agent burns context without improving accuracy.
+injections:
+  - layer: seed
+    params:
+      action: inflate_target_content
+      target: email
+      filler_tokens: 8000
+      filler_style: realistic_thread
+      answer_position: middle
+      seed: 101

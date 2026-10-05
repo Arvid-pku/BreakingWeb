@@ -1,0 +1,30 @@
+variant_id: booking_save_and_organize__property_twin
+base_task_id: booking_save_and_organize
+target_primitive: grounding
+description: A near-identical property appears alongside the true target. The agent must match the exact
+  hotel before saving or booking it.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: property
+      name: Roma Colosseum View Hotel Residence
+      city: Rome
+      country: Italy
+      property_type: Hotel
+      star_rating: 4
+      review_score: 8.5
+      review_count: 860
+      price: 216.2
+      description: Nearly identical property name with slightly different review profile.
+    - type: property
+      name: Roma Colosseum View Hotel Collection
+      city: Rome
+      country: Italy
+      property_type: Hotel
+      star_rating: 3
+      review_score: 8.2
+      review_count: 640
+      price: 243.8
+      description: Similar branding can distract from the exact property match.

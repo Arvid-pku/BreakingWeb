@@ -1,0 +1,16 @@
+variant_id: gmail_reply_simple__send_retry
+base_task_id: gmail_reply_simple
+target_primitive: verification
+description: The first send attempt fails transiently. The agent must verify the email actually sent and retry if it did not.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/send'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

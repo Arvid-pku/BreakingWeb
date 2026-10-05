@@ -1,0 +1,283 @@
+task_id: booking_cancel_rebook_cheaper
+env_id: booking
+title: Cancel Expensive Reservation and Rebook Cheaper Alternative
+instruction_template: 'Your budget is tight. Review your upcoming confirmed reservations
+  and find the most expensive one (by total price) in "{target.city}". Preview its
+  cancellation fee and cancel it (explicitly accepting the fee). After cancelling,
+  your total budget for the replacement booking is ${target.budget} all-in (base +
+  taxes + city fee + cleaning fee — every line item counts). Use the "Rebooking
+  Options" page that the system generates for the cancelled reservation to compare
+  the 3 system-suggested alternatives by their itemized fees, then book the one
+  whose all-in total is within budget for the same dates ({target.check_in} to
+  {target.check_out}) and same number of guests ({target.guests}). Use the default
+  Visa payment method (ending in 4242).
+
+  '
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 28
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Royal Crescent Hotel
+      city: Bath
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.2
+      review_count: 1567
+      price: 380.0
+      neighborhood: City Center
+      address: 16 Royal Crescent, Bath BA1 2LS
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Garden
+    outputs:
+    - expensive_prop_id
+    - expensive_prop_name
+    - expensive_room_id
+    - expensive_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.expensive_prop_id}'
+      check_in: '2026-07-01'
+      check_out: '2026-07-05'
+      price_per_night: 380.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 14
+      cancellation_policy:
+        type: partial_refund
+        penalty_percentage: 20
+        description: "20% cancellation fee applies"
+    outputs:
+    - expensive_res_id
+    - expensive_conf_num
+    - expensive_res_prop_id
+  - use: featured_property
+    params:
+      name: Cozy Inn Manchester
+      city: Manchester
+      country: United Kingdom
+      star_rating: 3
+      review_score: 7.9
+      review_count: 890
+      price: 120.0
+      neighborhood: Northern Quarter
+    outputs:
+    - moderate_prop_id
+    - moderate_prop_name
+    - moderate_room_id
+    - moderate_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.moderate_prop_id}'
+      check_in: '2026-08-10'
+      check_out: '2026-08-13'
+      price_per_night: 120.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 7
+    outputs:
+    - moderate_res_id
+    - moderate_conf_num
+    - moderate_res_prop_id
+  - use: featured_property
+    params:
+      name: Bath Abbey Hotel
+      city: Bath
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.5
+      review_count: 2134
+      price: 195.0
+      neighborhood: City Center
+      address: 1 North Parade, Bath BA1 1LF
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - 24-hour front desk
+      rooms:
+      - name: Classic Double Room
+        price: 195.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Superior Room
+        price: 250.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - cheaper_prop_id
+    - cheaper_prop_name
+    - cheaper_room_id
+    - cheaper_room_name
+  - use: featured_property
+    params:
+      name: Queensberry Inn Bath
+      city: Bath
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.7
+      review_count: 950
+      price: 275.0
+      neighborhood: City Center
+      address: Russel Street, Bath BA1 2QF
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      rooms:
+      - name: Classic Double Room
+        price: 275.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Deluxe Room
+        price: 335.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+    outputs:
+    - mid_prop_id
+    - mid_prop_name
+    - mid_room_id
+    - mid_room_name
+  - use: decoy_property
+    params:
+      name: The Gainsborough Bath Spa
+      city: Bath
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.0
+      review_count: 1200
+      price: 410.0
+      neighborhood: City Center
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+    outputs:
+    - decoy_property_id
+    - decoy_property_name
+  targets:
+    expensive_res_id: '{output.expensive_res_id}'
+    expensive_prop_id: '{output.expensive_prop_id}'
+    expensive_prop_name: '{output.expensive_prop_name}'
+    cheaper_prop_id: '{output.cheaper_prop_id}'
+    cheaper_prop_name: '{output.cheaper_prop_name}'
+    rebook_prop_id: '{output.cheaper_prop_id}'
+    rebook_prop_name: '{output.cheaper_prop_name}'
+    moderate_res_id: '{output.moderate_res_id}'
+    moderate_prop_id: '{output.moderate_prop_id}'
+    city: Bath
+    check_in: '2026-07-01'
+    check_out: '2026-07-05'
+    guests: '2'
+    cheaper_max_price: '300'
+    budget: 1100
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the most expensive reservation
+      where:
+        id: {expr: "x == target['expensive_res_id']"}
+      changes:
+        status: {eq: cancelled}
+  create:
+    - entity: Reservation
+      desc: Book the cheaper Bath hotel (one of the system-suggested candidates) for same dates and guests
+      properties:
+        property_id: {expr: "x == target['rebook_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {any: true}
+        check_in: {eq: "2026-07-01"}
+        check_out: {eq: "2026-07-05"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {expr: "x < 300.0"}
+        total_price: {expr: "x <= target['budget']"}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['expensive_res_id'] and not (a.property_id == target['rebook_prop_id'] and a.check_in == '2026-07-01')"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly. `filter: "False"`
+    # + `comprehensive: true` whitelists the whole collection from
+    # the collateral sweep.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the most expensive reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent booked the cheaper Bath hotel for the same dates
+      ref: create[0]
+      severity: critical
+    - name: Agent did not cancel or modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create notifications
+      ref: invariant[6]
+      severity: low

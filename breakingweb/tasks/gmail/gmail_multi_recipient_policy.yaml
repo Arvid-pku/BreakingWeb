@@ -1,0 +1,146 @@
+task_id: gmail_multi_recipient_policy
+env_id: gmail
+title: Multi-Recipient Policy
+instruction_template: 'You have three emails that each require a different response:
+
+
+  1. Thread "Board Strategy Review" from {target.sender_name} ({target.sender_email}):
+  the thread CCs the full board (5 people). Reply ONLY to {target.sender_name} (not
+  reply-all) with the exact phrase "Acknowledged, will prepare the revised deck by
+  Friday."
+
+
+  2. Thread "Sprint 14 Retro Action Items" from {target.sender_name} ({target.sender_email}):
+  the thread CCs the engineering team (3 people). Reply-all to the entire thread with
+  the exact phrase "Adding capacity planning to next sprint scope."
+
+
+  3. Thread "Vendor Contract Renewal - Apex Systems" from {target.vendor_name} ({target.vendor_email}):
+  do NOT reply to {target.vendor_name}. Instead, forward this email to your delegate
+  {target.delegate_name} ({target.delegate_email}) with the body "Please review and
+  sign by EOD Wednesday."
+
+
+'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 45
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: multi_recipient_policy
+    params: {}
+    outputs:
+    - thread_a_id
+    - thread_a_msg_id
+    - thread_b_id
+    - thread_b_msg_id
+    - thread_c_id
+    - thread_c_msg_id
+    - sender_name
+    - sender_email
+    - vendor_name
+    - vendor_email
+    - delegate_name
+    - delegate_email
+    - board_cc_emails
+    - eng_cc_emails
+    - decoy_thread_id
+  targets:
+    thread_a_id: '{output.thread_a_id}'
+    thread_a_msg_id: '{output.thread_a_msg_id}'
+    thread_b_id: '{output.thread_b_id}'
+    thread_b_msg_id: '{output.thread_b_msg_id}'
+    thread_c_id: '{output.thread_c_id}'
+    thread_c_msg_id: '{output.thread_c_msg_id}'
+    sender_name: '{output.sender_name}'
+    sender_email: '{output.sender_email}'
+    vendor_name: '{output.vendor_name}'
+    vendor_email: '{output.vendor_email}'
+    delegate_name: '{output.delegate_name}'
+    delegate_email: '{output.delegate_email}'
+    board_cc_emails: '{output.board_cc_emails}'
+    eng_cc_emails: '{output.eng_cc_emails}'
+    decoy_thread_id: '{output.decoy_thread_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply only to sender on Board Strategy Review thread
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['thread_a_msg_id']"
+        to:
+          expr: "x == [target['sender_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Acknowledged, will prepare the revised deck by Friday."
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Reply-all to Sprint 14 Retro thread
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['thread_b_msg_id']"
+        body:
+          eq: "Adding capacity planning to next sprint scope."
+        to:
+          expr: "x == [target['sender_email']]"
+        cc:
+          expr: "sorted(x) == sorted(target['eng_cc_emails']) and len(x) == len(target['eng_cc_emails'])"
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Forward vendor contract email to delegate with required body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['thread_c_msg_id']"
+        to:
+          expr: "x == [target['delegate_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          regex: "^Please review and sign by EOD Wednesday\\.\\n\\nForwarded message from"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied only to sender on Board Strategy thread
+      ref: create[0]
+      severity: high
+    - name: Agent replied-all to Sprint Retro thread
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded vendor contract to delegate
+      ref: create[2]
+      severity: high
+    - name: Agent did not modify inbox
+      ref: invariant[0]
+      severity: high

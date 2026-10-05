@@ -1,0 +1,31 @@
+variant_id: lms_grading_discrepancy__announcement_clutter_v1
+base_task_id: lms_grading_discrepancy
+target_primitive: exploration
+description: Extra announcement noise expands the LMS search surface. The agent must
+  keep exploring until it finds the real target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update follow-up
+      body: Archived clarification that does not replace the active announcement.
+      priority: normal
+    - type: announcement
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: Course update correction
+      body: Earlier logistics note for a prior announcement batch.
+      priority: urgent
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/announcements**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

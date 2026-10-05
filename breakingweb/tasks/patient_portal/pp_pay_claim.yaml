@@ -1,0 +1,169 @@
+task_id: pp_pay_claim
+env_id: patient_portal
+title: Pay Highest-Balance Approved Claims
+instruction_template: Review your insurance claims. Among your approved claims that
+  have an available EOB and a patient responsibility greater than zero, pay the 3
+  with the highest patient responsibility (highest amount first; if two claims have
+  the same amount, break the tie by claim ID, lowest ID first). Pay exactly those
+  3 claims using the claim payment action so each one's patient responsibility
+  becomes zero. Do not pay, appeal, or otherwise modify any other claim, and do not
+  send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 16
+primary_primitives:
+- state_tracking
+start_path: /billing
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - cardiology
+      - billing
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 8
+    outputs:
+    - completed_ids
+  - use: insurance_claims
+    params:
+      approved_count: 8
+      approved_no_eob_count: 3
+      approved_no_eob_band:
+      - 600
+      - 950
+      approved_zero_resp_count: 2
+      denied_count: 3
+      processing_count: 1
+      with_eob: true
+      payable_top_k: 3
+      payable_tie_margin: 3
+    outputs:
+    - approved_claim_ids
+    - denied_claim_ids
+    - processing_claim_ids
+    - top_k_payable_claim_ids
+    - payable_cutoff_amount
+    - total_patient_responsibility
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    approved_claim_ids: '{output.approved_claim_ids}'
+    denied_claim_ids: '{output.denied_claim_ids}'
+    processing_claim_ids: '{output.processing_claim_ids}'
+    top_k_payable_claim_ids: '{output.top_k_payable_claim_ids}'
+    payable_cutoff_amount: '{output.payable_cutoff_amount}'
+    total_patient_responsibility: '{output.total_patient_responsibility}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+canonical_diff:
+  update:
+  - entity: InsuranceClaim
+    desc: Pay each of the top-3 highest-balance approved EOB claims (zero out patient_responsibility)
+    bijection:
+      over: "target['top_k_payable_claim_ids']"
+      variable: v
+    where:
+      id:
+        expr: >-
+          x == v
+          and v in target['approved_claim_ids']
+          and initial.get_claim(v).eob_available
+          and float(initial.get_claim(v).patient_responsibility) > 0
+    changes:
+      patient_responsibility:
+        eq: 0
+  invariant:
+  # Every claim NOT in the top-3-payable set must be preserved exactly — this
+  # freezes the cheaper approved claims, the processing claim, and every denied
+  # claim. The filter scope only exposes `a` + `target`, so the top-K set is a
+  # precomputed scalar seed list (top_k_payable_claim_ids) rather than computed
+  # inline.
+  - collection: state.claims
+    filter: "a.id not in target['top_k_payable_claim_ids']"
+    preserve: ALL
+  - collection: state.appointments
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not pay, appeal, or modify any claim outside the top-3 payable set
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not create, cancel, or modify appointments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify prescriptions
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not send unsolicited messages
+    ref: invariant[5]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not modify pharmacies
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify providers
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not edit the patient profile
+    ref: invariant[9]
+    severity: high
+  - name: Agent did not pay more or fewer than the top 3 payable approved claims
+    ref: update[0]
+    severity: critical
+secondary_primitives: []

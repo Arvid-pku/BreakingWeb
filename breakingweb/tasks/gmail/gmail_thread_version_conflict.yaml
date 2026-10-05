@@ -1,0 +1,117 @@
+task_id: gmail_thread_version_conflict
+env_id: gmail
+title: Find the final agreed version number in a thread with superseded proposals
+instruction_template: 'Read the thread with subject "Release Version for Q3 Launch"
+  from {target.chen_wei_name}.
+
+  Identify the version number that both {target.chen_wei_name} and {target.dana_okafor_name}
+
+  explicitly agreed on in that thread.
+
+
+  Begin your reply to {target.chen_wei_name}''s most recent message in the thread
+  with exact text:
+
+  "Confirmed: version [the agreed version number] is the agreed release."
+
+
+  Replace [the agreed version number] with the agreed version number from the thread,
+
+  and do not include a "v" prefix.
+
+  '
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    chen_wei:
+      name: Chen Wei
+      domain: launchpad.io
+      is_vip: false
+    dana_okafor:
+      name: Dana Okafor
+      domain: launchpad.io
+      is_vip: false
+    raj_patel:
+      name: Raj Patel
+      domain: launchpad.io
+      is_vip: false
+    priya_menon:
+      name: Priya Menon
+      domain: otherproduct.com
+      is_vip: false
+    kai_bremer:
+      name: Kai Bremer
+      domain: launchpad.io
+      is_vip: false
+  steps:
+  - use: thread_version_conflict
+    params: {}
+    outputs:
+    - chen_wei_email
+    - chen_wei_latest_email_id
+    - target_thread_id
+    - decoy_thread_id
+    - adversarial_email_id
+    - agreed_version
+    - reply_text
+  targets:
+    chen_wei_email: '{output.chen_wei_email}'
+    chen_wei_latest_email_id: '{output.chen_wei_latest_email_id}'
+    target_thread_id: '{output.target_thread_id}'
+    decoy_thread_id: '{output.decoy_thread_id}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+    chen_wei_name: '{actor.chen_wei.name}'
+    dana_okafor_name: '{actor.dana_okafor.name}'
+    agreed_version: '{output.agreed_version}'
+    reply_text: '{output.reply_text}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to Chen Wei confirming the agreed version number
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['chen_wei_latest_email_id']"
+        to:
+          expr: "x == [target['chen_wei_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "x.strip().startswith(target['reply_text'])"
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to Chen Wei with correct version confirmation
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

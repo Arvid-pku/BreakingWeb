@@ -1,0 +1,68 @@
+task_id: rh_transfer_and_withdraw
+env_id: robinhood
+title: Check Balance and Withdraw Half
+instruction_template: Check your cash balance, then withdraw half of it to your Wells
+  Fargo savings account.
+difficulty: medium
+time_limit_seconds: 150
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: linked_banks
+    params:
+      banks:
+      - name: Chase Checking
+        type: checking
+        last_four: '4521'
+      - name: Wells Fargo Savings
+        type: savings
+        last_four: '7793'
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: transfers
+    desc: $2,500 withdrawal to Wells Fargo savings account
+    properties:
+      direction: {eq: withdrawal}
+      amount: {eq: 2500}
+      status: {in: [pending, completed]}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  - entity: transactions
+    desc: Withdrawal transaction record
+    properties:
+      type: {eq: withdrawal}
+      amount: {any: true}
+      symbol: {any: true}
+      quantity: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  invariant:
+  - collection: state.transfers
+    filter: "a.direction == 'deposit'"
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+secondary_primitives: []

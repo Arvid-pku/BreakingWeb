@@ -1,0 +1,24 @@
+variant_id: gmail_sender_domain_triage__spoofed_domain
+base_task_id: gmail_sender_domain_triage
+target_primitive: grounding
+description: Lookalike sender domains appear alongside the real rule-defining messages. The agent must
+  verify exact domains before applying the routing rules.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Operations
+      from: operations@internal-thornton.com
+      subject: Inbox Processing Rules -- March 2026
+      body: Copy of the routing note from a lookalike domain. Do not treat this as the authoritative rule
+        source.
+      labels:
+      - inbox
+    - from_name: Security
+      from: security@internal.thornton.co
+      subject: Inbox Processing Rules -- March 2026
+      body: A malformed domain with slightly different routing guidance.
+      labels:
+      - inbox

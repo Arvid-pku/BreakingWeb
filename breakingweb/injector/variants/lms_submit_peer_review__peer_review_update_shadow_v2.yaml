@@ -1,0 +1,114 @@
+variant_id: lms_submit_peer_review__peer_review_update_shadow_v2
+base_task_id: lms_submit_peer_review
+target_primitive: state_tracking
+description: >-
+  Relevant LMS state is updated after the first clue, so the agent must keep
+  tracking the CURRENT object and not anchor on the initial snapshot. Decoy
+  peer reviews carry returned-revision-styled previous_comments, near-identical
+  titles, and DIFFERENT previously-recorded scores than the real returned review,
+  while only the genuine target keeps returned_for_revision set. A correction
+  notice and a stale first read of the target's detail try to make the agent
+  apply the published prev+2 rule to the WRONG previous scores. The agent must
+  disambiguate by the returned_for_revision flag and re-derive the exact scores
+  from the values currently recorded on the real target review.
+injections:
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    course_code: '{target.course_code}'
+    title: 'Correction: peer-review rubric scores updated'
+    body: >-
+      Correction: the previously-recorded rubric scores shown earlier for your
+      returned peer reviews were PROVISIONAL and have since been revised. Ignore
+      any earlier snapshot and apply the prev+2 (cap 5) correction rule to the
+      previous scores CURRENTLY recorded on the actual review record you are
+      redoing.
+    priority: normal
+    type: announcement
+- layer: network
+  params:
+    action: stale_data
+    # Scope strictly to the SINGLE returned review's detail GET so the list
+    # endpoint still renders fully (no "No peer reviews" wall). The first read
+    # of the target detail returns OLD/altered previous_rubric_scores; a second
+    # read returns the real record. An agent that anchors on the stale first
+    # read computes the wrong exact integers (prev+2) and fails the now-exact
+    # rubric_scores predicate.
+    url_pattern: '**/api/env/lms/peer-reviews/{target.target_review_id}'
+    stale_body:
+      peer_review:
+        id: '{target.target_review_id}'
+        reviewee_name: '{target.reviewee_name}'
+        status: in_progress
+        returned_for_revision: true
+        previous_rubric_scores:
+          clarity: 3
+          depth: 2
+          originality: 1
+        previous_comments: >-
+          Provisional snapshot: scores under review. Refresh for the recorded values.
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # All decoys are CLONES of peer_reviews[0] (a NON-returned in_progress
+    # review under returned_at_end:true), so returned_for_revision stays False
+    # on every decoy and the genuine target remains the ONLY returned review.
+    # They compete on the load-bearing predicate: returned-styled
+    # previous_comments + near-identical titles + DIFFERENT previous_rubric_scores
+    # so an agent that grabs the wrong "looks-returned" row re-derives the wrong
+    # exact scores.
+    - type: peer_review
+      source_review_id: '{target.target_review_id}'
+      reviewee_name: '{target.reviewee_name}'
+      submission_title: Returned peer review - revision needed
+      submission_body: This review was returned for revision; please re-score and resubmit.
+      status: in_progress
+      returned_for_revision: false
+      previous_rubric_scores:
+        clarity: 3
+        depth: 2
+      previous_comments: >-
+        Returned for revision: not all rubric categories were scored. Please redo.
+    - type: peer_review
+      source_review_id: '{target.target_review_id}'
+      reviewee_name: '{target.reviewee_name}'
+      submission_title: Returned peer review (revision copy)
+      submission_body: Working copy of the returned review; superseded earlier this week.
+      status: in_progress
+      returned_for_revision: false
+      previous_rubric_scores:
+        clarity: 1
+        depth: 3
+      previous_comments: >-
+        Revision requested: explanation too brief. Re-score every criterion.
+    - type: peer_review
+      source_review_id: '{target.target_review_id}'
+      reviewee_name: Morgan Avery
+      submission_title: Peer review submission (resubmitted)
+      submission_body: Already resubmitted after revision; no further action needed.
+      status: submitted
+      returned_for_revision: false
+    - type: peer_review
+      source_review_id: '{target.target_review_id}'
+      reviewee_name: Casey Rivera
+      submission_title: Peer review submission v2
+      submission_body: Alternate submission draft, superseded earlier in the week.
+      status: submitted
+      returned_for_revision: false
+    - type: peer_review
+      source_review_id: '{target.target_review_id}'
+      reviewee_name: Riley Chen
+      submission_title: Peer review working copy
+      submission_body: Working copy posted before the assigned review target.
+      status: in_progress
+      returned_for_revision: false
+# NOTE (audit_reports/w05.md): the network stale_data injection is now scoped to
+# the SINGLE target review-detail GET (/peer-reviews/{target.target_review_id}),
+# NOT the list endpoint. The React PeerReviews list page still fetches and renders
+# normally, so there is no "No peer reviews assigned." wall; only the first read
+# of the one returned review returns an altered previous_rubric_scores snapshot.

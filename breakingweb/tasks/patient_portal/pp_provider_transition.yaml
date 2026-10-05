@@ -1,0 +1,241 @@
+task_id: pp_provider_transition
+env_id: patient_portal
+title: Provider Transition
+instruction_template: 'Establish endocrinology follow-up without using messages. The
+  directory lists several endocrinologists and there is more than one approved
+  endocrinology referral on file; exactly ONE of those approved referrals is the
+  transfer-of-care referral and it names a specific endocrinologist as its destination
+  provider. 1) Read the approved endocrinology referrals and identify the one whose
+  destination endocrinologist (its to_provider_id) is accepting new patients — that
+  is your target provider, 2) Note that another endocrinologist may advertise an
+  earlier open slot but is NOT accepting new patients (closed panel) and must be
+  rejected; the globally-earliest endocrinology slot is a decoy, 3) Schedule one
+  appointment with your target endocrinologist in THAT provider''s single earliest
+  available slot, linking the appointment to the matching approved endocrinology
+  referral (the one that names your target provider), 4) Use the appointment reason
+  exactly "Endocrinology transfer of care", 5) Because endocrinology visits require
+  confirmation, complete the booking by confirming the new appointment so its
+  confirmation_state becomes "confirmed". Do not cancel, reschedule, or modify any
+  existing appointments; do not book with any other endocrinologist; do not modify
+  any prescriptions, referrals, claims, labs, or immunizations; and do not send any
+  messages.'
+difficulty: frontier
+time_limit_seconds: 560
+expected_steps: 34
+primary_primitives:
+- planning
+start_path: /appointments
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypothyroidism
+      insurance_tier: standard
+      auto_confirm_specialties:
+      - endocrinology
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - endocrinology
+      - cardiology
+      - dermatology
+      - billing
+      count_per_specialty:
+        endocrinology: 3
+        cardiology: 2
+        dermatology: 2
+      # The FIRST endocrinologist created is closed-panel (accepting_new=False)
+      # and — because min_slot_specialty triggers the strictly-earlier decoy
+      # slot injection — holds the GLOBALLY-earliest endocrinology slot. The
+      # agent must reject the globally-earliest slot (closed panel) and the
+      # referral pins to an ACCEPTING endo, so the earliest VALID slot has to
+      # be re-derived for the specific named-and-accepting provider.
+      non_accepting_provider_specs:
+        endocrinology: 1
+      min_slot_specialty: endocrinology
+      must_include:
+      - pcp
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: prescription_cabinet
+    params:
+      active_count: 4
+    outputs:
+    - active_rx_ids
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+      must_have_specialties:
+      - endocrinology
+      # The eligible approved endo referral names the FIRST ACCEPTING
+      # endocrinologist (skips the closed-panel decoy). A SECOND approved endo
+      # referral names a DIFFERENT accepting endocrinologist, so the agent must
+      # link the referral whose to_provider_id is the booked provider — picking
+      # the wrong approved referral books/links the wrong endo and fails.
+      pin_must_have_accepting_only: true
+      extra_specialty_referrals:
+      - specialty: endocrinology
+        status: approved
+        # Pin the EXTRA approved endo referral to a NON-accepting endo (closed-panel
+        # prov_2) so exactly ONE approved endo referral names an accepting destination,
+        # making the instruction's "the one whose destination is accepting" unambiguous.
+        accepting_distinct: false
+        pin_to_specialty_provider: true
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+    - approved_endo_target_provider_id
+    - approved_endo_target_slot
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 2
+      requires_confirmation_specialties:
+      - endocrinology
+    outputs:
+    - upcoming_ids
+  targets:
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+    active_rx_ids: '{output.active_rx_ids}'
+    # Frontier discriminators the agent must RE-DERIVE: the single
+    # endocrinologist named as the approved referral's destination provider,
+    # and that provider's earliest available slot. Precomputed in the seed
+    # builder (referral_chain) so the canonical_diff pins exact scalar values
+    # instead of recomputing a top-K/min over a comprehension inside a filter.
+    referral_target_provider_id: '{output.approved_endo_target_provider_id}'
+    referral_target_slot: '{output.approved_endo_target_slot}'
+canonical_diff:
+  # Positive signal: schedule exactly one new Appointment with the SPECIFIC
+  # endocrinologist named as the destination provider (to_provider_id) of the
+  # approved endocrinology referral — who must also be accepting new patients —
+  # linked to that approved referral, with the exact required reason string,
+  # booked into THAT provider's single earliest available slot. The booking
+  # must be fresh (booked this session) and, because endocrinology visits
+  # require confirmation, must be confirmed (confirmation_state == "confirmed").
+  create:
+    - entity: Appointment
+      desc: "Schedule one transfer-of-care endocrinology appointment with the referral's named endocrinologist in their earliest slot, linked to the approved referral, then confirm it"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "Endocrinology transfer of care"}
+        provider_id:
+          expr: >
+            x == target['referral_target_provider_id']
+            and x in target['endo_provider_ids']
+            and any(
+              p.id == x and p.accepting_new and p.specialty == 'endocrinology'
+              for p in initial.providers
+            )
+        linked_referral_id:
+          expr: >
+            x is not None
+            and x in target['approved_ref_ids']
+            and any(
+              r.id == x and r.status == 'approved' and r.to_specialty == 'endocrinology'
+              and r.to_provider_id == target['referral_target_provider_id']
+              for r in initial.referrals
+            )
+        datetime:
+          expr: >
+            x == datetime.fromisoformat(target['referral_target_slot'])
+            and x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id == target['referral_target_provider_id']
+              for s in p.available_slots
+            )
+        # Freshness: the appointment must have been booked during this session
+        # (a pre-existing appointment carries an older booked_at and cannot
+        # satisfy the create).
+        booked_at:
+          expr: "x is not None and x >= session_start"
+        # Two-step workflow: endocrinology visits require confirmation, so the
+        # agent must confirm the new appointment after scheduling it.
+        confirmation_state: {eq: "confirmed"}
+        requires_confirmation: {eq: true}
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        location: {any: true}
+  invariant:
+    # Existing appointments (upcoming + completed history) must not be
+    # cancelled, rescheduled, or modified. The new create above is scoped to
+    # IDs not in the initial snapshot, so a filter over initial.appointments
+    # ids preserves every pre-existing appointment while excluding the
+    # newly-created (and newly-confirmed) one.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    # Prescriptions untouched (explicit instruction).
+    - collection: state.prescriptions
+      preserve: ALL
+    # No new patient messages ("without using messages").
+    - collection: state.messages
+      preserve: ALL
+    # Referrals remain as seeded; the approved endocrinology referral stays
+    # approved and no new referrals are created.
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+  constraints:
+    # Exactly one new endocrinology appointment is created — the agent must not
+    # book with any of the OTHER endocrinologists (search-space noise) nor
+    # double-book the correct one. Count scheduled appointments with any
+    # endocrinologist that did not exist in the initial snapshot; require
+    # exactly one, and it must be with the referral's named provider.
+    - desc: "Exactly one new endocrinology appointment was created, and it is with the referral's named endocrinologist"
+      severity: critical
+      expr: >
+        len([
+          a for a in state.appointments
+          if a.id not in {b.id for b in initial.appointments}
+          and a.provider_id in target['endo_provider_ids']
+          and a.status == 'scheduled'
+        ]) == 1
+        and all(
+          a.provider_id == target['referral_target_provider_id']
+          for a in state.appointments
+          if a.id not in {b.id for b in initial.appointments}
+          and a.provider_id in target['endo_provider_ids']
+        )
+  named_invariants:
+    - name: "Agent did not cancel, reschedule, or modify any existing appointments"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not modify any prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

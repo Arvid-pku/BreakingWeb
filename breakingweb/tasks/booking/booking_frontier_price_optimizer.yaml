@@ -1,0 +1,335 @@
+task_id: booking_frontier_price_optimizer
+env_id: booking
+title: 'Frontier: London Hotel Price Optimization with Genius, Amenities, and Wallet'
+instruction_template: "Find the perfect London hotel with these exact steps:\n1. Search\
+  \ London hotels and compare these five properties:\n   \"{target.name_1}\", \"{target.name_2}\"\
+  , \"{target.name_3}\",\n   \"{target.name_4}\", and \"{target.name_5}\".\n2. Find\
+  \ the ONE property that has ALL of the following:\n   Genius discount, free cancellation,\
+  \ breakfast included,\n   a pool, AND costs under $350 per night for its cheapest\
+  \ room.\n   (Only one property meets all five criteria.)\n3. Book that property's\
+  \ \"Executive Suite\" for 2 guests,\n   checking in 2026-10-01, checking out 2026-10-05\
+  \ (4 nights),\n   using the default Visa (ending 4242).\n4. Save all 5 compared\
+  \ properties to a new list called\n   \"London Comparison October\".\n5. Write a\
+  \ review for your completed stay at \"{target.review_prop_name}\"\n   in London:\
+  \ score 9.5, title \"Absolutely perfect\",\n   positive \"Every detail was flawless,\
+  \ from the concierge to\n   the breakfast\", no negative, leisure, couple.\n6. Update\
+  \ your travel preferences: set preferred currency to \"GBP\".\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 45
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: compare_properties
+    params:
+      city: London
+      country: United Kingdom
+      properties:
+      - name: Kensington Palace Hotel
+        star_rating: 4
+        review_score: 8.2
+        review_count: 1800
+        price: 280.0
+        amenities:
+        - Free WiFi
+        - Restaurant
+        - Fitness center
+        - Bar
+        genius_discount_pct: 0
+        rooms:
+        - name: Standard Room
+          price: 280.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+        - name: Executive Suite
+          price: 420.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+      - name: Thames View Grand
+        star_rating: 5
+        review_score: 9.0
+        review_count: 3200
+        price: 520.0
+        amenities:
+        - Free WiFi
+        - Spa
+        - Pool
+        - Restaurant
+        - Bar
+        - Fitness center
+        genius_discount_pct: 15
+        rooms:
+        - name: Deluxe Room
+          price: 520.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+        - name: Executive Suite
+          price: 780.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+      - name: Bloomsbury Garden Hotel
+        star_rating: 4
+        review_score: 8.7
+        review_count: 2500
+        price: 310.0
+        amenities:
+        - Free WiFi
+        - Pool
+        - Restaurant
+        - Bar
+        - Fitness center
+        - Garden
+        genius_discount_pct: 10
+        rooms:
+        - name: Garden Room
+          price: 310.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+        - name: Executive Suite
+          price: 480.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+          view_type: garden
+      - name: Shoreditch Boutique Hotel
+        star_rating: 4
+        review_score: 8.5
+        review_count: 1500
+        price: 195.0
+        amenities:
+        - Free WiFi
+        - Restaurant
+        - Bar
+        - Rooftop terrace
+        genius_discount_pct: 10
+        rooms:
+        - name: Loft Room
+          price: 195.0
+          cancel_type: non_refundable
+          meals_included: none
+        - name: Executive Suite
+          price: 320.0
+          cancel_type: non_refundable
+          meals_included: none
+      - name: Mayfair Crown Hotel
+        star_rating: 5
+        review_score: 9.3
+        review_count: 4100
+        price: 680.0
+        amenities:
+        - Free WiFi
+        - Spa
+        - Pool
+        - Restaurant
+        - Bar
+        genius_discount_pct: 0
+        rooms:
+        - name: Superior Room
+          price: 680.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+        - name: Executive Suite
+          price: 1100.0
+          cancel_type: free_cancellation
+          meals_included: breakfast
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - prop_id_2
+    - prop_name_2
+    - prop_id_3
+    - prop_name_3
+    - prop_id_4
+    - prop_name_4
+    - prop_id_5
+    - prop_name_5
+  - use: featured_property
+    params:
+      name: Claridge's London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.5
+      review_count: 5500
+      price: 800.0
+      neighborhood: Mayfair
+      address: Brook Street, London W1K 4HR
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+    outputs:
+    - review_prop_id
+    - review_prop_name
+    - review_room_id
+    - review_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_prop_id}'
+      check_in: '2026-01-20'
+      check_out: '2026-01-24'
+      price_per_night: 800.0
+      status: completed
+      guests: 2
+      booked_days_ago: 80
+    outputs:
+    - review_res_id
+    - review_conf
+    - review_res_prop
+  - use: set_preferences
+    params:
+      preferred_currency: USD
+    outputs:
+    - prefs_updated
+  targets:
+    winner_prop_id: '{output.prop_id_3}'
+    winner_name: '{output.prop_name_3}'
+    name_1: '{output.prop_name_1}'
+    name_2: '{output.prop_name_2}'
+    name_3: '{output.prop_name_3}'
+    name_4: '{output.prop_name_4}'
+    name_5: '{output.prop_name_5}'
+    prop_id_1: '{output.prop_id_1}'
+    prop_id_2: '{output.prop_id_2}'
+    prop_id_3: '{output.prop_id_3}'
+    prop_id_4: '{output.prop_id_4}'
+    prop_id_5: '{output.prop_id_5}'
+    review_prop_id: '{output.review_prop_id}'
+    review_prop_name: '{output.review_prop_name}'
+    review_res_id: '{output.review_res_id}'
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Preferred currency updated to GBP
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_currency: {eq: GBP}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the reviewed reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: Reservation
+      desc: Book Bloomsbury Garden Hotel Executive Suite for 4 nights
+      properties:
+        property_id: {expr: "x == target['winner_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Executive Suite"}
+        check_in: {eq: "2026-10-01"}
+        check_out: {eq: "2026-10-05"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {expr: "x.type == 'free_cancellation'"}
+        confirmation_number: {any: true}
+        is_genius_deal: {eq: true}
+        genius_discount: {expr: "x > 0"}
+        meals_included: {eq: breakfast}
+        rating_submitted: {any: true}
+    - entity: SavedList
+      desc: Create London Comparison October list with all 5 properties
+      properties:
+        name: {eq: "London Comparison October"}
+        property_ids:
+          expr: >-
+            target['prop_id_1'] in x and
+            target['prop_id_2'] in x and
+            target['prop_id_3'] in x and
+            target['prop_id_4'] in x and
+            target['prop_id_5'] in x
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Review
+      desc: Write review for completed Claridge's London stay
+      properties:
+        property_id: {expr: "x == target['review_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.5}
+        scores: {any: true}
+        title: {eq: "Absolutely perfect"}
+        positive:
+          expr: "'concierge' in x.lower() or 'breakfast' in x.lower()"
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.property_id != target['winner_prop_id'] and a.id != target['review_res_id']"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_prop_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'London Comparison October'"
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Preferred currency updated to GBP
+      ref: update[0]
+      severity: medium
+    - name: Agent booked Bloomsbury Garden Hotel Executive Suite
+      ref: create[0]
+      severity: critical
+    - name: Agent created London Comparison October list with all 5 properties
+      ref: create[1]
+      severity: high
+    - name: Agent wrote review for completed Claridge's stay
+      ref: create[2]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not write reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

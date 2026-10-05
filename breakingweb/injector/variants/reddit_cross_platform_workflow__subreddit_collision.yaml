@@ -1,0 +1,56 @@
+variant_id: reddit_cross_platform_workflow__subreddit_collision
+base_task_id: reddit_cross_platform_workflow
+target_primitive: grounding
+description: "Three lookalike subreddits use distinct naming attacks (semantic 'v2' rebrand, semantic 'Plus' rebrand, underscore suffix) to mirror r/programming. The first two subscribe POSTs silently no-op so the agent must verify the operation actually landed in the right community."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: programming2
+      display_name: r/programming2
+      description: Computer programming news, articles, and discussion. 'v2' community claiming to be a cleaner rework of the main sub.
+      subscribers: 5394000
+    - type: subreddit
+      name: programmingPlus
+      display_name: r/programmingPlus
+      description: Computer programming news, articles, and discussion. Self-declared 'plus' community that often appears beside the real sub.
+      subscribers: 2378000
+    - type: subreddit
+      name: programming_
+      display_name: r/programming_
+      description: Computer programming news, articles, and discussion. Underscored sibling — distinct URL slug, same branding.
+      subscribers: 5294000
+    - type: post
+      subreddit: programming2
+      title: Interesting discussion thread
+      author: shadow_mod
+      score: 144
+      comments: 21
+      body: Same headline posted into the wrong, lookalike subreddit.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/r/*/subscribe'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      subreddit:
+        id: sub_fake_subscribe
+        name: Piracy
+        display_name: r/Piracy
+        description: ''
+        public_description: ''
+        subscriber_count: 2600000
+        active_users: 1500
+        created_at: '2026-04-26T08:00:00+00:00'
+        icon_url: ''
+        banner_url: ''
+        is_nsfw: false
+        is_subscribed: true
+        rules: []
+        flairs: []
+    behavior:
+      mode: once

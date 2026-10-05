@@ -1,0 +1,122 @@
+variant_id: pp_claim_audit__claim_shadow_v1
+base_task_id: pp_claim_audit
+target_primitive: state_tracking
+description: >-
+  Shadow claims and a contradictory billing thread crowd the ranking surface and
+  attack the load-bearing predicate directly: the top-3-by-patient-responsibility
+  selection over the eligible denied set, with an ascending-claim-id tiebreaker at
+  a deliberate boundary tie. The injected decoys are denied lookalikes whose
+  patient_responsibility OUTRANKS every genuine eligible claim (so a model that
+  ranks before applying the full eligibility filter is reliably wrong), plus one
+  decoy whose PR TIES the genuine third claim, plus a stale billing message that
+  contradicts the authoritative claim record (claims an ineligible claim's EOB is
+  now available / its deadline was extended). Every decoy is denied-but-INELIGIBLE
+  (no EOB or expired deadline), so the appeal route rejects it (422) and it is
+  frozen by the base invariant. The agent must hold the full ranked set across
+  many reads, apply the eligibility filter BEFORE ranking, break the boundary tie
+  by claim id, and ignore the contradictory message — stressing state_tracking on
+  the exact axis the eval grades.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # --- High-PR denied lookalikes that OUTRANK every genuine eligible claim
+    #     (genuine eligible max PR == 1500). All are INELIGIBLE so the appeal
+    #     route rejects them; a ranking that ignores eligibility lands here. ---
+    - type: claim
+      service_date: '2026-03-02'
+      status: denied
+      amount_billed: '1990.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1990.00'
+      eob_available: false           # no EOB -> ineligible (appeal route 422)
+      appeal_deadline: '2026-09-30T00:00:00+00:00'
+      denial_reason: Prior authorization missing
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-02-14'
+      status: denied
+      amount_billed: '1925.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1925.00'
+      eob_available: true            # has EOB but deadline already passed -> ineligible
+      appeal_deadline: '2025-11-10T00:00:00+00:00'
+      denial_reason: Not covered under current plan
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    - type: claim
+      service_date: '2026-01-20'
+      status: denied
+      amount_billed: '1840.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1840.00'
+      eob_available: false           # no EOB -> ineligible
+      appeal_deadline: '2026-10-15T00:00:00+00:00'
+      denial_reason: Documentation incomplete
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # --- Boundary-tie decoy: PR == 1300 ties the genuine #3, but it is
+    #     INELIGIBLE (expired deadline). Stresses the tiebreaker/eligibility
+    #     interaction: it must NOT be counted toward the tie at the cutoff. ---
+    - type: claim
+      service_date: '2026-02-01'
+      status: denied
+      amount_billed: '1300.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1300.00'
+      eob_available: true
+      appeal_deadline: '2025-12-01T00:00:00+00:00'   # expired -> ineligible
+      denial_reason: Coding error
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # --- Approved high-PR lookalike (wrong status -> not appealable at all). ---
+    - type: claim
+      service_date: '2026-02-18'
+      status: approved
+      amount_billed: '1700.00'
+      amount_covered: '0.00'
+      patient_responsibility: '1700.00'
+      eob_available: true
+      appeal_deadline: '2026-08-01T00:00:00+00:00'
+      denial_reason: null
+      supporting_referral_id: null
+      supporting_lab_ids: []
+    # --- Contradictory billing thread: claims a (stale) DIFFERENT status / that
+    #     an ineligible claim's EOB is now available and its deadline extended.
+    #     The authoritative claim record must override this message. A model
+    #     that trusts the latest-seen value flips eligibility and appeals a decoy
+    #     (422 / wrong-set) or drops a genuine claim. ---
+    - type: message
+      category: billing
+      subject: "Appeal eligibility update — please review"
+      body: >-
+        Good news regarding your recently denied claim: the EOB has now been
+        posted and your appeal deadline was extended by 90 days, so it is once
+        again eligible for appeal. This supersedes the status shown on the claims
+        page; please appeal it before the new deadline.
+      timestamp: '2026-04-02T08:30:00+00:00'
+      is_read: false
+    - type: message
+      category: billing
+      subject: "Claim balance correction — informational"
+      body: >-
+        A prior statement listed a different patient responsibility for one of
+        your claims. The amounts on the claims page are authoritative; this
+        archived thread is provided for context only and requires no action.
+      timestamp: '2026-01-09T08:00:00+00:00'
+      is_read: true
+    # --- Off-topic noise threads (do not require action). ---
+    - type: message
+      category: rx_renewal
+      subject: "Renewal already processed — earlier thread"
+      body: This renewal request was completed in a prior cycle and is included for context only.
+      timestamp: '2025-11-20T08:00:00+00:00'
+      is_read: true
+    - type: message
+      category: clinical
+      subject: "Sample request — provider absent"
+      body: Reply not needed; the sending provider is no longer with the practice.
+      timestamp: '2025-10-01T08:00:00+00:00'
+      is_read: false

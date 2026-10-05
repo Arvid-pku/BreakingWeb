@@ -1,0 +1,157 @@
+task_id: amazon_checkout_with_new_address
+env_id: amazon
+title: Checkout with a New Shipping Address
+instruction_template: 'You have items in your cart. Add a new shipping address with
+  name "{target.recipient_name}", street "{target.street}", city "{target.city}",
+  state "{target.state_code}", ZIP "{target.zip}". Then complete the checkout using
+  this new address and the Visa card ending in 4242.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 25
+primary_primitives:
+- backtracking
+start_path: /cart
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Wireless Mouse
+        price: 29.99
+        quantity: 1
+      - name: USB-C Hub
+        price: 45.99
+        quantity: 1
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  targets:
+    recipient_name: Sam Rivera
+    street: 100 Main Street
+    city: Austin
+    state_code: TX
+    zip: '78701'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New address created with target details
+    properties:
+      full_name: {expr: "x == target['recipient_name']"}
+      street_address: {expr: "x == target['street']"}
+      city: {expr: "x == target['city']"}
+      state: {expr: "x == target['state_code']"}
+      zip_code: {expr: "x == target['zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  - entity: Order
+    desc: New order placed using the new shipping address
+    properties:
+      items:
+        expr: "len(x) == len(initial.cart_items) and {it['product_id'] for it in x}
+          == {ci.product_id for ci in initial.cart_items} and all(any(ci.product_id
+          == it['product_id'] and ci.quantity == it['quantity'] for ci in initial.cart_items)
+          for it in x)"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == target['recipient_name'] for a in
+          state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for
+          p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  delete:
+  - entity: CartItem
+    desc: Pre-seeded cart item 1 cleared on checkout (side effect, weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  - entity: CartItem
+    desc: Pre-seeded cart item 2 cleared on checkout (side effect, weight 0)
+    weight: 0.0
+    where:
+      id: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name != target['recipient_name']"
+    preserve: ALL
+  - collection: state.orders
+    filter: "not any(addr.id == a.shipping_address_id and addr.full_name == target['recipient_name']
+      for addr in state.addresses)"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other orders
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

@@ -1,0 +1,45 @@
+variant_id: pp_year_end_review__account_clutter_v1
+base_task_id: pp_year_end_review
+target_primitive: exploration
+description: The portal is cluttered with older lookalike records across messages, claims, medications, pharmacies, and screenings. The agent must explore the full account state without confusing archival noise for the seeded task signals.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      category: clinical
+      subject: Follow-up reminder from earlier thread
+      body: This older portal thread is similar in topic but does not contain the seeded action request.
+      timestamp: '2025-02-10T09:00:00+00:00'
+      is_read: false
+    - type: claim
+      service_date: '2025-01-10'
+      status: denied
+      amount_billed: '425.00'
+      amount_covered: '0.00'
+      patient_responsibility: '425.00'
+      eob_available: false
+      appeal_deadline: '2025-02-15T00:00:00+00:00'
+      denial_reason: Documentation incomplete
+    - type: pharmacy
+      name: 'Walgreens Express #2044'
+      address: 11 Cedar St, Springfield, IL 62705
+      phone: (555) 410-2204
+      is_default: false
+      is_mail_order: false
+    - type: prescription
+      medication: Metoprolol 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 3
+      last_filled: '2025-02-01T08:00:00+00:00'
+      expires_at: '2027-02-01T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: screening
+      screening_name: Bone Density Scan
+      recommended_age_start: 65
+      frequency: every 2 years
+      last_completed: '2025-06-01'
+      next_due: '2027-06-01'

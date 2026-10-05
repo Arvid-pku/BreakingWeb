@@ -1,0 +1,143 @@
+task_id: pp_wellness_visit_prep
+env_id: patient_portal
+title: Annual Wellness Visit Preparation
+instruction_template: 'Prepare for your annual wellness visit using appointments only:
+  1) Schedule exactly one PCP appointment with reason "Annual wellness visit", 2)
+  For every due or overdue immunization, schedule exactly one appointment and use
+  the vaccine name itself as the appointment reason, 3) For every overdue screening,
+  schedule exactly one appointment and use the screening name itself as the appointment
+  reason. Do not send any messages.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+      overdue_screening_count: 1
+    outputs:
+    - pcp_id
+    - pcp_name
+    - applicable_screening_names
+    - overdue_screening_names
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+      expiring_soon_count: 2
+    outputs:
+    - active_rx_ids
+    - expiring_rx_ids
+  - use: immunization_record
+    params:
+      completed_count: 3
+      due_count: 2
+    outputs:
+    - due_imm_ids
+    - due_vaccine_names
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+    outputs:
+    - pending_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    due_vaccine_names: '{output.due_vaccine_names}'
+    expiring_rx_ids: '{output.expiring_rx_ids}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+    applicable_screening_names: '{output.applicable_screening_names}'
+    overdue_screening_names: '{output.overdue_screening_names}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule the PCP annual wellness visit"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Annual wellness visit"}
+    - entity: Appointment
+      desc: "Schedule one appointment per due vaccine; reason = vaccine name"
+      bijection:
+        over: "target['due_vaccine_names']"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        reason:
+          expr: "x == v"
+    - entity: Appointment
+      desc: "Schedule one appointment per overdue screening; reason = screening name"
+      bijection:
+        over: "target['overdue_screening_names']"
+        variable: v
+      properties:
+        status: {eq: "scheduled"}
+        reason:
+          expr: "x == v"
+  invariant:
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[2]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[4]
+      severity: critical
+    - name: "Agent did not touch referrals"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[6]
+      severity: medium
+    - name: "Agent scheduled exactly one PCP annual wellness appointment"
+      ref: create[0]
+      severity: high
+secondary_primitives: []

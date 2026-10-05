@@ -1,0 +1,18 @@
+variant_id: amazon_selective_reorder__patience_v1
+base_task_id: amazon_selective_reorder
+target_primitive: patience
+description: >
+  Order list and order detail pages have 5-second delays. The agent must
+  wait patiently through slow-loading order history without abandoning
+  the workflow.
+injections:
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/orders"
+      action: delay
+      delay_ms: 5000
+  - layer: network
+    params:
+      url_pattern: "**/api/env/amazon/orders/*"
+      action: delay
+      delay_ms: 5000

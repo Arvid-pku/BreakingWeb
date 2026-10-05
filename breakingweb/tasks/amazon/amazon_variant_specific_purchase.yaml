@@ -1,0 +1,165 @@
+task_id: amazon_variant_specific_purchase
+env_id: amazon
+title: Purchase a Product with Specific Variant Selections
+instruction_template: >
+  Find the product "{target.product_name}" and add it to your cart with
+  {target.variant_name} set to "{target.variant_value}" and
+  {target.variant_name_2} set to "{target.variant_value_2}". Check out using
+  your default Jordan Parker address and the Visa card ending in 4242.
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- grounding
+- backtracking
+start_path: /
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Performance Running Jacket
+      brand: SummitWear
+      category: Clothing
+      price: 89.99
+      rating: 4.6
+      features:
+      - Water-resistant outer shell
+      - 4-way stretch fabric
+      - Reflective accents for night visibility
+      - Two zippered pockets
+      variants:
+      - name: Color
+        value: Red
+        price_modifier: 0.0
+        in_stock: true
+      - name: Color
+        value: Blue
+        price_modifier: 0.0
+        in_stock: true
+      - name: Color
+        value: Black
+        price_modifier: 0.0
+        in_stock: true
+      - name: Size
+        value: Small
+        price_modifier: 0.0
+        in_stock: true
+      - name: Size
+        value: Medium
+        price_modifier: 0.0
+        in_stock: true
+      - name: Size
+        value: Large
+        price_modifier: 0.0
+        in_stock: true
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Clothing
+      count: 3
+      price_range:
+      - 30.0
+      - 150.0
+    outputs:
+    - product_ids
+  targets:
+    product_id: '{output.product_id}'
+    product_name: '{output.product_name}'
+    variant_name: Color
+    variant_value: Red
+    variant_name_2: Size
+    variant_value_2: Medium
+canonical_diff:
+  create:
+  - entity: Order
+    desc: Order placed for target product with Color=Red and Size=Medium, single unit
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0].get('variant_selections', {}).get(target['variant_name']) == target['variant_value'] and x[0].get('variant_selections', {}).get(target['variant_name_2']) == target['variant_value_2'] and x[0]['quantity'] == 1"
+      shipping_address_id:
+        expr: "any(a.id == x and a.full_name == 'Jordan Parker' and a.is_default for a in state.addresses)"
+      payment_method_id:
+        expr: "any(p.id == x and p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id'] for it in (a.items or []))"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

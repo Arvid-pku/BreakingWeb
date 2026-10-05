@@ -1,0 +1,62 @@
+task_id: gmail_delete_spam
+env_id: gmail
+title: Delete a Spam Email
+instruction_template: Delete the spam email from winner@prizecentral.net with subject
+  "You Won $1,000,000!!! Click NOW!!!". Do not delete any other emails.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 5
+  steps:
+  - use: delete_spam
+    params: {}
+    outputs:
+    - spam_email_id
+    - normal_email_id
+  targets:
+    spam_email_id: '{output.spam_email_id}'
+    normal_email_id: '{output.normal_email_id}'
+canonical_diff:
+  delete:
+    - entity: emails
+      desc: Delete the spam email from inbox
+      where:
+        id:
+          expr: "x == target['spam_email_id']"
+  create:
+    - entity: deleted
+      desc: Spam email moved to trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['spam_email_id']"
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['spam_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent deleted the spam email
+      ref: delete[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete other emails
+      ref: invariant[3]
+      severity: high

@@ -1,0 +1,161 @@
+task_id: gmail_escalation_chain
+env_id: gmail
+title: Escalation Chain
+instruction_template: 'In your inbox there are two issue report threads:
+
+
+  1. Thread "CRITICAL: Payment Gateway Timeout - Order #88421" from {target.reporter_name}
+  ({target.reporter_email}), 2 messages. The second message confirms the issue is
+  still unresolved.
+
+
+  2. Thread "CRITICAL: Payment Gateway Timeout - Order #88419" from {target.resolved_reporter_name}
+  ({target.resolved_reporter_email}), 3 messages. The third message confirms the issue
+  was resolved.
+
+
+  Escalate ONLY the unresolved issue (Order #88421) through this chain:
+
+
+  Step 1: Reply to {target.reporter_name} on the Order #88421 thread with the exact
+  phrase "Received. Escalating to engineering lead now."
+
+
+  Step 2: Forward {target.reporter_name}''s original (first) message to team lead
+  {target.team_lead_name} ({target.team_lead_email}) with the body "Unresolved payment
+  timeout on Order #88421. Please investigate and assign an engineer."
+
+
+  Step 3: Forward {target.reporter_name}''s original (first) message to director {target.director_name}
+  ({target.director_email}) with the body "Escalated to {target.team_lead_name} per
+  protocol. Order #88421 payment timeout remains unresolved."
+
+
+  After all three steps, star the original issue email from {target.reporter_name}.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 45
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: escalation_chain
+    params: {}
+    outputs:
+    - unresolved_thread_id
+    - unresolved_first_msg_id
+    - resolved_thread_id
+    - reporter_name
+    - reporter_email
+    - resolved_reporter_name
+    - resolved_reporter_email
+    - team_lead_name
+    - team_lead_email
+    - director_name
+    - director_email
+    - vp_email
+  targets:
+    unresolved_thread_id: '{output.unresolved_thread_id}'
+    unresolved_first_msg_id: '{output.unresolved_first_msg_id}'
+    resolved_thread_id: '{output.resolved_thread_id}'
+    reporter_name: '{output.reporter_name}'
+    reporter_email: '{output.reporter_email}'
+    resolved_reporter_name: '{output.resolved_reporter_name}'
+    resolved_reporter_email: '{output.resolved_reporter_email}'
+    team_lead_name: '{output.team_lead_name}'
+    team_lead_email: '{output.team_lead_email}'
+    director_name: '{output.director_name}'
+    director_email: '{output.director_email}'
+    vp_email: '{output.vp_email}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to reporter on unresolved thread with exact escalation phrase
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['unresolved_first_msg_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['unresolved_first_msg_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Received. Escalating to engineering lead now."
+        forwarded_from_id:
+          eq: null
+    - entity: sent
+      desc: Forward original issue message to team lead with correct body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['unresolved_first_msg_id']"
+        to:
+          expr: "x == [target['team_lead_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          regex: "^Unresolved payment timeout on Order #88421\\. Please investigate and assign an engineer\\.\\n\\nForwarded message from"
+    - entity: sent
+      desc: Forward original issue message to director with correct body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['unresolved_first_msg_id']"
+        to:
+          expr: "x == [target['director_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "x.startswith('Escalated to ' + target['team_lead_name'] + ' per protocol. Order #88421 payment timeout remains unresolved.\\n\\nForwarded message from')"
+  update:
+    - entity: emails
+      desc: Star the original issue email from reporter
+      where:
+        id:
+          expr: "x == target['unresolved_first_msg_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['unresolved_first_msg_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to reporter with escalation phrase
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded to team lead
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded to director
+      ref: create[2]
+      severity: high
+    - name: Agent starred the original issue email
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high

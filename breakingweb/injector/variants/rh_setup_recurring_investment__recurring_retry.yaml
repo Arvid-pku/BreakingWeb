@@ -1,0 +1,30 @@
+variant_id: rh_setup_recurring_investment__recurring_retry
+base_task_id: rh_setup_recurring_investment
+target_primitive: backtracking
+description: The first recurring-investment creation fails transiently. The agent must verify the schedule exists and retry
+  if it does not.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/robinhood/recurring**'
+    methods:
+    - POST
+    - PUT
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/recurring'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Recurring investment created.
+    behavior:
+      mode: once

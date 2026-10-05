@@ -1,0 +1,17 @@
+variant_id: booking_add_payment__payment_retry
+base_task_id: booking_add_payment
+target_primitive: backtracking
+description: The first payment-method save fails transiently. The agent must verify the card exists and retry if it did not
+  persist.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/booking/payment-methods'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

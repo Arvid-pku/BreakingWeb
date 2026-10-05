@@ -1,0 +1,159 @@
+task_id: amazon_review_aggregation_read_only
+env_id: amazon
+title: Gather Review Evidence Across Coffee Makers
+instruction_template: 'You are evaluating three coffee makers for an office purchase
+  decision. Browse each of the following product pages so you can review their details
+  and ratings: "{target.coffee_a_name}", "{target.coffee_b_name}", "{target.coffee_c_name}".
+
+  Do NOT purchase anything, do NOT add to cart or wishlist, and do NOT submit any
+  reviews — your role is to gather information, not act.
+
+  '
+difficulty: medium
+time_limit_seconds: 210
+expected_steps: 12
+primary_primitives:
+- exploration
+secondary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: product_with_reviews
+    params:
+      product_name: Breville BES870XL Espresso Machine
+      brand: Breville
+      category: Home & Kitchen
+      price: 699.99
+      rating: 4.5
+      reviews:
+      - rating: 5
+        title: Cafe-quality espresso at home
+        body: Dial-in is quick once you understand the grind.
+      - rating: 4
+        title: Great machine but the hopper squeaks
+        body: Nothing a drop of food-grade lubricant can't fix.
+    outputs:
+    - coffee_a_id
+    - coffee_a_review_ids
+  - use: product_with_reviews
+    params:
+      product_name: Moccamaster KBGV Select Drip Coffee Maker
+      brand: Technivorm
+      category: Home & Kitchen
+      price: 359.0
+      rating: 4.8
+      reviews:
+      - rating: 5
+        title: Simple, durable, excellent
+        body: Replaced three other drip machines and this is the last one.
+      - rating: 5
+        title: Pro-grade brew with zero fuss
+        body: Consistent temp and timing straight out of the box.
+    outputs:
+    - coffee_b_id
+    - coffee_b_review_ids
+  - use: product_with_reviews
+    params:
+      product_name: OXO Brew 8-Cup Coffee Maker
+      brand: OXO
+      category: Home & Kitchen
+      price: 199.99
+      rating: 4.3
+      reviews:
+      - rating: 4
+        title: Mid-range workhorse
+        body: Not as pretty as the Moccamaster but brews close to the SCA standard.
+      - rating: 3
+        title: Warming plate runs hot
+        body: Coffee gets slightly burnt if left for over 30 minutes.
+    outputs:
+    - coffee_c_id
+    - coffee_c_review_ids
+  - use: product_catalog
+    params:
+      category: Home & Kitchen
+      count: 8
+      price_range:
+      - 50.0
+      - 800.0
+    outputs:
+    - catalog_ids
+  targets:
+    coffee_a_id: '{output.coffee_a_id}'
+    coffee_a_name: Breville BES870XL Espresso Machine
+    coffee_b_id: '{output.coffee_b_id}'
+    coffee_b_name: Moccamaster KBGV Select Drip Coffee Maker
+    coffee_c_id: '{output.coffee_c_id}'
+    coffee_c_name: OXO Brew 8-Cup Coffee Maker
+canonical_diff:
+  # READ-ONLY task: preserve Amazon state while requiring observable page-view
+  # evidence from the final state's browsing/recently-viewed data.
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  constraints:
+  - desc: Agent viewed all three target coffee maker product pages
+    expr: "all(pid in state.recently_viewed for pid in [target['coffee_a_id'], target['coffee_b_id'], target['coffee_c_id']])"
+    severity: critical
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not add items to cart
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium

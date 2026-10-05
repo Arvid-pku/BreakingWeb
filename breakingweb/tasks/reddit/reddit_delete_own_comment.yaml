@@ -1,0 +1,93 @@
+task_id: reddit_delete_own_comment
+env_id: reddit
+title: Delete Your Own Comment
+instruction_template: Navigate to r/{target.subreddit_name} and open the post titled "{target.post_title}". Find your own comment that says "{target.comment_snippet}" and delete it. Do not delete any other comments or the post.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 7
+primary_primitives:
+- verification
+start_path: /feed
+seed:
+  distractors: 3
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: worldnews
+      title: Global renewable energy capacity surpasses coal for the first time
+      body: According to the IEA's latest report.
+      score: 25000
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: owner_comment
+    params:
+      post_id: '{output.post_id}'
+      body: This is misleading. The report counts installed capacity, not actual generation. Coal still produces more electricity globally.
+      score: 150
+    outputs:
+    - comment_id
+  targets:
+    subreddit_name: '{output.subreddit_name}'
+    post_title: '{output.post_title}'
+    post_id: '{output.post_id}'
+    comment_id: '{output.comment_id}'
+    comment_snippet: This is misleading
+canonical_diff:
+  update:
+  - entity: Comment
+    desc: Delete the target comment (set is_removed, replace body)
+    where:
+      id:
+        expr: "x == target['comment_id']"
+    changes:
+      is_removed:
+        eq: true
+      body:
+        eq: "[deleted]"
+  invariant:
+  - collection: state.comments
+    filter: "a.id != target['comment_id']"
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent deleted the target comment
+    ref: update[0]
+    severity: high
+  - name: Agent did not modify any other comments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not delete or modify the post itself
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify subreddits
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify messages
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not modify notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+secondary_primitives: []

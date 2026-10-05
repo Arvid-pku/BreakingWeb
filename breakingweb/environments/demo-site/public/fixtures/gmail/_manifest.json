@@ -1,0 +1,402 @@
+[
+  {
+    "task_id": "gmail_access_review_audit",
+    "title": "Departed Employee Access Audit",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_action_item_extraction",
+    "title": "Action Item Extraction",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_annual_contact_review",
+    "title": "End-of-year contact review with activity audit, protected list, enrichment, and summary",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_annual_vendor_review",
+    "title": "Categorize Six Vendors as Renew/Renegotiate/Terminate and Compose VP Recommendation",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_backlog_bankruptcy",
+    "title": "Process 2-week email backlog with multi-rule triage and delegation",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_board_briefing_prep",
+    "title": "Board Briefing Preparation",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_briefing_under_fire",
+    "title": "Board Briefing Under Distraction Fire",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_budget_reconciliation",
+    "title": "Budget Reconciliation",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_change_setting",
+    "title": "Change Undo Send Delay",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_client_handoff",
+    "title": "Onboard client portfolio from handoff email, update stale contacts, and confirm",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_compliance_settings_audit",
+    "title": "Compliance Settings Audit",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_compose_new",
+    "title": "Compose and Send a New Email",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_confidential_forwarding",
+    "title": "Confidential Forwarding",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_contact_audit",
+    "title": "Contact Audit",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_contact_cleanup",
+    "title": "Contact Cleanup",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_contact_deduplication",
+    "title": "Deduplicate contacts by verifying current email via thread evidence",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_contact_enrichment",
+    "title": "Enrich contacts from email signatures and star VIPs",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_contract_negotiation_tracker",
+    "title": "Contract Negotiation Tracker",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_create_label",
+    "title": "Create a New Label",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_credential_leak_response",
+    "title": "Credential Leak Alert Response",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_crisis_communication_draft",
+    "title": "Crisis Communication Draft",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_cross_account_migration",
+    "title": "Cross Account Migration",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_cross_functional_distribution",
+    "title": "Cross-Functional Distribution",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_cross_team_filter_audit",
+    "title": "Cross-Team Filter Audit with Conflict Resolution",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_data_compilation",
+    "title": "Data Compilation",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_delegation_handoff",
+    "title": "Delegation Handoff",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_delegation_routing",
+    "title": "Delegation Routing",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_delete_spam",
+    "title": "Delete a Spam Email",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_escalation_chain",
+    "title": "Escalation Chain",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_executive_calendar_conflict",
+    "title": "Executive Calendar Conflict Resolution",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_filter_architect",
+    "title": "Filter Architect",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_filter_conflict_resolution",
+    "title": "Resolve Overlapping Filter Criteria per Admin Directive",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_filter_overhaul",
+    "title": "Filter Overhaul",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_filter_repair_chain",
+    "title": "Diagnose and Repair a Broken Email Filter",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_forward_email",
+    "title": "Forward an Invoice Email",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_inbox_triage_protocol",
+    "title": "Inbox Triage Protocol",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_inbox_zero_automation",
+    "title": "Implement Inbox-Zero Automation Policy",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_incident_escalation",
+    "title": "Incident Escalation",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_incident_postmortem_assembly",
+    "title": "Security Incident Postmortem Assembly",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_interview_scheduling",
+    "title": "Interview Scheduling",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_invoice_dispute_reversal",
+    "title": "Retract Incorrect Invoice Rejection After Discovering CFO Exception",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_invoice_verification",
+    "title": "Identify Mismatched PO Number Across Three Vendor Invoices",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_label_hierarchy_reorg",
+    "title": "Reorganize Label Taxonomy per Team Lead Directive",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_label_workflow_setup",
+    "title": "Label Workflow Setup",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_mark_all_read",
+    "title": "Mark All Unread Emails as Read",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_meeting_negotiation",
+    "title": "Meeting Negotiation",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_misrouted_correction",
+    "title": "Correct a misrouted forward and complete remaining deliveries",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_morning_triage_extended",
+    "title": "Morning Triage Extended",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_multi_party_rsvp",
+    "title": "Multi-Party RSVP",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_multi_recipient_policy",
+    "title": "Multi-Recipient Policy",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_new_hire_setup",
+    "title": "New Hire Setup",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_phishing_investigation",
+    "title": "Phishing Investigation",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_priority_escalation",
+    "title": "Priority Escalation",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_purchase_order_reconciliation",
+    "title": "Match Six PO-Invoice Pairs and Report Discrepancies to CFO",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_quarterly_closeout",
+    "title": "Quarterly Closeout",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_reply_simple",
+    "title": "Reply to an Email",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_schedule_recovery",
+    "title": "Schedule Recovery",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_search_and_star",
+    "title": "Search for Budget Email and Star It",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_sender_domain_triage",
+    "title": "Triage inbox by sender-domain rules",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_sensitive_hr_routing",
+    "title": "Sensitive HR Routing",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_social_engineering_triage",
+    "title": "CEO Impersonation Triage",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_star_email",
+    "title": "Star a Specific Email",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_subscription_cleanup",
+    "title": "Subscription Cleanup",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_team_roster_sync",
+    "title": "Sync contacts with HR roster, apply promotion, and mark team lead as VIP",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_team_transition_setup",
+    "title": "Team Transition Setup",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_thread_archaeology",
+    "title": "Thread Archaeology",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_thread_blame_trace",
+    "title": "Trace who introduced a pricing error by reading backwards through a thread",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_thread_deadline_cascade",
+    "title": "Reconstruct a deadline dependency chain and notify the project sponsor",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_thread_detective",
+    "title": "Thread Detective",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_thread_merge_conflict",
+    "title": "Identify conflicting decisions from two threads and draft a resolution email",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_thread_retraction_recovery",
+    "title": "Discover a retracted decision across tabs and send a correction",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_thread_version_conflict",
+    "title": "Find the final agreed version number in a thread with superseded proposals",
+    "difficulty": "medium"
+  },
+  {
+    "task_id": "gmail_travel_itinerary_resolution",
+    "title": "Travel Itinerary Resolution",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_triage_with_interrupts",
+    "title": "Complete inbox triage while ignoring mid-task interrupt",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_update_contact",
+    "title": "Update a Contact Note",
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "gmail_vacation_preparation",
+    "title": "Vacation Preparation",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_vendor_renewal_decision",
+    "title": "Select the One Vendor Renewal Proposal Meeting Budget and SLA Constraints",
+    "difficulty": "hard"
+  },
+  {
+    "task_id": "gmail_vendor_security_questionnaire",
+    "title": "Vendor Security Questionnaire Response",
+    "difficulty": "frontier"
+  },
+  {
+    "task_id": "gmail_weekly_digest_preparation",
+    "title": "Compile weekly digest email, archive processed messages, create filters",
+    "difficulty": "expert"
+  },
+  {
+    "task_id": "gmail_workspace_standardization",
+    "title": "Workspace Standardization",
+    "difficulty": "expert"
+  }
+]

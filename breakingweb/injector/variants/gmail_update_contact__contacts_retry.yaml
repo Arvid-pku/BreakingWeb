@@ -1,0 +1,30 @@
+variant_id: gmail_update_contact__contacts_retry
+base_task_id: gmail_update_contact
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/contacts**'
+    methods:
+    - POST
+    - PUT
+    - DELETE
+    fail_count: 2
+    # Echo the client's submitted fields so the fake "success" response looks
+    # like a real persisted contact (Alice keeps her real name/email; only the
+    # note appears updated to what the agent just typed). Omitting `id` keeps
+    # the frontend's existing record id when it spreads the response in.
+    # Previously this hardcoded em-dashes ("\u2014@example.com"), which surfaced
+    # as nonsense data on Alice's contact card after a silently-failed write.
+    response_body:
+      contact:
+        name: '{request.name}'
+        email: '{request.email}'
+        company: '{request.company}'
+        note: '{request.note}'
+        is_vip: '{request.is_vip}'
+    behavior:
+      mode: once

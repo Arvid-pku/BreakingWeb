@@ -1,0 +1,27 @@
+variant_id: gmail_cross_functional_distribution__state_tracking_v1
+base_task_id: gmail_cross_functional_distribution
+target_primitive: state_tracking
+description: >
+  Inject 10 topical distractor emails about teams, distribution, and project updates.
+  Scramble timestamps. Agent must track which information goes to which team across
+  15+ emails with confusing order.
+injections:
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 15
+    topical_count: 10
+    topical_subjects:
+      - "Team Distribution List"
+      - "Cross-Team Updates"
+      - "Project Information Sharing"
+      - "Department Communication"
+      - "Team Lead Contacts"
+      - "Distribution Protocol"
+      - "Cross-Functional Meeting"
+      - "Information Routing Rules"
+      - "Team Assignment Changes"
+      - "Communication Matrix"
+- layer: server
+  params:
+    action: scramble_timestamps

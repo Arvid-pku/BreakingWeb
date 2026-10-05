@@ -1,0 +1,405 @@
+task_id: booking_frontier_grand_tour
+env_id: booking
+title: 'Frontier: Plan a 3-City Grand Tour Across NYC, Paris, and Tokyo'
+instruction_template: "Plan a grand tour across three cities with these exact steps:\n\
+  1. Search for hotels in New York City and find \"{target.nyc_name}\".\n   Save it\
+  \ to a new list called \"Grand Tour 2026\".\n2. Search for hotels in Paris and find\
+  \ \"{target.paris_name}\".\n   Save it to the same \"Grand Tour 2026\" list.\n3.\
+  \ Search for hotels in Tokyo and find \"{target.tokyo_name}\".\n   Save it to the\
+  \ same \"Grand Tour 2026\" list.\n4. Book {target.nyc_name}: \"Deluxe King Room\"\
+  \ for 2 guests,\n   checking in 2026-09-01, checking out 2026-09-04 (3 nights),\n\
+  \   using the default Visa (ending 4242).\n5. Book {target.paris_name}: \"Superior\
+  \ Suite\" for 2 guests,\n   checking in 2026-09-05, checking out 2026-09-09 (4 nights),\n\
+  \   using the Mastercard ending in 8888.\n6. Book {target.tokyo_name}: \"Premium\
+  \ Room\" for 2 guests,\n   checking in 2026-09-10, checking out 2026-09-13 (3 nights),\n\
+  \   using the Amex ending in 1234.\n7. You have a completed stay at \"{target.review_prop_name}\"\
+  \ in London.\n   Write a review: overall score 9.0, title \"Wonderful London stay\"\
+  ,\n   positive \"Stunning views of the Thames and impeccable service\",\n   no negative,\
+  \ travel purpose leisure, traveled with couple.\n8. Update your travel preferences:\
+  \ set preferred currency to \"EUR\"\n   and preferred bed type to \"king\".\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Langham New York
+      city: New York
+      country: United States
+      star_rating: 5
+      review_score: 9.1
+      review_count: 4200
+      price: 450.0
+      neighborhood: Midtown
+      address: 400 Fifth Avenue, New York, NY 10018
+      distance_km: 0.3
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+      rooms:
+      - name: Classic Room
+        price: 450.0
+        bed_type: queen
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Deluxe King Room
+        price: 580.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: city
+      - name: Grand Suite
+        price: 1200.0
+        bed_type: king
+        max_occupancy: 4
+        cancel_type: free_cancellation
+    outputs:
+    - nyc_prop_id
+    - nyc_prop_name
+    - nyc_cheap_room_id
+    - nyc_cheap_room_name
+  - use: featured_property
+    params:
+      name: Hotel Le Marais Paris
+      city: Paris
+      country: France
+      star_rating: 5
+      review_score: 9.3
+      review_count: 3800
+      price: 520.0
+      neighborhood: Le Marais
+      address: 15 Rue de Rivoli, 75004 Paris
+      distance_km: 0.5
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Room service
+      - Concierge
+      - Garden
+      rooms:
+      - name: Elegant Double Room
+        price: 520.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Superior Suite
+        price: 780.0
+        bed_type: king
+        max_occupancy: 3
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: garden
+        room_size_sqm: 55.0
+      - name: Presidential Suite
+        price: 1800.0
+        bed_type: king
+        max_occupancy: 4
+        cancel_type: free_cancellation
+    outputs:
+    - paris_prop_id
+    - paris_prop_name
+    - paris_cheap_room_id
+    - paris_cheap_room_name
+  - use: featured_property
+    params:
+      name: Shinjuku Grandbell Hotel
+      city: Tokyo
+      country: Japan
+      star_rating: 4
+      review_score: 8.8
+      review_count: 5600
+      price: 280.0
+      neighborhood: Shinjuku
+      address: 2-14-5 Kabukicho, Shinjuku-ku, Tokyo
+      distance_km: 0.4
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Concierge
+      - Laundry
+      rooms:
+      - name: Standard Twin Room
+        price: 280.0
+        bed_type: twin
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Premium Room
+        price: 380.0
+        bed_type: king
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        view_type: city
+      - name: Executive Suite
+        price: 620.0
+        bed_type: king
+        max_occupancy: 3
+        cancel_type: free_cancellation
+    outputs:
+    - tokyo_prop_id
+    - tokyo_prop_name
+    - tokyo_cheap_room_id
+    - tokyo_cheap_room_name
+  - use: featured_property
+    params:
+      name: The Thames Riverside Hotel
+      city: London
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.5
+      review_count: 2100
+      price: 240.0
+      neighborhood: South Bank
+      address: 1 Westminster Bridge Road, London SE1
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+    outputs:
+    - review_prop_id
+    - review_prop_name
+    - review_cheap_room_id
+    - review_cheap_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_prop_id}'
+      check_in: '2026-01-10'
+      check_out: '2026-01-14'
+      price_per_night: 240.0
+      status: completed
+      guests: 2
+      booked_days_ago: 90
+    outputs:
+    - review_res_id
+    - review_conf_num
+    - review_res_prop_id
+  - use: set_preferences
+    params:
+      preferred_currency: USD
+      preferred_bed_type: double
+    outputs:
+    - pref_updated
+  targets:
+    nyc_prop_id: '{output.nyc_prop_id}'
+    nyc_name: '{output.nyc_prop_name}'
+    paris_prop_id: '{output.paris_prop_id}'
+    paris_name: '{output.paris_prop_name}'
+    tokyo_prop_id: '{output.tokyo_prop_id}'
+    tokyo_name: '{output.tokyo_prop_name}'
+    review_prop_id: '{output.review_prop_id}'
+    review_prop_name: '{output.review_prop_name}'
+    review_res_id: '{output.review_res_id}'
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Preferred currency EUR and king bed
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_currency: {eq: EUR}
+        preferred_bed_type: {eq: king}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the reviewed reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: SavedList
+      desc: Create Grand Tour 2026 list with all three properties
+      properties:
+        name: {eq: "Grand Tour 2026"}
+        property_ids:
+          expr: >-
+            target['nyc_prop_id'] in x and
+            target['paris_prop_id'] in x and
+            target['tokyo_prop_id'] in x
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Reservation
+      desc: Book NYC Langham Deluxe King Room for 3 nights
+      properties:
+        property_id: {expr: "x == target['nyc_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Deluxe King Room"}
+        check_in: {eq: "2026-09-01"}
+        check_out: {eq: "2026-09-04"}
+        nights: {eq: 3}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Book Paris Le Marais Superior Suite for 4 nights
+      properties:
+        property_id: {expr: "x == target['paris_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Superior Suite"}
+        check_in: {eq: "2026-09-05"}
+        check_out: {eq: "2026-09-09"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        # Prompt requires Mastercard ending in 8888 for the Paris booking.
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Mastercard' and pm.last_four == '8888' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Book Tokyo Shinjuku Grandbell Premium Room for 3 nights
+      properties:
+        property_id: {expr: "x == target['tokyo_prop_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Premium Room"}
+        check_in: {eq: "2026-09-10"}
+        check_out: {eq: "2026-09-13"}
+        nights: {eq: 3}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        # Prompt requires Amex ending in 1234 for the Tokyo booking.
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Amex' and pm.last_four == '1234' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Review
+      desc: Write review for completed London Thames Riverside stay
+      properties:
+        property_id: {expr: "x == target['review_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.0}
+        scores: {any: true}
+        title: {eq: "Wonderful London stay"}
+        positive:
+          expr: "'thames' in x.lower()"
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: >-
+        a.property_id not in (target['nyc_prop_id'], target['paris_prop_id'], target['tokyo_prop_id']) and
+        a.id != target['review_res_id']
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_prop_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Grand Tour 2026'"
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Travel preferences updated (EUR, king bed)
+      ref: update[0]
+      severity: medium
+    - name: Agent created Grand Tour 2026 list with all three hotels
+      ref: create[0]
+      severity: high
+    - name: Agent booked NYC hotel Deluxe King Room
+      ref: create[1]
+      severity: critical
+    - name: Agent booked Paris hotel Superior Suite
+      ref: create[2]
+      severity: critical
+    - name: Agent booked Tokyo hotel Premium Room
+      ref: create[3]
+      severity: critical
+    - name: Agent wrote review for completed London stay
+      ref: create[4]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not write reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

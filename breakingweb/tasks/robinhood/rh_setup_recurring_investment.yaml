@@ -1,0 +1,47 @@
+task_id: rh_setup_recurring_investment
+env_id: robinhood
+title: Set Up Monthly Recurring Investment
+instruction_template: Set up a monthly $200 recurring investment into VOO.
+difficulty: medium
+time_limit_seconds: 150
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - VOO
+      - SPY
+      - QQQ
+      - VTI
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: recurring_investments
+    desc: Monthly $200 recurring investment into VOO
+    properties:
+      symbol: {eq: VOO}
+      amount: {eq: 200}
+      frequency: {eq: monthly}
+      status: {eq: active}
+      next_execution_date: {any: true}
+  invariant:
+  - collection: state.recurring_investments
+    filter: "a.symbol != 'VOO'"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+secondary_primitives: []

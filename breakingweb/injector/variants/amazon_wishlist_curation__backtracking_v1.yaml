@@ -1,0 +1,25 @@
+variant_id: amazon_wishlist_curation__backtracking_v1
+base_task_id: amazon_wishlist_curation
+target_primitive: backtracking
+description: >
+  First wishlist write returns 503 (recoverable by retry), but a follow-up
+  cart write hits 409 Conflict. The agent must reload cart state to
+  discover concurrent changes after the initial recovery, not just
+  retry blindly.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/amazon/wishlist/*'
+    methods: [POST]
+    error_count: 1
+    error_status: 503
+    error_message: "Service temporarily unavailable. (HTTP 503)"
+    behavior: { mode: once }
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/amazon/cart/*'
+    methods: [PUT, POST]
+    conflict_count: 1
+    conflict_message: "Cart was modified by a parallel session. Reload and retry."

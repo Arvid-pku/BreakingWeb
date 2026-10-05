@@ -1,0 +1,18 @@
+variant_id: gmail_verify_inbox_clean__vip_sender_twin
+base_task_id: gmail_verify_inbox_clean
+target_primitive: grounding
+description: An unread email arrives from the same VIP display name but a different address. The agent
+  must verify the exact sender email before replying in this no-op task.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: '{target.vip_name}'
+      from: assistant-desk@priority-office.com
+      subject: 'Re: quick follow-up'
+      body: Sharing a follow-up on behalf of {target.vip_name}. Please confirm receipt to the executive
+        desk if needed.
+      labels:
+      - inbox

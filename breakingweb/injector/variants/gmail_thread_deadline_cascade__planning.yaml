@@ -1,0 +1,35 @@
+variant_id: gmail_thread_deadline_cascade__planning
+base_task_id: gmail_thread_deadline_cascade
+target_primitive: planning
+description: Scrambled timestamps and stale email list force careful sequencing to
+  track cascading deadlines
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/gmail/emails'
+    stale_body:
+      items: []
+      total: 0
+      page: 1
+      page_size: 25
+      pages: 1
+    stale_count: 2
+    behavior:
+      mode: once
+      message: Email list returned stale empty results
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 15
+    topical_count: 6
+    topical_subjects:
+    - 'Re: Project deadline update'
+    - 'Fwd: Timeline revision needed'
+    - 'Thread: Milestone dependencies'
+    - 'Re: Due date conflict'
+    - 'Fwd: Schedule adjustment'
+    - 'Re: Delivery timeline'

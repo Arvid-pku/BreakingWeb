@@ -1,0 +1,19 @@
+variant_id: rh_watchlist_screening__exploration_v1
+base_task_id: rh_watchlist_screening
+target_primitive: exploration
+description: >
+  Confusing positions and distractor notifications suggest stocks
+  outside the watchlist, tempting the agent to explore irrelevant
+  holdings. Agent must stay focused on screening only the "Potential
+  Buys" watchlist without getting sidetracked.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    count: 6
+    symbols: ["NVDA", "AMD", "PLTR", "SOFI"]
+- layer: server
+  params:
+    action: inject_distractor_notifications
+    count: 5
+    theme: "stock_recommendation"

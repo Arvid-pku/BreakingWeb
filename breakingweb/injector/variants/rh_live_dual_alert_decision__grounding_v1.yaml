@@ -1,0 +1,48 @@
+variant_id: rh_live_dual_alert_decision__grounding_v1
+base_task_id: rh_live_dual_alert_decision
+target_primitive: grounding
+description: >
+  Noise orders and a misleading bullish alert for META distract from
+  the correct dual-alert decision logic. The agent must ignore the
+  pre-existing buy signal and correctly sell on the bearish below-$480
+  trigger.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    multiplier: 2
+    orders:
+    - symbol: META
+      side: buy
+      order_type: limit
+      quantity: 3
+      limit_price: "495.00"
+      time_in_force: gtc
+      status: pending
+    - symbol: META
+      side: sell
+      order_type: limit
+      quantity: 2
+      limit_price: "530.00"
+      time_in_force: day
+      status: pending
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: META
+      condition: above
+      target_price: 510.00
+      message: "META recovering — bullish momentum building, consider adding to position"
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/robinhood/orders'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      success: true
+      message: Order submitted.
+    behavior:
+      mode: once

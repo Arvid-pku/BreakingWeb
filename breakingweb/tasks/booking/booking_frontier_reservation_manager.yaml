@@ -1,0 +1,419 @@
+task_id: booking_frontier_reservation_manager
+env_id: booking
+title: 'Frontier: Audit Reservations - Cancel, Modify, Message, Review, and Save'
+instruction_template: "Audit and manage your reservations with these exact steps:\n\
+  1. Cancel your confirmed reservation at \"{target.cancel1_name}\"\n   (confirmation\
+  \ {target.cancel1_conf}).\n2. Cancel your confirmed reservation at \"{target.cancel2_name}\"\
+  \n   (confirmation {target.cancel2_conf}).\n3. Modify your reservation at \"{target.modify_name}\"\
+  \n   (confirmation {target.modify_conf}): change check-in to\n   {target.new_check_in}\
+  \ and check-out to {target.new_check_out}.\n4. Send a message to \"{target.cancel1_name}\"\
+  \ with subject\n   \"Cancellation notice\" and body \"I had to cancel due to\n \
+  \  schedule changes. Hope to visit next time.\"\n5. Send a message to \"{target.cancel2_name}\"\
+  \ with subject\n   \"Cancellation inquiry\" and body \"Can I get a refund\n   confirmation\
+  \ for my cancelled booking?\"\n6. Send a message to \"{target.modify_name}\" with\
+  \ subject\n   \"Date change confirmation\" and body \"I have updated my\n   dates.\
+  \ Please confirm the room is available.\"\n7. Create a saved list named \"Cancelled\
+  \ - Revisit\" and add both\n   cancelled properties to it.\n8. Write a review for\
+  \ your completed stay at \"{target.review1_name}\":\n   score 8.5, title \"Very\
+  \ comfortable\", positive \"Great beds and\n   quiet rooms\", no negative, leisure,\
+  \ couple.\n9. Write a review for your completed stay at \"{target.review2_name}\"\
+  :\n   score 7.0, title \"Decent stay\", positive \"Good location\",\n   negative\
+  \ \"Slow room service\", business, solo.\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Athena Rome
+      city: Rome
+      country: Italy
+      star_rating: 4
+      review_score: 8.6
+      review_count: 2300
+      price: 210.0
+      neighborhood: Trastevere
+      address: Via della Lungaretta 23, 00153 Rome
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Rooftop terrace
+    outputs:
+    - cancel1_prop_id
+    - cancel1_prop_name
+    - cancel1_room_id
+    - cancel1_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.cancel1_prop_id}'
+      check_in: '2026-08-01'
+      check_out: '2026-08-05'
+      price_per_night: 210.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 14
+    outputs:
+    - cancel1_res_id
+    - cancel1_conf
+    - cancel1_res_prop
+  - use: featured_property
+    params:
+      name: Berlin Tiergarten Boutique
+      city: Berlin
+      country: Germany
+      star_rating: 4
+      review_score: 8.3
+      review_count: 1800
+      price: 175.0
+      neighborhood: Tiergarten
+      address: Potsdamer Strasse 45, 10785 Berlin
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Fitness center
+      - Bicycle rental
+    outputs:
+    - cancel2_prop_id
+    - cancel2_prop_name
+    - cancel2_room_id
+    - cancel2_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.cancel2_prop_id}'
+      check_in: '2026-08-15'
+      check_out: '2026-08-18'
+      price_per_night: 175.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 10
+    outputs:
+    - cancel2_res_id
+    - cancel2_conf
+    - cancel2_res_prop
+  - use: featured_property
+    params:
+      name: Grand Hotel Vienna
+      city: Vienna
+      country: Austria
+      star_rating: 5
+      review_score: 9.0
+      review_count: 4100
+      price: 320.0
+      neighborhood: Innere Stadt
+      address: Kaerntner Ring 9, 1010 Vienna
+      amenities:
+      - Free WiFi
+      - Spa
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+    outputs:
+    - modify_prop_id
+    - modify_prop_name
+    - modify_room_id
+    - modify_room_name
+  - use: modify_reservation
+    params:
+      property_id: '{output.modify_prop_id}'
+      check_in: '2026-09-01'
+      check_out: '2026-09-05'
+      guests: 2
+      booked_days_ago: 20
+    outputs:
+    - modify_res_id
+    - modify_conf
+    - modify_res_prop
+    - modify_orig_in
+    - modify_orig_out
+  - use: featured_property
+    params:
+      name: Copenhagen Harbor Hotel
+      city: Copenhagen
+      country: Denmark
+      star_rating: 4
+      review_score: 8.7
+      review_count: 2600
+      price: 260.0
+      neighborhood: Nyhavn
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Sauna
+    outputs:
+    - review1_prop_id
+    - review1_prop_name
+    - review1_room_id
+    - review1_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review1_prop_id}'
+      check_in: '2026-02-10'
+      check_out: '2026-02-14'
+      price_per_night: 260.0
+      status: completed
+      guests: 2
+      booked_days_ago: 60
+    outputs:
+    - review1_res_id
+    - review1_conf
+    - review1_res_prop
+  - use: featured_property
+    params:
+      name: Amsterdam Canal View Hotel
+      city: Amsterdam
+      country: Netherlands
+      star_rating: 3
+      review_score: 7.9
+      review_count: 1500
+      price: 155.0
+      neighborhood: Jordaan
+      amenities:
+      - Free WiFi
+      - Bar
+      - Bicycle rental
+    outputs:
+    - review2_prop_id
+    - review2_prop_name
+    - review2_room_id
+    - review2_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review2_prop_id}'
+      check_in: '2026-01-05'
+      check_out: '2026-01-08'
+      price_per_night: 155.0
+      status: completed
+      guests: 1
+      booked_days_ago: 90
+    outputs:
+    - review2_res_id
+    - review2_conf
+    - review2_res_prop
+  targets:
+    cancel1_prop_id: '{output.cancel1_prop_id}'
+    cancel1_name: '{output.cancel1_prop_name}'
+    cancel1_res_id: '{output.cancel1_res_id}'
+    cancel1_conf: '{output.cancel1_conf}'
+    cancel2_prop_id: '{output.cancel2_prop_id}'
+    cancel2_name: '{output.cancel2_prop_name}'
+    cancel2_res_id: '{output.cancel2_res_id}'
+    cancel2_conf: '{output.cancel2_conf}'
+    modify_prop_id: '{output.modify_prop_id}'
+    modify_name: '{output.modify_prop_name}'
+    modify_res_id: '{output.modify_res_id}'
+    modify_conf: '{output.modify_conf}'
+    new_check_in: '2026-09-10'
+    new_check_out: '2026-09-14'
+    review1_prop_id: '{output.review1_prop_id}'
+    review1_name: '{output.review1_prop_name}'
+    review1_res_id: '{output.review1_res_id}'
+    review2_prop_id: '{output.review2_prop_id}'
+    review2_name: '{output.review2_prop_name}'
+    review2_res_id: '{output.review2_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the first confirmed reservation (cancel1)
+      where:
+        id: {expr: "x == target['cancel1_res_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Cancel the second confirmed reservation (cancel2)
+      where:
+        id: {expr: "x == target['cancel2_res_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Reservation
+      desc: Modify the modify reservation to the new check-in and check-out dates
+      where:
+        id: {expr: "x == target['modify_res_id']"}
+      changes:
+        check_in: {eq: "2026-09-10"}
+        check_out: {eq: "2026-09-14"}
+        nights: {any: true}
+        status: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on review1 reservation
+      where:
+        id: {expr: "x == target['review1_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on review2 reservation
+      where:
+        id: {expr: "x == target['review2_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: Message
+      desc: Send cancellation notice to first cancelled property
+      properties:
+        property_id: {expr: "x == target['cancel1_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'cancellation' in x.lower() or 'cancelled' in x.lower()"}
+        body: {expr: "'cancel' in x.lower() or 'schedule' in x.lower()"}
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Message
+      desc: Send cancellation inquiry to second cancelled property
+      properties:
+        property_id: {expr: "x == target['cancel2_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'cancellation' in x.lower() or 'inquiry' in x.lower()"}
+        body: {expr: "'refund' in x.lower() or 'cancel' in x.lower()"}
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Message
+      desc: Send date change confirmation to modified property
+      properties:
+        property_id: {expr: "x == target['modify_prop_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'date' in x.lower() or 'change' in x.lower()"}
+        body: {expr: "'date' in x.lower() or 'updated' in x.lower()"}
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: SavedList
+      desc: Create Cancelled - Revisit list with both cancelled properties
+      properties:
+        name: {eq: "Cancelled - Revisit"}
+        property_ids:
+          expr: "target['cancel1_prop_id'] in x and target['cancel2_prop_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Review
+      desc: Write review for first completed stay (score 8.5, very comfortable, leisure/couple)
+      properties:
+        property_id: {expr: "x == target['review1_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.5}
+        scores: {any: true}
+        title: {expr: "'Very comfortable' in x"}
+        positive: {expr: "'beds' in x.lower() or 'quiet' in x.lower()"}
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Write review for second completed stay (score 7.0, decent stay, business/solo)
+      properties:
+        property_id: {expr: "x == target['review2_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 7.0}
+        scores: {any: true}
+        title: {expr: "'Decent stay' in x"}
+        positive: {expr: "'location' in x.lower()"}
+        negative: {expr: "'room service' in x.lower() or 'slow' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: business}
+        traveled_with: {eq: solo}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id not in (target['cancel1_res_id'], target['cancel2_res_id'], target['modify_res_id'], target['review1_res_id'], target['review2_res_id'])"
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.sender != 'guest'"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Cancelled - Revisit'"
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id not in (target['review1_prop_id'], target['review2_prop_id'])"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review1_prop_id'], target['review2_prop_id'])"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the first reservation
+      ref: update[0]
+      severity: critical
+    - name: Agent cancelled the second reservation
+      ref: update[1]
+      severity: critical
+    - name: Agent modified the reservation to new dates
+      ref: update[2]
+      severity: critical
+    - name: Agent sent cancellation notice to first property
+      ref: create[0]
+      severity: high
+    - name: Agent sent cancellation inquiry to second property
+      ref: create[1]
+      severity: high
+    - name: Agent sent date change confirmation to modified property
+      ref: create[2]
+      severity: high
+    - name: Agent created Cancelled - Revisit list with both properties
+      ref: create[3]
+      severity: critical
+    - name: Agent wrote review for first completed stay correctly
+      ref: create[4]
+      severity: critical
+    - name: Agent wrote review for second completed stay correctly
+      ref: create[5]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify property messages
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not write reviews for other properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+    - name: Rebooking suggestions are system-generated side effects
+      ref: invariant[7]
+      severity: low

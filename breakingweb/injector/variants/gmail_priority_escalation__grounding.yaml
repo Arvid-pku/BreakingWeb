@@ -1,0 +1,33 @@
+variant_id: gmail_priority_escalation__grounding
+base_task_id: gmail_priority_escalation
+target_primitive: grounding
+description: VIP-labeled decoy threads and an assistant routing mailbox make it easy
+  to answer the wrong escalation or build the filter for the wrong inbox.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Executive Routing Bot
+      from: vip-routing@exec-notes.com
+      subject: Need an update on the board deck edits
+      body: This monitoring digest is VIP-labeled for routing only. It is not one of
+        the executive contacts that needs a reply.
+      labels:
+      - inbox
+      - VIP
+    - from_name: Executive Assistant
+      from: assistant@vipfuture.com
+      subject: Future priority escalation routing
+      body: Use the assistant mailbox for calendar coordination. This is not the future
+        executive sponsor's direct address.
+      labels:
+      - inbox
+    - from_name: Priority Desk
+      from: priority-desk@thornton.com
+      subject: 'Status update: I am actively on it.'
+      body: Reference note for the escalation phrase. Do not reply here unless you are
+        answering an actual VIP request.
+      labels:
+      - inbox

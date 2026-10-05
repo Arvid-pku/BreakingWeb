@@ -1,0 +1,42 @@
+variant_id: reddit_edit_then_comment__edit_retry
+base_task_id: reddit_edit_then_comment
+target_primitive: verification
+description: First two writes return a fake 200 with a realistic body but never persist. Frontier agents that only retry on visible errors need to verify state via re-read; otherwise the canonical_diff predicate fails.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*'
+    methods:
+    - PUT
+    fail_count: 2
+    response_body:
+      post:
+        id: '{target.edit_post_id}'
+        subreddit_id: sub_python
+        subreddit_name: '{target.edit_sub}'
+        author_name: TechNomad_42
+        author_is_op: true
+        title: '{target.edit_post_title}'
+        body: '{target.new_body}'
+        url: ''
+        post_type: text
+        score: 890
+        upvote_ratio: 0.93
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: true
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: false
+        is_hidden: false
+        vote_direction: 1
+        permalink: '/r/{target.edit_sub}/comments/{target.edit_post_id}'
+    behavior:
+      mode: once

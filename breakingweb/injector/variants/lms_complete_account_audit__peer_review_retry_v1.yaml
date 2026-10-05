@@ -1,0 +1,59 @@
+variant_id: lms_complete_account_audit__peer_review_retry_v1
+base_task_id: lms_complete_account_audit
+target_primitive: patience
+description: The two highest-cardinality audit routes degrade under sustained load.
+  The per-announcement mark-read sweep is rate-limited (429 after a short burst), the
+  peer-review submit route returns repeated 503s with long tail latency before
+  succeeding, and the terminal advisor-message send is slow. The agent must pace,
+  retry, and keep the long uniform sweep coherent without giving up or double-sending.
+injections:
+# (A) Rate-limit the high-volume per-announcement mark-read sweep. With 10 unread
+#     announcements to clear, the agent burns its burst budget early and then hits
+#     repeated 429s, forcing it to pace/retry across the long uniform sweep — the
+#     canonical patience load on the highest-cardinality route.
+- layer: network
+  params:
+    action: rate_limit
+    url_pattern: '**/api/env/lms/announcements/*/read'
+    methods: &id_post
+    - POST
+    burst_limit: 3
+    cooldown_calls: 5
+    retry_after_seconds: 4
+    error_message: Too many mark-read requests in a short window. Please slow down and retry. (HTTP 429)
+# (B1) Long tail latency on the peer-review submit route — sustained slow responses
+#      across the now-larger pending set (6 reviews) push against the give-up threshold.
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/lms/peer-reviews/*/submit'
+    methods: *id_post
+    delay_ms: 3000
+    behavior:
+      mode: tail_latency
+      p50_ms: 1200
+      p95_ms: 3000
+      p99_ms: 5000
+# (B2) Repeated transient failures on the SAME submit route: three 503s before the
+#      write goes through, so every pending review demands sustained retry, not a
+#      single survivable blip.
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/lms/peer-reviews/*/submit'
+    methods: *id_post
+    error_count: 3
+    error_status: 503
+    error_message: Service temporarily unavailable. The peer-review queue is saturated. Please retry. (HTTP 503)
+    behavior:
+      mode: once
+# (C) Slow the terminal audit-summary send so an impatient agent is tempted to
+#     abandon or double-send (a second send trips the <=3 messages medium constraint).
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/lms/messages/send'
+    methods: *id_post
+    delay_ms: 5000
+    behavior:
+      mode: once

@@ -1,0 +1,79 @@
+task_id: rh_diagnose_portfolio_drop
+env_id: robinhood
+title: Diagnose Portfolio Decline and Set Protective Alerts
+instruction_template: Your portfolio value has declined significantly more than the
+  market today. Find all positions that are down more than 5% today. For each of those
+  positions, set a price alert at 5% below their current price so you'll be notified
+  of further declines.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 25
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 15
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - TSLA
+      - META
+      - NVDA
+      - AMD
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 8
+      include_losers: true
+      loser_count: 2
+      today_loser_count: 2
+    outputs:
+    - today_loss_symbols
+    - worst_symbol
+  - use: price_alerts
+    params:
+      count: 3
+    outputs:
+    - alert_ids
+  - use: notifications
+    params:
+      count: 5
+      types:
+      - price_alert
+      - order_fill
+      unread_ratio: 0.6
+    outputs: []
+  targets:
+    loss_symbols: '{output.today_loss_symbols}'
+    worst_symbol: '{output.worst_symbol}'
+    initial_alert_ids: '{output.alert_ids}'
+canonical_diff:
+  create:
+  - entity: price_alerts
+    desc: Protective alert 5% below current price for each losing position
+    bijection:
+      over: "target['loss_symbols']"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      condition: {eq: below}
+      target_price: {expr: "abs(float(x) - float(state.get_stock(v).price) * 0.95) <= float(state.get_stock(v).price) * 0.03"}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.price_alerts
+    filter: "a.id in target['initial_alert_ids']"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+secondary_primitives: []

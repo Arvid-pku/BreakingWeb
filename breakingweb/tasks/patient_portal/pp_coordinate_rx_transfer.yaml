@@ -1,0 +1,155 @@
+task_id: pp_coordinate_rx_transfer
+env_id: patient_portal
+title: Coordinate Pharmacy Transfer
+instruction_template: Your default pharmacy is closing. First restrict your attention
+  to the retail pharmacies that are in YOUR pharmacy list (the pharmacy_ids on your
+  profile) — ignore any retail pharmacy that is not in your pharmacy list even if it
+  is visible and charges a lower fee. Among only those in-list retail pharmacies,
+  identify the one retail pharmacy (never a mail-order pharmacy, and never your current
+  default) that charges the lowest dispensing fee; if two in-list retail pharmacies tie
+  on dispensing fee, choose the one whose pharmacy id sorts first (the lower numeric
+  id suffix). Transfer every active prescription to that retail pharmacy, then set that
+  same retail pharmacy as your new default. Do not transfer any prescription to a
+  mail-order pharmacy or to a pharmacy outside your pharmacy list. Do not modify,
+  refill, renew, or transfer any expired prescription; prescriptions that are expiring
+  soon or have zero refills remaining are still active and MUST be transferred. Do not
+  add or remove any pharmacy.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- backtracking
+start_path: /medications
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - Type 2 Diabetes
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 5
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - billing
+      - admin
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 4
+      include_mail_order: true
+      distinct_retail_fees:
+      - 9
+      - 8
+      - 6
+      - 6
+      retail_decoy_fees:
+      - 4
+      - 5
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+    - mail_order_pharmacy_id
+    - new_default_pharmacy_id
+    - cheapest_retail_pharmacy_id
+    - cheapest_overall_retail_pharmacy_id
+    - retail_decoy_pharmacy_ids
+  - use: prescription_cabinet
+    params:
+      active_count: 6
+      expired_count: 1
+      zero_refill_count: 1
+      expiring_soon_count: 2
+      active_at_default_only: true
+    outputs:
+    - active_rx_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    active_rx_ids: '{output.active_rx_ids}'
+    pharmacy_ids: '{output.pharmacy_ids}'
+    default_pharmacy_id: '{output.default_pharmacy_id}'
+    mail_order_pharmacy_id: '{output.mail_order_pharmacy_id}'
+    new_default_pharmacy_id: '{output.new_default_pharmacy_id}'
+    cheapest_retail_pharmacy_id: '{output.cheapest_retail_pharmacy_id}'
+    cheapest_overall_retail_pharmacy_id: '{output.cheapest_overall_retail_pharmacy_id}'
+    retail_decoy_pharmacy_ids: '{output.retail_decoy_pharmacy_ids}'
+canonical_diff:
+  update:
+    - entity: Prescription
+      desc: "Transfer each active prescription to the lowest-dispensing-fee retail pharmacy"
+      bijection:
+        over: "target['active_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        pharmacy_id: {expr: "x == target['cheapest_retail_pharmacy_id'] and x != target['mail_order_pharmacy_id'] and x != target['default_pharmacy_id']"}
+    - entity: Pharmacy
+      desc: "Clear default flag from the closing pharmacy"
+      where:
+        id: {expr: "x == target['default_pharmacy_id']"}
+      changes:
+        is_default: {eq: false}
+    - entity: Pharmacy
+      desc: "Set the lowest-dispensing-fee retail pharmacy as the default"
+      where:
+        id: {expr: "x == target['cheapest_retail_pharmacy_id']"}
+      changes:
+        is_default: {eq: true}
+  invariant:
+    - collection: state.prescriptions
+      filter: "a.id not in target['active_rx_ids']"
+      preserve: ALL
+    - collection: state.pharmacies
+      filter: "a.id != target['default_pharmacy_id'] and a.id != target['cheapest_retail_pharmacy_id']"
+      preserve: ALL
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not modify, refill, renew, or transfer non-active prescriptions (expired/discontinued)"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not flip default flag on the mail-order pharmacy or any retail pharmacy other than the chosen destination"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not send unsolicited messages"
+      ref: invariant[5]
+      severity: medium
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[7]
+      severity: high
+secondary_primitives: []

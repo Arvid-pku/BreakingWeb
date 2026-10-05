@@ -1,0 +1,169 @@
+task_id: amazon_review_after_purchase
+env_id: amazon
+title: Buy a Product Then Write a Review
+instruction_template: 'Search for "{target.product_name}", purchase it using the shipping
+  address for Jordan Parker at 742 Evergreen Terrace and the Visa card ending in 4242.
+  After the order is placed, navigate to the product page and write a 5-star review
+  with the title "{target.review_title}" and a body describing why you love the product.
+
+  '
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 24
+primary_primitives:
+- verification
+start_path: /
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Noise Cancelling Earbuds
+      brand: Jabra
+      category: Electronics
+      price: 79.99
+      rating: 4.4
+      features:
+      - Active noise cancellation
+      - 28-hour battery life
+      - IP55 dust and water resistant
+      - 4 built-in microphones
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 8
+      price_range:
+      - 20.0
+      - 200.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    review_title: Absolutely love these earbuds
+canonical_diff:
+  create:
+  - entity: Order
+    desc: New order placed for the target product using the required address and
+      payment
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['product_id'] and x[0]['quantity']
+          == 1"
+      shipping_address_id:
+        expr: "any(a.full_name == 'Jordan Parker' and a.street_address == '742 Evergreen
+          Terrace' for a in state.addresses if a.id == x)"
+      payment_method_id:
+        expr: "any(p.card_type == 'Visa' and p.last_four == '4242' for p in state.payment_methods
+          if p.id == x)"
+      status: {eq: confirmed}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  - entity: Review
+    desc: 5-star review for the purchased product with the requested title
+    properties:
+      product_id: {expr: "x == target['product_id']"}
+      rating: {eq: 5}
+      title: {expr: "x == target['review_title']"}
+      body: {expr: "len(x.strip()) >= 20 and 'love' in x.lower()"}
+      author_name:
+        expr: "x == state.owner_name"
+      helpful_count:
+        eq: 0
+      verified_purchase:
+        eq: true
+      created_at: {any: true}
+  update:
+  - entity: Product
+    desc: Product review_count incremented for the review (weight 0)
+    weight: 0.0
+    where:
+      id: {expr: "x == target['product_id']"}
+    changes:
+      review_count:
+        expr: "x == next(p.review_count for p in initial.products if p.id == target['product_id'])
+          + 1"
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['product_id'] for it in (a.items
+      or []))"
+    preserve: ALL
+  - collection: state.products
+    filter: "a.id != target['product_id']"
+    preserve: ALL
+  - collection: state.reviews
+    filter: "a.product_id != target['product_id']"
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog (beyond review_count)
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not write reviews for other products
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

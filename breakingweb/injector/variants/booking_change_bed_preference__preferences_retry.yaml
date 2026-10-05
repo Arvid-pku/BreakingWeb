@@ -1,0 +1,24 @@
+variant_id: booking_change_bed_preference__preferences_retry
+base_task_id: booking_change_bed_preference
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/preferences'
+    methods:
+    - PUT
+    fail_count: 1
+    response_body:
+      smoking: false
+      preferred_bed_type: double
+      floor_preference: ''
+      accessibility_needs: false
+      preferred_room_type: Standard Room
+      dietary_restrictions: []
+      preferred_language: English
+      preferred_currency: USD
+    behavior:
+      mode: once

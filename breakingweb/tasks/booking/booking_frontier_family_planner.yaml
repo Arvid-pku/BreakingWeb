@@ -1,0 +1,381 @@
+task_id: booking_frontier_family_planner
+env_id: booking
+title: 'Frontier: Family Trip Planner - Compare, Book, Preference, and List'
+instruction_template: "Plan a family trip across two cities:\n1. Search for family\
+  \ hotels in Barcelona. Compare\n   \"{target.bcn_name_1}\" and \"{target.bcn_name_2}\"\
+  .\n   Book the one with BOTH pool AND kids club amenities:\n   \"{target.bcn_winner_name}\"\
+  \ - \"Family Suite\" for 4 guests,\n   checking in 2026-07-20, checking out 2026-07-25\
+  \ (5 nights),\n   using default Visa (ending 4242).\n2. Search for family hotels\
+  \ in Rome. Compare\n   \"{target.rome_name_1}\" and \"{target.rome_name_2}\".\n\
+  \   Book the one with BOTH pool AND family rooms amenities:\n   \"{target.rome_winner_name}\"\
+  \ - \"Family Room\" for 4 guests,\n   checking in 2026-07-26, checking out 2026-07-30\
+  \ (4 nights),\n   using the Mastercard ending in 8888.\n3. Update travel preferences:\
+  \ set preferred bed type to \"twin\",\n   preferred room type to \"family\",\n \
+  \  and add \"nut-free\" to dietary restrictions.\n4. Create a saved list called\
+  \ \"Family Favorites\" and add both\n   booked properties to it.\n5. Send a message\
+  \ to \"{target.bcn_winner_name}\" with subject\n   \"Family amenities question\"\
+  \ and body \"We are traveling with\n   two children aged 5 and 8. Are there kids\
+  \ activities available?\"\n6. Write a review for your completed stay at\n   \"{target.review_prop_name}\"\
+  : score 9.0, title \"Perfect for\n   families\", positive \"Amazing kids club and\
+  \ wonderful pool area\",\n   no negative, leisure, family.\n"
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 48
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: compare_properties
+    params:
+      city: Barcelona
+      country: Spain
+      properties:
+      - name: Barcelona Family Resort
+        star_rating: 4
+        review_score: 8.7
+        review_count: 3200
+        price: 280.0
+        amenities:
+        - Free WiFi
+        - Pool
+        - Kids club
+        - Restaurant
+        - Playground
+        - Family rooms
+        rooms:
+        - name: Standard Double
+          price: 280.0
+          bed_type: double
+          max_occupancy: 2
+          cancel_type: free_cancellation
+        - name: Family Suite
+          price: 420.0
+          bed_type: twin
+          max_occupancy: 4
+          cancel_type: free_cancellation
+          room_size_sqm: 50.0
+      - name: Barcelona Beach Hotel
+        star_rating: 4
+        review_score: 8.5
+        review_count: 2800
+        price: 250.0
+        amenities:
+        - Free WiFi
+        - Restaurant
+        - Bar
+        - Beach access
+        - Fitness center
+        rooms:
+        - name: Standard Room
+          price: 250.0
+          bed_type: double
+          max_occupancy: 2
+          cancel_type: free_cancellation
+        - name: Family Suite
+          price: 380.0
+          bed_type: twin
+          max_occupancy: 4
+          cancel_type: free_cancellation
+    outputs:
+    - bcn_id_1
+    - bcn_name_1
+    - bcn_id_2
+    - bcn_name_2
+  - use: compare_properties
+    params:
+      city: Rome
+      country: Italy
+      properties:
+      - name: Rome Villa Family Hotel
+        star_rating: 4
+        review_score: 8.9
+        review_count: 2500
+        price: 310.0
+        amenities:
+        - Free WiFi
+        - Pool
+        - Restaurant
+        - Garden
+        - Family rooms
+        - Playground
+        rooms:
+        - name: Classic Room
+          price: 310.0
+          bed_type: double
+          max_occupancy: 2
+          cancel_type: free_cancellation
+        - name: Family Room
+          price: 420.0
+          bed_type: twin
+          max_occupancy: 4
+          cancel_type: free_cancellation
+          room_size_sqm: 45.0
+      - name: Rome Centro Apartment
+        star_rating: 3
+        review_score: 8.0
+        review_count: 1500
+        price: 180.0
+        amenities:
+        - Free WiFi
+        - Kitchen
+        - Laundry
+        rooms:
+        - name: Studio
+          price: 180.0
+          bed_type: double
+          max_occupancy: 2
+          cancel_type: free_cancellation
+        - name: Family Room
+          price: 260.0
+          bed_type: twin
+          max_occupancy: 4
+          cancel_type: free_cancellation
+    outputs:
+    - rome_id_1
+    - rome_name_1
+    - rome_id_2
+    - rome_name_2
+  - use: featured_property
+    params:
+      name: Disneyland Paris Family Hotel
+      city: Paris
+      country: France
+      star_rating: 4
+      review_score: 8.6
+      review_count: 5200
+      price: 250.0
+      neighborhood: Marne-la-Vallee
+      amenities:
+      - Free WiFi
+      - Pool
+      - Kids club
+      - Restaurant
+      - Playground
+    outputs:
+    - review_prop_id
+    - review_prop_name
+    - review_room_id
+    - review_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.review_prop_id}'
+      check_in: '2025-12-22'
+      check_out: '2025-12-28'
+      price_per_night: 250.0
+      status: completed
+      guests: 4
+      booked_days_ago: 110
+    outputs:
+    - review_res_id
+    - review_conf
+    - review_res_prop
+  - use: set_preferences
+    params:
+      preferred_bed_type: double
+      preferred_room_type: standard
+      dietary_restrictions:
+      - vegetarian
+    outputs:
+    - prefs_updated
+  targets:
+    bcn_id_1: '{output.bcn_id_1}'
+    bcn_name_1: '{output.bcn_name_1}'
+    bcn_id_2: '{output.bcn_id_2}'
+    bcn_name_2: '{output.bcn_name_2}'
+    bcn_winner_id: '{output.bcn_id_1}'
+    bcn_winner_name: '{output.bcn_name_1}'
+    rome_id_1: '{output.rome_id_1}'
+    rome_name_1: '{output.rome_name_1}'
+    rome_id_2: '{output.rome_id_2}'
+    rome_name_2: '{output.rome_name_2}'
+    rome_winner_id: '{output.rome_id_1}'
+    rome_winner_name: '{output.rome_name_1}'
+    review_prop_id: '{output.review_prop_id}'
+    review_prop_name: '{output.review_prop_name}'
+    review_res_id: '{output.review_res_id}'
+canonical_diff:
+  update:
+    - entity: travel_preferences
+      desc: Travel preferences — twin bed, family room type, nut-free dietary
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_bed_type: {eq: twin}
+        preferred_room_type: {eq: family}
+        dietary_restrictions: {expr: "'nut-free' in x"}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the reviewed reservation
+      where:
+        id: {expr: "x == target['review_res_id']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: Reservation
+      desc: Book Barcelona Family Resort Family Suite for 4 guests
+      properties:
+        property_id: {expr: "x == target['bcn_winner_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Family Suite"}
+        check_in: {eq: "2026-07-20"}
+        check_out: {eq: "2026-07-25"}
+        nights: {eq: 5}
+        guests: {eq: 4}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            x == initial.settings.default_payment_id and
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '4242' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Book Rome Villa Family Hotel Family Room for 4 guests
+      properties:
+        property_id: {expr: "x == target['rome_winner_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Family Room"}
+        check_in: {eq: "2026-07-26"}
+        check_out: {eq: "2026-07-30"}
+        nights: {eq: 4}
+        guests: {eq: 4}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        # Prompt requires Mastercard ending in 8888 for the Rome booking.
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Mastercard' and pm.last_four == '8888' for pm in initial.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+    - entity: SavedList
+      desc: Create Family Favorites list with both booked properties
+      properties:
+        name: {eq: "Family Favorites"}
+        property_ids:
+          expr: >-
+            target['bcn_winner_id'] in x and
+            target['rome_winner_id'] in x
+        created_at: {any: true}
+        updated_at: {any: true}
+    - entity: Message
+      desc: Send kids activities question to Barcelona hotel
+      properties:
+        property_id: {expr: "x == target['bcn_winner_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject:
+          expr: "'family' in x.lower() or 'kids' in x.lower() or 'amenities' in x.lower()"
+        body:
+          expr: "'kids' in x.lower() or 'children' in x.lower()"
+        sender: {eq: guest}
+        read: {any: true}
+        created_at: {any: true}
+    - entity: Review
+      desc: Write review for completed Disneyland Paris stay
+      properties:
+        property_id: {expr: "x == target['review_prop_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.0}
+        scores: {any: true}
+        title: {eq: "Perfect for families"}
+        positive:
+          expr: "'kids club' in x.lower() or 'pool' in x.lower()"
+        negative: {eq: ""}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: family}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: >-
+        a.property_id not in (target['bcn_winner_id'], target['rome_winner_id']) and
+        a.id != target['review_res_id']
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['review_prop_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.reviews
+      filter: "a.property_id != target['review_prop_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Family Favorites'"
+      preserve: ALL
+    - collection: state.messages
+      filter: >-
+        a.sender == 'property' or
+        a.property_id != target['bcn_winner_id']
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Travel preferences updated (twin bed, family room, nut-free)
+      ref: update[0]
+      severity: medium
+    - name: Agent booked Barcelona Family Resort Family Suite
+      ref: create[0]
+      severity: critical
+    - name: Agent booked Rome Villa Family Hotel Family Room
+      ref: create[1]
+      severity: critical
+    - name: Agent created Family Favorites list with both hotels
+      ref: create[2]
+      severity: high
+    - name: Agent sent kids activities message to Barcelona hotel
+      ref: create[3]
+      severity: medium
+    - name: Agent wrote review for completed Paris family stay
+      ref: create[4]
+      severity: high
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not write reviews for other properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[3]
+      severity: medium
+    - name: Agent only messaged the Barcelona hotel
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

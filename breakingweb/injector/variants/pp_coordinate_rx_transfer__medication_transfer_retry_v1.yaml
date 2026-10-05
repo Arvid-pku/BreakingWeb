@@ -1,0 +1,58 @@
+variant_id: pp_coordinate_rx_transfer__medication_transfer_retry_v1
+base_task_id: pp_coordinate_rx_transfer
+target_primitive: backtracking
+description: >-
+  A multi-layer backtracking stressor. The first FOUR transfer POSTs return a
+  fake HTTP 200 whose body reports the prescription still at the CLOSING default
+  pharmacy without persisting the move, so an agent that trusts the response
+  believes the transfer "succeeded" yet the real record never changed and never
+  reconciles. Absorbing four phantom successes forces the agent to re-fetch
+  /medications and diff each active prescription's pharmacy_id against the
+  destination, then re-issue the silently-reverted transfers. On top of that, the
+  new-default flip is sabotaged twice: the first set-default call returns a
+  transient 503 (must retry), and the next call silently fails while reporting
+  the CLOSING pharmacy as the default (must verify the default actually stuck and
+  retry again). The task is only complete once every active prescription is
+  verified at the cheapest in-list retail pharmacy and that pharmacy is verified
+  as the persisted default.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/medications/*/transfer'
+    methods:
+    - POST
+    fail_count: 4
+    response_body:
+      status: active
+      pharmacy_id: '{target.default_pharmacy_id}'
+      transferred: true
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/profile/pharmacy/*/set-default'
+    methods:
+    - POST
+    error_status: 503
+    error_count: 1
+    error_message: >-
+      Service temporarily unavailable. The default-pharmacy directory is syncing.
+      Please retry your request.
+    retry_after: 2
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/profile/pharmacy/*/set-default'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      id: '{target.default_pharmacy_id}'
+      is_default: true
+      is_mail_order: false
+    behavior:
+      mode: once

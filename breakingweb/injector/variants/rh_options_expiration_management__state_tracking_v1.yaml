@@ -1,0 +1,45 @@
+variant_id: rh_options_expiration_management__state_tracking_v1
+base_task_id: rh_options_expiration_management
+target_primitive: state_tracking
+description: >
+  Confusing options positions on the same underlyings with similar strikes
+  but different expirations, plus shuffled position ordering, make it
+  harder to track which of the 8 expiring positions still need action.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_positions
+    multiplier: 2
+    positions:
+    - symbol: AAPL
+      option_type: call
+      side: sell
+      strike: "175.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "4.50"
+    - symbol: MSFT
+      option_type: put
+      side: buy
+      strike: "375.00"
+      expiration_days: 28
+      quantity: 2
+      average_cost: "8.20"
+    - symbol: GOOGL
+      option_type: call
+      side: buy
+      strike: "145.00"
+      expiration_days: 28
+      quantity: 1
+      average_cost: "3.60"
+    - symbol: TSLA
+      option_type: put
+      side: sell
+      strike: "250.00"
+      expiration_days: 35
+      quantity: 2
+      average_cost: "11.30"
+- layer: server
+  params:
+    action: shuffle_positions
+    seed: 31

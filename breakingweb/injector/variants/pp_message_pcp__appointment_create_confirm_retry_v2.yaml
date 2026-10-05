@@ -1,0 +1,63 @@
+variant_id: pp_message_pcp__appointment_create_confirm_retry_v2
+base_task_id: pp_message_pcp
+target_primitive: backtracking
+description: A layered backtracking stressor that hits BOTH steps of the two-step
+  booking workflow. (A) The appointment-create POST returns transient 503s and
+  must be retried before it persists. (B) The confirm POST returns a loud fake
+  "confirmed" success on the first attempt WITHOUT persisting, so the agent sees a
+  confirmation toast while the backend still shows the appointment pending — it must
+  re-fetch and re-confirm. (C) The appointments-list GET returns a 409
+  concurrent-modification snapshot in which the pre-existing pending PCP appointment
+  appears already confirmed, luring the agent into believing its job is done or into
+  confirming the wrong (pre-existing) row. A straight-line book+confirm fails on the
+  create-persistence check, the confirm-persistence check, and risks the critical
+  pre-existing-appointment invariant; the agent must verify-reload-retry on exactly
+  the confirmation_state field.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/patient_portal/appointments/create'
+    methods:
+    - POST
+    error_status: 503
+    error_count: 2
+    error_body:
+      error: Scheduling service temporarily unavailable. Please retry.
+      status: 503
+      retryable: true
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/patient_portal/appointments/*/confirm'
+    methods:
+    - POST
+    fail_count: 1
+    success_body:
+      id: apt_pending_echo
+      provider_id: '{target.pcp_id}'
+      status: scheduled
+      reason: Medication side effect review
+      requires_confirmation: true
+      confirmation_state: confirmed
+      confirmed_at: '2026-05-31T12:00:00+00:00'
+      location: Main Campus
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: concurrent_modification
+    url_pattern: '**/api/env/patient_portal/appointments'
+    methods:
+    - GET
+    conflict_count: 1
+    conflict_message: Your appointment list changed in another session. Reload and retry.
+    latest_snapshot:
+      id: '{target.pcp_apt_id}'
+      provider_id: '{target.pcp_id}'
+      status: scheduled
+      requires_confirmation: true
+      confirmation_state: confirmed
+      reason: Annual physical

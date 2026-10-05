@@ -1,0 +1,127 @@
+task_id: pp_schedule_new_specialist
+env_id: patient_portal
+title: Schedule with New Specialist
+instruction_template: Find a dermatologist who is accepting new patients and schedule
+  an in-person appointment. Use your existing approved referral for dermatology.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 10
+primary_primitives:
+- exploration
+start_path: /appointments
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Eczema
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - dermatology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: false
+      must_have_specialties:
+      - dermatology
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 1
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    pending_ref_ids: '{output.pending_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one in-person dermatology appointment with a provider accepting new patients, linked to the approved dermatology referral"
+      properties:
+        status: {eq: "scheduled"}
+        type: {eq: "in-person"}
+        provider_id:
+          expr: "state.get_provider(x) is not None and state.get_provider(x).specialty == 'dermatology' and state.get_provider(x).accepting_new"
+        linked_referral_id:
+          expr: "x is not None and x in target['approved_ref_ids'] and any(r.id == x and r.to_specialty == 'dermatology' and r.status == 'approved' for r in initial.referrals)"
+        datetime: {any: true}
+        reason: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    # PP-1: whitelist cancelled appointments from the unaccounted-create
+    # sweep. Booking flows can leave cancelled tentatives. Appended at
+    # end so existing named_invariant index references stay aligned.
+    - collection: state.appointments
+      filter: "a.status != 'cancelled'"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

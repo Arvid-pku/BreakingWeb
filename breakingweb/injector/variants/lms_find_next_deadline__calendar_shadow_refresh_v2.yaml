@@ -1,0 +1,27 @@
+variant_id: lms_find_next_deadline__calendar_shadow_refresh_v2
+base_task_id: lms_find_next_deadline
+target_primitive: grounding
+description: Shadow calendar records plus a later correction compete for attention,
+  so the agent must ground on the exact LMS target before acting.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: calendar_event
+      title: Course event review session
+      event_type: lecture
+      location: Library 204
+    - type: calendar_event
+      title: Course event deadline reminder
+      event_type: deadline
+      location: LMS
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    type: announcement

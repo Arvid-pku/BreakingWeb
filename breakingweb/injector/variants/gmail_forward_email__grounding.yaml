@@ -1,0 +1,33 @@
+variant_id: gmail_forward_email__grounding_v1
+base_task_id: gmail_forward_email
+target_primitive: grounding
+description: >
+  Add confusing decoy emails with similar subjects and senders. Agent must
+  correctly ground to the specific email from Carol Wang with exact subject
+  "Invoice #1234" among multiple invoice emails.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+      - type: email
+        from: "carol.wang@supplier.co"
+        subject: "Invoice #1235"
+        snippet: "Attached invoice for recent order"
+        note: "Similar number, different sender domain"
+      - type: email
+        from: "Carol Wang <carol@test.com>"
+        subject: "Invoice for Project"
+        snippet: "Invoice attached as requested"
+        note: "Same sender, different subject"
+      - type: email
+        from: "carol.w@thornton.com"
+        subject: "Re: Invoice #1234"
+        snippet: "Following up on invoice"
+        note: "Reply, not original"
+      - type: email
+        from: "Carol W <cw@bluespark.io>"
+        subject: "Invoice #1234 - Revised"
+        snippet: "Updated invoice attached"
+        note: "Similar subject, revision"

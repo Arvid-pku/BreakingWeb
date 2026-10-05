@@ -1,0 +1,14 @@
+variant_id: pp_full_preventive_compliance__medications_list_stale_v1
+base_task_id: pp_full_preventive_compliance
+target_primitive: verification
+description: The first medications list response is stale and briefly hides the task-relevant prescriptions. The agent must refresh the medication cabinet before acting on it.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/medications**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once

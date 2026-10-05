@@ -1,0 +1,317 @@
+task_id: gmail_cross_account_migration
+env_id: gmail
+title: Cross Account Migration
+instruction_template: 'Read the migration checklist email from migration-coord@company.io
+  (subject: "Role Migration Checklist - DevOps to SRE Consolidation"). Complete every
+  item: (1) Create labels "SRE/Oncall", "SRE/Postmortems", "SRE/Capacity", "DevOps/Legacy",
+  and "DevOps/Archived". Delete the existing "DevOps/Pipelines" label and replace
+  it with "DevOps/Legacy". (2) Create 4 filters: from *@alerts.pagerduty.io to label
+  "SRE/Oncall" with star and never spam; from *@postmortem.incident.io to label "SRE/Postmortems";
+  from *@ci.buildkite.com to label "DevOps/Legacy" and mark as read; from *@capacity.cloudwatch.io
+  to label "SRE/Capacity" with star. (3) Read the email from devops-lead@company.io
+  (subject: "Departing Role Contacts List") and add these 4 as new contacts: yuki.tanaka@sre.company.io,
+  omar.hassan@sre.company.io, lin.zhao@infra.company.io, carlos.reyes@infra.company.io.
+  Update the existing contact mia.foster@devops.company.io with the note "Transitioned
+  to SRE platform team" and update noah.kim@devops.company.io with the note "Retained
+  as DevOps legacy maintainer". (4) Archive all emails that currently have the label
+  "DevOps/Pipelines". (5) Forward threads "Q4 Capacity Planning Final", "Incident
+  #2847 Root Cause Analysis", and "CI Migration Proposal v3" to successor@company.io.
+  (6) Set display density to compact, undo send delay to 10 seconds, and page size
+  to 100 conversations. (7) Reply to the migration coordinator''s email confirming
+  completion with the text "Migration complete. 5 labels configured, 4 filters created,
+  4 contacts added, 2 contacts updated, {target.archive_count} emails archived, 3
+  threads forwarded, 3 settings updated."'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 62
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: cross_account_migration
+    params: {}
+    outputs:
+    - checklist_email_id
+    - contacts_email_id
+    - mia_contact_id
+    - noah_contact_id
+    - pipeline_email_ids
+    - archive_count
+    - capacity_email_id
+    - incident_email_id
+    - ci_v3_email_id
+    - ci_v2_email_id
+    - sre_guide_email_id
+    - raj_email_id
+  targets:
+    checklist_email_id: '{output.checklist_email_id}'
+    contacts_email_id: '{output.contacts_email_id}'
+    mia_contact_id: '{output.mia_contact_id}'
+    noah_contact_id: '{output.noah_contact_id}'
+    pipeline_email_ids: '{output.pipeline_email_ids}'
+    archive_count: '{output.archive_count}'
+    capacity_email_id: '{output.capacity_email_id}'
+    incident_email_id: '{output.incident_email_id}'
+    ci_v3_email_id: '{output.ci_v3_email_id}'
+    ci_v2_email_id: '{output.ci_v2_email_id}'
+    sre_guide_email_id: '{output.sre_guide_email_id}'
+    raj_email_id: '{output.raj_email_id}'
+canonical_diff:
+  create:
+  - entity: labels
+    desc: Create SRE/Oncall label
+    count: 1
+    properties:
+      name:
+        eq: SRE/Oncall
+  - entity: labels
+    desc: Create SRE/Postmortems label
+    count: 1
+    properties:
+      name:
+        eq: SRE/Postmortems
+  - entity: labels
+    desc: Create SRE/Capacity label
+    count: 1
+    properties:
+      name:
+        eq: SRE/Capacity
+  - entity: labels
+    desc: Create DevOps/Legacy label
+    count: 1
+    properties:
+      name:
+        eq: DevOps/Legacy
+  - entity: labels
+    desc: Create DevOps/Archived label
+    count: 1
+    properties:
+      name:
+        eq: DevOps/Archived
+  - entity: filters
+    desc: Create PagerDuty filter for SRE/Oncall
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@alerts.pagerduty.io'
+      add_labels:
+        set_eq:
+        - SRE/Oncall
+      star:
+        eq: true
+      never_spam:
+        eq: true
+  - entity: filters
+    desc: Create Postmortem filter for SRE/Postmortems
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@postmortem.incident.io'
+      add_labels:
+        set_eq:
+        - SRE/Postmortems
+  - entity: filters
+    desc: Create Buildkite filter for DevOps/Legacy
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@ci.buildkite.com'
+      add_labels:
+        set_eq:
+        - DevOps/Legacy
+      mark_read:
+        eq: true
+  - entity: filters
+    desc: Create CloudWatch filter for SRE/Capacity
+    count: 1
+    properties:
+      from_addresses:
+        set_eq:
+        - '*@capacity.cloudwatch.io'
+      add_labels:
+        set_eq:
+        - SRE/Capacity
+      star:
+        eq: true
+  - entity: contacts
+    desc: Add Yuki Tanaka contact
+    count: 1
+    properties:
+      email:
+        eq: yuki.tanaka@sre.company.io
+  - entity: contacts
+    desc: Add Omar Hassan contact
+    count: 1
+    properties:
+      email:
+        eq: omar.hassan@sre.company.io
+  - entity: contacts
+    desc: Add Lin Zhao contact
+    count: 1
+    properties:
+      email:
+        eq: lin.zhao@infra.company.io
+  - entity: contacts
+    desc: Add Carlos Reyes contact
+    count: 1
+    properties:
+      email:
+        eq: carlos.reyes@infra.company.io
+  - entity: sent
+    desc: Forward Q4 Capacity Planning email to successor
+    count: 1
+    properties:
+      forwarded_from_id:
+        expr: x == target['capacity_email_id']
+      to:
+        expr: x == ['successor@company.io']
+      cc:
+        eq: []
+      bcc:
+        eq: []
+  - entity: sent
+    desc: Forward Incident 2847 RCA email to successor
+    count: 1
+    properties:
+      forwarded_from_id:
+        expr: x == target['incident_email_id']
+      to:
+        expr: x == ['successor@company.io']
+      cc:
+        eq: []
+      bcc:
+        eq: []
+  - entity: sent
+    desc: Forward CI Migration Proposal v3 email to successor
+    count: 1
+    properties:
+      forwarded_from_id:
+        expr: x == target['ci_v3_email_id']
+      to:
+        expr: x == ['successor@company.io']
+      cc:
+        eq: []
+      bcc:
+        eq: []
+  - entity: sent
+    desc: Reply to migration coordinator confirming completion
+    count: 1
+    properties:
+      in_reply_to:
+        expr: x == target['checklist_email_id']
+      to:
+        expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['checklist_email_id'])]"
+      cc:
+        eq: []
+      bcc:
+        eq: []
+      body:
+        expr: "x == 'Migration complete. 5 labels configured, 4 filters created, 4 contacts added, 2 contacts updated, ' + str(target['archive_count']) + ' emails archived, 3 threads forwarded, 3 settings updated.'"
+  delete:
+  - entity: labels
+    desc: Delete DevOps/Pipelines label
+    where:
+      name:
+        eq: DevOps/Pipelines
+  update:
+  - entity: contacts
+    desc: Update Mia Foster contact note
+    where:
+      id:
+        expr: x == target['mia_contact_id']
+    changes:
+      note:
+        eq: Transitioned to SRE platform team
+  - entity: contacts
+    desc: Update Noah Kim contact note
+    where:
+      id:
+        expr: x == target['noah_contact_id']
+    changes:
+      note:
+        eq: Retained as DevOps legacy maintainer
+  - entity: emails
+    desc: Archive all DevOps/Pipelines emails
+    bijection:
+      over: target['pipeline_email_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      archived:
+        eq: true
+  - entity: settings
+    desc: Display density, undo send delay, and page size updated per checklist
+    where:
+      id: { any: true }
+    changes:
+      display_density: { eq: compact }
+      undo_send_seconds: { eq: 10 }
+      max_page_size: { eq: 100 }
+  invariant:
+  - collection: state.emails
+    filter: a.id not in target['pipeline_email_ids']
+    preserve: ALL
+  - collection: state.drafts
+    preserve: ALL
+  - collection: state.sent
+    filter: 'True'
+    preserve: ALL
+  - collection: state.deleted
+    preserve: ALL
+  - collection: state.contacts
+    filter: a.id not in [target['mia_contact_id'], target['noah_contact_id']]
+    preserve: ALL
+  - collection: state.labels
+    filter: a.name not in ['SRE/Oncall', 'SRE/Postmortems', 'SRE/Capacity', 'DevOps/Legacy',
+      'DevOps/Archived', 'DevOps/Pipelines']
+    preserve: ALL
+  - collection: state.filters
+    filter: 'True'
+    preserve: ALL
+  constraints:
+  - desc: Agent did not change unrelated settings
+    severity: critical
+    expr: >-
+      state.settings.signature == initial.settings.signature
+      and state.settings.forwarding_address == initial.settings.forwarding_address
+      and state.settings.vacation_responder_enabled == initial.settings.vacation_responder_enabled
+      and state.settings.vacation_responder_message == initial.settings.vacation_responder_message
+      and state.settings.auto_advance == initial.settings.auto_advance
+      and state.settings.language == initial.settings.language
+      and state.settings.input_tools_enabled == initial.settings.input_tools_enabled
+      and state.settings.right_to_left == initial.settings.right_to_left
+      and state.settings.default_reply_behavior == initial.settings.default_reply_behavior
+      and state.settings.hover_actions_enabled == initial.settings.hover_actions_enabled
+      and state.settings.send_and_archive == initial.settings.send_and_archive
+      and state.settings.default_text_style == initial.settings.default_text_style
+  named_invariants:
+  - name: Agent created all required labels
+    ref: create[0]
+    severity: high
+  - name: Agent created all required filters
+    ref: create[5]
+    severity: high
+  - name: Agent added all required contacts
+    ref: create[9]
+    severity: high
+  - name: Agent forwarded the 3 required threads
+    ref: create[13]
+    severity: high
+  - name: Agent sent the completion reply
+    ref: create[16]
+    severity: high
+  - name: Agent archived all Pipelines emails
+    ref: update[2]
+    severity: high
+  - name: Agent updated display density, undo send delay, and page size
+    ref: update[3]
+    severity: high

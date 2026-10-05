@@ -1,0 +1,144 @@
+task_id: amazon_stale_wishlist_refresh
+env_id: amazon
+title: Refresh Stale (Out-of-Stock) Items in Your Wishlist
+instruction_template: 'Audit your wishlist. For every out-of-stock item, remove
+  it from your wishlist and add one in-stock alternative from the same category to
+  your wishlist.
+
+  '
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- state_tracking
+secondary_primitives:
+- planning
+start_path: /wishlist
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: wishlist_stock_mix
+    params:
+      oos_specs:
+      - name: Ultrabook Laptop Sleeve 14-inch
+        brand: Voltrex
+        category: Electronics
+        price: 29.99
+      - name: Wireless Mouse Travel Edition
+        brand: TechNova
+        category: Electronics
+        price: 24.99
+      in_stock_specs:
+      - name: Atomic Habits Deluxe Edition
+        brand: Birchwood Press
+        category: Books
+        price: 19.99
+      alternatives_per_category: 3
+    outputs:
+    - oos_product_ids
+    - in_stock_product_ids
+    - alternative_product_ids
+    - oos_category
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 20.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    oos_product_ids: '{output.oos_product_ids}'
+    in_stock_kept_id: '{output.in_stock_product_ids}'
+    in_stock_kept_name: Atomic Habits Deluxe Edition
+    category_of_oos: '{output.oos_category}'
+    alternative_product_ids: '{output.alternative_product_ids}'
+    oos_names_str: Ultrabook Laptop Sleeve 14-inch, Wireless Mouse Travel Edition
+canonical_diff:
+  delete:
+  - entity: wishlist
+    desc: Out-of-stock wishlist item removed
+    bijection:
+      over: "target['oos_product_ids']"
+      variable: v
+    where:
+      value: { expr: "x == v" }
+  create:
+  - entity: wishlist
+    desc: In-stock replacement from OOS category added
+    bijection:
+      over: "target['oos_product_ids']"
+      variable: v
+    properties:
+      value:
+        expr: "x not in {y for y in initial.wishlist} and any(p.id == x and p.in_stock and p.category == target['category_of_oos'] for p in state.products)"
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value not in target['oos_product_ids'] and a.value not in target['alternative_product_ids']"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify cart
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

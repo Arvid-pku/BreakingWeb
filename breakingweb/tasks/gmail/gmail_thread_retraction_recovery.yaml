@@ -1,0 +1,136 @@
+task_id: gmail_thread_retraction_recovery
+env_id: gmail
+title: Discover a retracted decision across tabs and send a correction
+instruction_template: 'Read the thread "Project Atlas — Final Decision" in your Primary
+  tab. The thread concludes
+
+  with Yvonne Chandra''s message: "Let''s go with Option B. Notifying stakeholders
+  now."
+
+  Forward Yvonne''s decision message to stakeholder Ravi Menon <{target.ravi_menon_email}>
+  with
+
+  subject "Atlas decision" and body "Forwarding the final decision on Project Atlas."
+
+  Then check your Updates tab. A message from Yvonne Chandra with subject "CORRECTION:
+
+  Atlas decision reversed" retracts Option B and reverts the decision to Option A.
+  Now that
+
+  you realize your forward was wrong, send a NEW email to Ravi Menon <{target.ravi_menon_email}>
+
+  with subject "CORRECTION: Atlas decision" and body containing "Please disregard
+  my
+
+  previous forward. The decision has been reversed. The correct decision is Option
+  A, not
+
+  Option B."'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 28
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors:
+    nolan_park:
+      name: Nolan Park
+      domain: atlas.dev
+      is_vip: false
+    suki_ware:
+      name: Suki Ware
+      domain: atlas.dev
+      is_vip: false
+    derek_tan:
+      name: Derek Tan
+      domain: atlas.dev
+      is_vip: false
+    yvonne_chandra:
+      name: Yvonne Chandra
+      domain: atlas.dev
+      is_vip: true
+    morgan_lee:
+      name: Morgan Lee
+      domain: atlas.dev
+      is_vip: false
+    jia_lin:
+      name: Jia Lin
+      domain: atlas.dev
+      is_vip: false
+    ravi_menon:
+      name: Ravi Menon
+      domain: atlas.dev
+      is_vip: false
+  steps:
+  - use: thread_retraction_recovery
+    params: {}
+    outputs:
+    - ravi_menon_email
+    - atlas_msg_4_id
+    - atlas_decision_thread_id
+    - retraction_email_id
+    - praise_thread_id
+    - adversarial_email_id
+  targets:
+    ravi_menon_email: '{output.ravi_menon_email}'
+    atlas_msg_4_id: '{output.atlas_msg_4_id}'
+    atlas_decision_thread_id: '{output.atlas_decision_thread_id}'
+    retraction_email_id: '{output.retraction_email_id}'
+    praise_thread_id: '{output.praise_thread_id}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward Yvonne decision message to Ravi Menon with subject Atlas decision
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['atlas_msg_4_id']"
+        to:
+          expr: "x == [target['ravi_menon_email']]"
+        subject:
+          eq: "Atlas decision"
+        body:
+          eq: "Forwarding the final decision on Project Atlas."
+    - entity: sent
+      desc: Send correction email to Ravi Menon about reversed decision
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['ravi_menon_email']]"
+        subject:
+          eq: "CORRECTION: Atlas decision"
+        body:
+          substring: "Please disregard my previous forward. The decision has been reversed. The correct decision is Option A, not Option B."
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded Yvonne's decision to Ravi Menon
+      ref: create[0]
+      severity: high
+    - name: Agent sent correction email to Ravi Menon
+      ref: create[1]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[2]
+      severity: high

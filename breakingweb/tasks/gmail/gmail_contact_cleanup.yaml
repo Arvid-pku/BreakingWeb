@@ -1,0 +1,93 @@
+task_id: gmail_contact_cleanup
+env_id: gmail
+title: Contact Cleanup
+instruction_template: Clean up Contacts (accessible via the Labels link in the sidebar).
+  Delete any contacts that have not been in
+  touch for more than 30 days. Then find the most recent email thread with the subject
+  '{target.missing_contact_subject}' and add {target.missing_contact_name} using the
+  email address from that thread, with the note '{target.contact_note}'. Do not remove
+  {target.keep_contact_name}.
+difficulty: medium
+time_limit_seconds: 300
+expected_steps: 25
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: contact_cleanup
+    params: {}
+    outputs:
+    - stale_contact_id_a
+    - stale_contact_id_b
+    - missing_contact_name
+    - missing_contact_email
+    - missing_contact_subject
+    - contact_note
+    - keep_contact_name
+    - keep_contact_id
+    - near_threshold_contact_id
+    - near_threshold_contact_b_id
+  targets:
+    stale_contact_id_a: '{output.stale_contact_id_a}'
+    stale_contact_id_b: '{output.stale_contact_id_b}'
+    missing_contact_name: '{output.missing_contact_name}'
+    missing_contact_email: '{output.missing_contact_email}'
+    missing_contact_subject: '{output.missing_contact_subject}'
+    contact_note: '{output.contact_note}'
+    keep_contact_name: '{output.keep_contact_name}'
+    keep_contact_id: '{output.keep_contact_id}'
+    near_threshold_contact_id: '{output.near_threshold_contact_id}'
+    near_threshold_contact_b_id: '{output.near_threshold_contact_b_id}'
+canonical_diff:
+  create:
+    - entity: contacts
+      desc: Add missing contact with required note
+      count: 1
+      properties:
+        email:
+          expr: "x == target['missing_contact_email']"
+        note:
+          expr: "target['contact_note'] in (x or '')"
+  delete:
+    - entity: contacts
+      desc: Delete first stale contact
+      where:
+        id:
+          expr: "x == target['stale_contact_id_a']"
+    - entity: contacts
+      desc: Delete second stale contact
+      where:
+        id:
+          expr: "x == target['stale_contact_id_b']"
+  invariant:
+    - collection: state.contacts
+      filter: "a.id not in [target['stale_contact_id_a'], target['stale_contact_id_b']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent added the missing contact with required note
+      ref: create[0]
+      severity: high
+    - name: Agent deleted first stale contact
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted second stale contact
+      ref: delete[1]
+      severity: high
+    - name: Agent did not modify other contacts
+      ref: invariant[0]
+      severity: high

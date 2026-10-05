@@ -1,0 +1,13 @@
+variant_id: gmail_forward_email__state_tracking_v1
+base_task_id: gmail_forward_email
+target_primitive: grounding
+description: >
+  5 distractor emails injected with similar subjects to the target email.
+  Agent must ground on the correct invoice email to forward and not confuse it
+  with distractors.
+injections:
+- layer: server
+  params:
+    action: inject_distractor_emails
+    count: 8
+    subject_prefix: "Re: "

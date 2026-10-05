@@ -1,0 +1,144 @@
+task_id: reddit_edit_delete_subscribe
+title: Edit, Delete, and Subscribe
+instruction_template: '1. Find your post "{target.edit_title}" in r/{target.edit_sub}. Edit body to exactly: "{target.edit_body}"
+
+  2. Find your comment on "{target.del_post_title}" in r/{target.del_sub} that says "{target.del_hint}". Delete it.
+
+  3. Subscribe to r/{target.join_sub}.
+
+  4. Set default comment sort to "new".
+
+
+  Do not delete any posts.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: owner_post
+    params:
+      subreddit: Python
+      title: My experience migrating from Flask to FastAPI
+      body: Initial draft.
+      score: 2100
+    outputs:
+    - edit_id
+    - edit_title
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Google announces Gemini 3.0 with native code execution
+      body: The model can run code in a sandbox.
+      score: 55000
+    outputs:
+    - del_post_id
+    - del_post_title
+    - del_sub
+  - use: owner_comment
+    params:
+      post_id: '{output.del_post_id}'
+      body: This seems overhyped. I will wait for independent benchmarks before getting excited.
+      score: 80
+    outputs:
+    - del_comment_id
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  targets:
+    edit_title: '{output.edit_title}'
+    edit_sub: Python
+    edit_id: '{output.edit_id}'
+    edit_body: After 6 months with FastAPI, I can confirm the async performance gains are real. Migration guide and benchmarks in the follow-up post.
+    del_post_title: '{output.del_post_title}'
+    del_sub: '{output.del_sub}'
+    del_comment_id: '{output.del_comment_id}'
+    del_hint: overhyped
+    join_sub: Piracy
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribe to r/{target.join_sub}
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join_sub']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Post
+    desc: Edit the target post body to exactly target.edit_body
+    where:
+      id:
+        expr: x == target['edit_id']
+    changes:
+      body:
+        expr: x == target['edit_body']
+      is_edited:
+        eq: true
+  - entity: Comment
+    desc: Delete the target comment
+    where:
+      id:
+        expr: x == target['del_comment_id']
+    changes:
+      is_removed:
+        eq: true
+      body:
+        eq: '[deleted]'
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_comment_sort: {eq: new}
+  invariant:
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Subscribed to r/Piracy
+    ref: update[0]
+    severity: high
+  - name: Post body edited
+    ref: update[1]
+    severity: high
+  - name: Comment deleted (soft-delete)
+    ref: update[2]
+    severity: high
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.theme == initial.settings.theme and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and
+      state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

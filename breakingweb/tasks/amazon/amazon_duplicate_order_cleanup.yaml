@@ -1,0 +1,122 @@
+task_id: amazon_duplicate_order_cleanup
+env_id: amazon
+title: Cancel the Newer of Two Duplicate Orders
+instruction_template: >
+  You recently noticed you placed duplicate orders for the same product. Find
+  the duplicated pair in your order history and cancel the NEWER of the two.
+  Leave the older one intact.
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: duplicate_orders
+    params:
+      product_name: Stainless Steel Pour Kettle 1.2L
+      product_category: Home & Kitchen
+      product_price: 64.50
+      product_brand: BrightHearth
+      older_days_ago: 2
+      newer_days_ago: 1
+      status: confirmed
+    outputs:
+    - duplicate_product_id
+    - duplicate_product_name
+    - older_order_id
+    - newer_order_id
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 2
+      price_range:
+      - 40.0
+      - 200.0
+    outputs:
+    - product_ids
+  targets:
+    duplicate_product_name: '{output.duplicate_product_name}'
+    duplicate_product_id: '{output.duplicate_product_id}'
+    newer_order_id: '{output.newer_order_id}'
+    older_order_id: '{output.older_order_id}'
+canonical_diff:
+  update:
+  - entity: Order
+    desc: Cancel the NEWER of the two duplicate orders (status flips to 'cancelled')
+    where:
+      id:
+        expr: "x == target['newer_order_id']"
+    changes:
+      status: {eq: cancelled}
+  invariant:
+  - collection: state.orders
+    filter: "a.id != target['newer_order_id']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify any other orders (only the newer duplicate is touched)
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

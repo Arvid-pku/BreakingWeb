@@ -1,0 +1,154 @@
+task_id: gmail_team_roster_sync
+env_id: gmail
+title: Sync contacts with HR roster, apply promotion, and mark team lead as VIP
+instruction_template: 'HR sent you a "Q1 2026 Engineering Team Roster" email listing
+  8 people with their names, emails, and titles. The email CCs j.morales-mgr@company.com
+  (Javier Morales-Garcia, the outgoing team''s manager) — this person is NOT on the
+  roster and must not be added as a contact. Compare this roster against your existing
+  contacts. Perform all of the following:
+
+  1. Add contacts for any person on the roster who does not yet have an existing
+  contact entry. Set each new contact''s note to "Added from Q1 roster".
+
+  2. Delete contacts for people who appear in your contacts but are NOT on the roster
+  and whose names appear in the roster email''s "Departures" section.
+
+  3. Find the separate email from "Diana Holtz" with subject "Congrats Marcus!" and
+  update the contact for Marcus Webb to change his note to "Promoted to Senior Engineer
+  — Q1 2026".
+
+  4. Star the contact for the person listed as "Team Lead" on the roster (Sana Hussain).
+
+  Do not modify any contacts not mentioned above. Do not add the CC''d manager as
+  a contact. Note: contacts are accessible via the Labels & contacts page (click the
+  Labels link in the sidebar).'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: team_roster_sync
+    params: {}
+    outputs:
+    - tom_reeves_id
+    - carla_diaz_id
+    - sana_hussain_id
+    - marcus_webb_id
+    - carlos_dm_id
+    - thomas_reeve_id
+    - roster_email_id
+    - congrats_email_id
+  targets:
+    tom_reeves_id: '{output.tom_reeves_id}'
+    carla_diaz_id: '{output.carla_diaz_id}'
+    sana_hussain_id: '{output.sana_hussain_id}'
+    marcus_webb_id: '{output.marcus_webb_id}'
+    carlos_dm_id: '{output.carlos_dm_id}'
+    thomas_reeve_id: '{output.thomas_reeve_id}'
+    roster_email_id: '{output.roster_email_id}'
+    congrats_email_id: '{output.congrats_email_id}'
+canonical_diff:
+  create:
+    - entity: contacts
+      desc: Add Javier Morales with roster note
+      count: 1
+      properties:
+        email:
+          eq: j.morales@engteam.co
+        note:
+          eq: "Added from Q1 roster"
+    - entity: contacts
+      desc: Add Anika Pham with roster note
+      count: 1
+      properties:
+        email:
+          eq: a.pham@engteam.co
+        note:
+          eq: "Added from Q1 roster"
+    - entity: contacts
+      desc: Add Leo Fischer with roster note
+      count: 1
+      properties:
+        email:
+          eq: l.fischer@engteam.co
+        note:
+          eq: "Added from Q1 roster"
+  delete:
+    - entity: contacts
+      desc: Delete Tom Reeves contact
+      where:
+        id:
+          expr: "x == target['tom_reeves_id']"
+    - entity: contacts
+      desc: Delete Carla Diaz contact
+      where:
+        id:
+          expr: "x == target['carla_diaz_id']"
+  update:
+    - entity: contacts
+      desc: Update Marcus Webb note with promotion
+      where:
+        id:
+          expr: "x == target['marcus_webb_id']"
+      changes:
+        note:
+          eq: "Promoted to Senior Engineer — Q1 2026"
+    - entity: contacts
+      desc: Star Sana Hussain contact (team lead)
+      where:
+        id:
+          expr: "x == target['sana_hussain_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      filter: >-
+        a.id != target['tom_reeves_id']
+        and a.id != target['carla_diaz_id']
+        and a.id != target['marcus_webb_id']
+        and a.id != target['sana_hussain_id']
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent added Javier Morales from roster
+      ref: create[0]
+      severity: high
+    - name: Agent added Anika Pham from roster
+      ref: create[1]
+      severity: high
+    - name: Agent added Leo Fischer from roster
+      ref: create[2]
+      severity: high
+    - name: Agent deleted Tom Reeves
+      ref: delete[0]
+      severity: high
+    - name: Agent deleted Carla Diaz
+      ref: delete[1]
+      severity: high
+    - name: Agent updated Marcus Webb promotion note
+      ref: update[0]
+      severity: high
+    - name: Agent starred Sana Hussain as team lead
+      ref: update[1]
+      severity: medium
+    - name: Agent did not modify unrelated contacts
+      ref: invariant[4]
+      severity: high

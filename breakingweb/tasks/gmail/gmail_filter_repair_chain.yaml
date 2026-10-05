@@ -1,0 +1,80 @@
+task_id: gmail_filter_repair_chain
+env_id: gmail
+title: Diagnose and Repair a Broken Email Filter
+instruction_template: 'Read the email from Lena Park (lena.park@company.com) with
+  subject "Set up Acme Widgets invoice filter." Follow the instructions to create
+  a filter that catches invoices from Acme Widgets and applies the label "Vendor/AcmeWidgets"
+  while skipping the inbox. The instruction says to use from:invoices@acmewidgets.com.
+  After creating this filter, check your inbox — you should notice that a test email
+  from billing@acmewidgets.com with subject "Invoice #AW-2290" is still sitting in
+  the inbox without the label. The filter didn''t catch it because the from-address
+  was too narrow. Delete the broken filter and recreate it using from:*@acmewidgets.com
+  so it catches all mail from the Acme Widgets domain. Make sure the new filter does
+  NOT match emails from acmewidgets-pro.com — that is a different vendor.'
+difficulty: medium
+time_limit_seconds: 360
+expected_steps: 28
+primary_primitives:
+- backtracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: filter_repair_chain
+    params: {}
+    outputs:
+    - instruction_email_id
+    - test_email_id
+    - decoy_domain_email_id
+    - adversarial_email_id
+    - old_suggestion_email_id
+    - unrelated_filter_ids
+  targets:
+    instruction_email_id: '{output.instruction_email_id}'
+    test_email_id: '{output.test_email_id}'
+    decoy_domain_email_id: '{output.decoy_domain_email_id}'
+    adversarial_email_id: '{output.adversarial_email_id}'
+    old_suggestion_email_id: '{output.old_suggestion_email_id}'
+    unrelated_filter_ids: '{output.unrelated_filter_ids}'
+canonical_diff:
+  create:
+    - entity: filters
+      desc: Create wildcard domain filter for acmewidgets.com with label and skip inbox
+      count: 1
+      properties:
+        from_addresses:
+          expr: "x == ['*@acmewidgets.com']"
+        add_labels:
+          set_eq:
+            - "Vendor/AcmeWidgets"
+        archive:
+          eq: true
+  invariant:
+    - collection: state.filters
+      filter: "a.id in target['unrelated_filter_ids']"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.settings
+      preserve: ALL
+  named_invariants:
+    - name: Agent created wildcard domain filter
+      ref: create[0]
+      severity: high
+    - name: Agent preserved unrelated filters
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not delete or modify any labels
+      ref: invariant[6]
+      severity: high

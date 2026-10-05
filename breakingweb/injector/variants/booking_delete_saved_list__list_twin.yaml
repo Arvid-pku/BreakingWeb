@@ -1,0 +1,14 @@
+variant_id: booking_delete_saved_list__list_twin
+base_task_id: booking_delete_saved_list
+target_primitive: grounding
+description: Saved lists include near-identical names beside the real target. The agent must delete the
+  exact list named in the task and leave the lookalikes intact.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: saved_list
+      name: Weekend Getaways 2026
+    - type: saved_list
+      name: Weekend Getaways - Archived

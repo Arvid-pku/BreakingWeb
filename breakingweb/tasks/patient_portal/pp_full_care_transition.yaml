@@ -1,0 +1,202 @@
+task_id: pp_full_care_transition
+env_id: patient_portal
+title: Full Care Continuity Review
+instruction_template: 'Complete a continuity-of-care review across your active providers: 1) Schedule exactly one PCP appointment
+  with reason "Care continuity review", 2) Schedule exactly one cardiology appointment with reason "Cardiology continuity
+  visit", 3) Schedule exactly one endocrinology appointment with reason "Endocrinology continuity visit".'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 14
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      - Chronic Kidney Disease
+      allergies:
+      - Penicillin
+      - Sulfa
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - neurology
+      - orthopedics
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 3
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 9
+      expired_count: 1
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+    - interacting_medications
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      must_have_specialties:
+      - cardiology
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 5
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  create:
+  - entity: Appointment
+    desc: Schedule one PCP continuity-review appointment
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x == target['pcp_id']
+      reason:
+        eq: Care continuity review
+      datetime:
+        any: true
+      type:
+        any: true
+      notes:
+        any: true
+      linked_referral_id:
+        any: true
+      pre_auth_status:
+        any: true
+      booked_at:
+        any: true
+      location:
+        any: true
+  - entity: Appointment
+    desc: Schedule one cardiology continuity visit
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x in target['cardio_provider_ids']
+      reason:
+        eq: Cardiology continuity visit
+      datetime:
+        any: true
+      type:
+        any: true
+      notes:
+        any: true
+      linked_referral_id:
+        any: true
+      pre_auth_status:
+        any: true
+      booked_at:
+        any: true
+      location:
+        any: true
+  - entity: Appointment
+    desc: Schedule one endocrinology continuity visit
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x in target['endo_provider_ids']
+      reason:
+        eq: Endocrinology continuity visit
+      datetime:
+        any: true
+      type:
+        any: true
+      notes:
+        any: true
+      linked_referral_id:
+        any: true
+      pre_auth_status:
+        any: true
+      booked_at:
+        any: true
+      location:
+        any: true
+  invariant:
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not cancel or modify pre-existing appointments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify any prescriptions
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not send any messages
+    ref: invariant[2]
+    severity: high
+  - name: Agent did not create or modify referrals
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[6]
+    severity: critical
+  - name: Agent did not modify pharmacies
+    ref: invariant[7]
+    severity: medium
+secondary_primitives: []

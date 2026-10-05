@@ -1,0 +1,291 @@
+task_id: reddit_full_community_manager
+title: Full Community Manager Workflow
+instruction_template: '1. Subscribe to r/{target.join1} and r/{target.join2}.
+
+  2. Create a post in r/{target.join1} with title exactly: "{target.post1_title}" and body exactly: "{target.post1_body}"
+
+  3. In r/AskReddit, find "{target.ask_title}". Upvote it and comment with exactly: "{target.ask_comment}"
+
+  4. Reply to u/{target.reply_author}''s comment on that post (the one mentioning "{target.reply_hint}") with exactly: "{target.reply_text}"
+
+  5. Send messages to u/{target.msg1_to} and u/{target.msg2_to} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+  6. Mark all notifications as read.
+
+  7. Go to Settings: theme "dark", comment sort "new", disable email for comment replies and mentions.
+
+
+  Do not downvote anything. Do not unsubscribe from any communities.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- grounding
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: target_post
+    params:
+      subreddit: AskReddit
+      title: What is the most useful skill you learned that school never taught you?
+      body: ''
+      author: ThreadReader
+      score: 51000
+    outputs:
+    - ask_id
+    - ask_title
+    - ask_sub
+  - use: target_comment
+    params:
+      post_id: '{output.ask_id}'
+      body: How to do taxes. I graduated with a degree in engineering and had no idea what a W-2 was.
+      author: MidnightCoder
+      score: 7200
+    outputs:
+    - reply_id
+    - reply_body
+  - use: comment_thread
+    params:
+      post_id: '{output.ask_id}'
+      depth: 2
+      comments_per_level: 3
+    outputs:
+    - comment_ids
+    - thread_depth
+  - use: decoy_posts
+    params:
+      subreddit: AskReddit
+      count: 3
+      title_pattern: What is the most useful {topic} you learned?
+    outputs:
+    - decoy_ids
+  - use: capture_notification_ids
+    params: {}
+    outputs:
+    - all_notification_ids
+    - unread_notification_ids
+  targets:
+    join1: MachineLearning
+    join2: Piracy
+    post1_title: 'State of open-source LLMs in April 2026: a comprehensive comparison'
+    post1_body: I benchmarked 15 open-source models across 8 tasks. Llama 4 and Mistral Large 3 lead in most categories, but smaller models like Phi-4 punch above their weight.
+    ask_title: '{output.ask_title}'
+    ask_id: '{output.ask_id}'
+    ask_comment: Negotiation. Learning to negotiate salary, rent, and contracts has probably saved me $50,000 over the past decade.
+    reply_author: MidnightCoder
+    reply_hint: taxes
+    reply_id: '{output.reply_id}'
+    reply_text: Same here. I wish schools taught basic financial literacy instead of making us memorize the quadratic formula.
+    msg1_to: NeuralNexus
+    msg2_to: DataWizard42
+    msg_subject: New LLM benchmark posted
+    msg_body: Just published an open-source LLM comparison in r/MachineLearning. Would love your feedback on the methodology.
+    decoy_ids: '{output.decoy_ids}'
+    initial_subscriptions: '{output.subscriptions}'
+    unread_notification_ids: '{output.unread_notification_ids}'
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribed to r/MachineLearning
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join1']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Subreddit
+    desc: Subscribed to r/Piracy
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join2']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Post
+    desc: AskReddit post upvoted
+    where:
+      id:
+        expr: x == target['ask_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Notification
+    desc: All unread notifications marked as read
+    bijection:
+      over: target['unread_notification_ids']
+      variable: v
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      default_comment_sort: {eq: new}
+      email_comment_reply: {eq: false}
+      email_mentions: {eq: false}
+  create:
+  - entity: Post
+    desc: New post created in r/MachineLearning
+    properties:
+      subreddit_name:
+        expr: x == target['join1']
+      title:
+        expr: x == target['post1_title']
+      body:
+        expr: x == target['post1_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    desc: Top-level comment on AskReddit post
+    properties:
+      post_id:
+        expr: x == target['ask_id']
+      body:
+        expr: x == target['ask_comment']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Comment
+    desc: Reply to MidnightCoder about taxes
+    properties:
+      post_id:
+        expr: x == target['ask_id']
+      parent_id:
+        expr: x == target['reply_id']
+      body:
+        expr: x == target['reply_text']
+      author_name:
+        expr: x == state.owner_username
+  - entity: Message
+    collection: state.sent_messages
+    desc: Direct message sent to NeuralNexus
+    properties:
+      to_user:
+        expr: x == target['msg1_to']
+      subject:
+        expr: x == target['msg_subject']
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['msg_body']
+      parent_id:
+        eq:
+  - entity: Message
+    collection: state.sent_messages
+    desc: Direct message sent to DataWizard42
+    properties:
+      to_user:
+        expr: x == target['msg2_to']
+      subject:
+        expr: x == target['msg_subject']
+      from_user:
+        expr: x == state.owner_username
+      body:
+        expr: x == target['msg_body']
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.notifications
+    filter: 'True'
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Subscribed to r/MachineLearning
+    ref: update[0]
+    severity: high
+  - name: Subscribed to r/Piracy
+    ref: update[1]
+    severity: high
+  - name: AskReddit post upvoted
+    ref: update[2]
+    severity: high
+  - name: All unread notifications marked as read
+    ref: update[3]
+    severity: high
+  - name: New post created in r/MachineLearning
+    ref: create[0]
+    severity: high
+  - name: Top-level comment on AskReddit post
+    ref: create[1]
+    severity: high
+  - name: Reply to MidnightCoder about taxes
+    ref: create[2]
+    severity: high
+  - name: Direct message sent to NeuralNexus
+    ref: create[3]
+    severity: high
+  - name: Direct message sent to DataWizard42
+    ref: create[4]
+    severity: high
+  - name: Agent did not modify unrelated subreddit memberships
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not mutate unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not create or mutate unrelated comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not touch inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send extra outbound messages beyond the two required
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not delete or re-read already-read notifications
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not edit user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and
+      state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

@@ -1,0 +1,168 @@
+task_id: lms_submit_peer_review
+env_id: lms
+title: Redo the Returned Peer Review Following the Rubric
+instruction_template: >-
+  One of your peer reviews in {target.course_code} was returned for revision because
+  it was incomplete. Open your peer reviews, find the single review that was returned
+  for revision (the one with returned_for_revision set; not the other assigned,
+  in-progress, or already-submitted look-alikes), and read the reviewee's submission,
+  the assignment rubric, and that review's previously-recorded scores. Then redo that
+  review by scoring all three rubric criteria (clarity, depth, originality) using the
+  published correction rule EXACTLY -- for each criterion that already had a previous
+  score, the corrected score is exactly that previous score plus 2, capped at 5; for
+  any criterion that had no previous score, use exactly 3. Write a comment of at least
+  80 characters that addresses the reviewee by their first name, then submit. Do not
+  modify any of your other peer reviews, and do not send any messages.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 16
+primary_primitives:
+- state_tracking
+start_path: /peer-reviews
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS201
+    outputs:
+    - course_ids
+    - course_codes
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.4
+    outputs:
+    - assignment_ids
+  - use: peer_review_assignments
+    params:
+      count: 7
+      course_id: '{output.target_course_id}'
+      statuses:
+      - in_progress
+      - assigned
+      - submitted
+      - assigned
+      - submitted
+      - in_progress
+      - submitted
+      returned_review_count: 1
+      returned_at_end: true
+    outputs:
+    - review_ids
+    - pending_review_ids
+    - completed_review_ids
+    - returned_review_ids
+    - returned_review_target_id
+    - returned_review_reviewee_name
+    - returned_review_reviewee_first
+    - returned_prev_clarity
+    - returned_prev_depth
+    - req_score_clarity
+    - req_score_depth
+    - req_score_originality
+  targets:
+    course_code: '{output.course_code}'
+    target_review_id: '{output.returned_review_target_id}'
+    reviewee_name: '{output.returned_review_reviewee_name}'
+    reviewee_first: '{output.returned_review_reviewee_first}'
+    prev_clarity: '{output.returned_prev_clarity}'
+    prev_depth: '{output.returned_prev_depth}'
+    req_clarity: '{output.req_score_clarity}'
+    req_depth: '{output.req_score_depth}'
+    req_originality: '{output.req_score_originality}'
+canonical_diff:
+  update:
+    - entity: PeerReview
+      desc: Redo the single returned-for-revision peer review with the three rubric
+        scores re-derived EXACTLY from the published prev+2 (cap 5) / unscored=3 rule
+        and a comment that addresses the reviewee by first name
+      where:
+        id:
+          expr: "x == target['target_review_id']"
+      changes:
+        rubric_scores:
+          expr: >-
+            len(x) == 3
+            and set(x) == {'clarity', 'depth', 'originality'}
+            and int(x['clarity']) == int(target['req_clarity'])
+            and int(x['depth']) == int(target['req_depth'])
+            and int(x['originality']) == int(target['req_originality'])
+        comments:
+          expr: "len(x.strip()) >= 80 and target['reviewee_first'].lower() in x.lower()"
+        status: {eq: submitted}
+  invariant:
+    - collection: state.peer_reviews
+      filter: "a.id != target['target_review_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: high
+  named_invariants:
+    - name: Agent did not modify any other peer review
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: high
+secondary_primitives: []

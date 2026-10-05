@@ -1,0 +1,63 @@
+task_id: gmail_update_contact
+env_id: gmail
+title: Update a Contact Note
+instruction_template: >-
+  Find the contact "Alice Chen" and update her note to "Team lead
+  — Project Atlas". Note: contacts are accessible via the Labels & contacts page (click
+  the Labels link in the sidebar).
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- verification
+start_path: /inbox
+seed:
+  distractors: 5
+  steps:
+  - use: update_contact
+    params: {}
+    outputs:
+    - contact_id
+    - contact_name
+  targets:
+    contact_id: '{output.contact_id}'
+    contact_name: '{output.contact_name}'
+canonical_diff:
+  update:
+    - entity: contacts
+      desc: Update Alice Chen note to Team lead — Project Atlas
+      where:
+        id:
+          expr: "x == target['contact_id']"
+      changes:
+        note:
+          eq: "Team lead — Project Atlas"
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      filter: "a.id != target['contact_id']"
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent updated Alice Chen's note
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other contacts
+      ref: invariant[4]
+      severity: high
+    - name: Agent did not send emails
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

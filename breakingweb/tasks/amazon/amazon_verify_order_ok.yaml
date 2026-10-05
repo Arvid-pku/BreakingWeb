@@ -1,0 +1,118 @@
+task_id: amazon_verify_order_ok
+env_id: amazon
+title: Verify Order Status Is Correct
+instruction_template: 'Open the Orders page and inspect the order for "{target.product_name}".
+  Verify that (a) the shipping address is for Jordan Parker at 742 Evergreen Terrace
+  and (b) the order contains exactly that product. Cancel the order only if either
+  condition fails.
+
+  '
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Stainless Steel Water Bottle
+      brand: Hydro Flask
+      category: Home & Kitchen
+      price: 34.99
+      rating: 4.7
+      features:
+      - Double-wall vacuum insulation
+      - 32 oz capacity
+      - BPA-free
+      - Keeps drinks cold 24 hours
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: existing_order
+    params:
+      product_ids:
+      - '{output.product_id}'
+      status: confirmed
+      days_ago: 1
+    outputs:
+    - order_id
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+    order_id: '{output.order_id}'
+canonical_diff:
+  # Verify-and-do-nothing task: preserve Amazon state while requiring observable
+  # evidence that the target order was inspected.
+  invariant:
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  constraints:
+  - desc: Agent viewed the target order before leaving it unchanged
+    expr: "target['order_id'] in state.viewed_order_ids"
+    severity: critical
+  named_invariants:
+  - name: Agent did not cancel the order or modify any order status
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not add items to cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: high
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium

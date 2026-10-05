@@ -1,0 +1,27 @@
+variant_id: lms_final_exam_prep_plan__calendar_verify_v1
+base_task_id: lms_final_exam_prep_plan
+target_primitive: verification
+description: A key LMS read or write initially returns a misleading success or stale
+  snapshot. The agent must verify the real persisted outcome.
+injections:
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/calendar**'
+    stale_body:
+      items: []
+    stale_count: 1
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: calendar_event
+      title: Course event review session
+      event_type: lecture
+      location: Library 204
+    - type: calendar_event
+      title: Course event deadline reminder
+      event_type: deadline
+      location: LMS

@@ -1,0 +1,88 @@
+task_id: rh_cross_reference_1099
+env_id: robinhood
+title: Set Breakeven Alerts from 1099-B Tax Document
+instruction_template: Open your 1099-B tax document for this year. Cross-reference
+  each sale listed against your transaction history. For any stock where the reported
+  cost basis on the 1099 differs from your transaction records and you still hold
+  the stock, set a price alert at the 1099 reported cost basis to track your breakeven
+  point. Use the 'above' condition if the current price is below the cost basis, or
+  the 'below' condition if the current price is above the cost basis.
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - AMZN
+      - NFLX
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - TSLA
+      - MSFT
+      quantities:
+      - '50'
+      - '30'
+      - '20'
+      cost_bases:
+      - '170.00'
+      - '250.00'
+      - '380.00'
+    outputs: []
+  - use: tax_documents
+    params:
+      include_1099b: true
+      discrepancy_count: 2
+      symbols:
+      - AAPL
+      - TSLA
+      - MSFT
+    outputs:
+    - discrepancy_symbols
+    - reported_cost_bases
+  - use: transaction_ledger
+    params:
+      months: 12
+    outputs: []
+  targets:
+    discrepancy_symbols: '{output.discrepancy_symbols}'
+    reported_cost_bases: '{output.reported_cost_bases}'
+canonical_diff:
+  create:
+  - entity: price_alerts
+    desc: Price alert at 1099 cost basis for each discrepancy symbol held
+    bijection:
+      over: "target['discrepancy_symbols']"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      target_price: {expr: "abs(float(x) - float(target['reported_cost_bases'][v])) < 0.01"}
+      condition: {expr: "(x == 'above' and state.get_stock(v).price < Decimal(str(target['reported_cost_bases'][v]))) or (x == 'below' and state.get_stock(v).price > Decimal(str(target['reported_cost_bases'][v])))"}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.price_alerts
+    filter: "a.symbol not in target['discrepancy_symbols']"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, verification, grounding, exploration by
+  requiring the agent to cross-reference tax documents with current holdings and set
+  appropriate alerts for discrepancies.

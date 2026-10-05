@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Home appliance">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <circle cx="200" cy="204" r="116" fill="#e5e7eb" stroke="#94a3b8" stroke-width="8"/>
+  <circle cx="200" cy="204" r="58" fill="#ffffff" stroke="#cbd5e1" stroke-width="6"/>
+  <circle cx="200" cy="204" r="18" fill="#232f3e"/>
+  <path d="M118 286l164-164" stroke="#ff9900" stroke-width="12" stroke-linecap="round"/>
+  <rect x="156" y="326" width="88" height="14" rx="7" fill="#cbd5e1"/>
+</svg>

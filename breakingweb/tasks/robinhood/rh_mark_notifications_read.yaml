@@ -1,0 +1,43 @@
+task_id: rh_mark_notifications_read
+env_id: robinhood
+title: Mark All Notifications as Read
+instruction_template: Mark all unread notifications as read.
+difficulty: easy
+time_limit_seconds: 90
+expected_steps: 5
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 10
+    outputs: []
+  - use: notifications
+    params:
+      count: 8
+      unread_ratio: 0.6
+    outputs: []
+  targets: {}
+canonical_diff:
+  update:
+  - entity: notifications
+    desc: All previously-unread notifications are marked read
+    bijection:
+      over: "[n for n in initial.notifications if not n.is_read]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      is_read: {eq: true}
+  invariant:
+  - collection: state.notifications
+    filter: "a.is_read"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+secondary_primitives: []

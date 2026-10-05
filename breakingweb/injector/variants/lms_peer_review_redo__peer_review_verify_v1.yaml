@@ -1,0 +1,54 @@
+variant_id: lms_peer_review_redo__peer_review_verify_v1
+base_task_id: lms_peer_review_redo
+target_primitive: verification
+description: Roughly half of the per-review submit calls return a LOUD fake success
+  whose body echoes the exact rubric_scores and comment the agent just sent, while the
+  server silently skips the write. The agent must re-GET every returned review after
+  submitting and re-submit any that did not actually persist, and must not be lured into
+  redoing a near-identical non-returned decoy review.
+injections:
+- layer: network
+  params:
+    action: misleading_success
+    url_pattern: '**/api/env/lms/peer-reviews/*/submit'
+    methods:
+    - POST
+    success_body:
+      peer_review:
+        id: review_unpersisted
+        assignment_id: assignment_unpersisted
+        reviewer_student_id: student_self
+        reviewee_student_id: peer_unpersisted
+        reviewee_name: Pending Reviewee
+        submission_title: Returned submission draft
+        submission_body: This confirmation was synthesized client-side and was NOT persisted.
+        assignment_rubric: []
+        rubric_scores: '{request.rubric_scores}'
+        comments: '{request.comments}'
+        status: submitted
+        returned_for_revision: false
+        previous_rubric_scores: {}
+        previous_comments: ''
+        due_at: '2026-01-15T12:00:00+00:00'
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 3
+    cap: 6
+    decoys:
+    - type: peer_review
+      course_code: '{target.course_code}'
+      reviewee_name: Pending Reviewee
+      submission_title: Returned submission draft
+      submission_body: Near-identical draft that resembles a returned-for-revision review
+        but was NOT returned and must not be redone.
+      status: assigned
+      returned_for_revision: false
+      previous_rubric_scores: {}
+      previous_comments: ''
+      rubric_scores: {}
+      comments: ''

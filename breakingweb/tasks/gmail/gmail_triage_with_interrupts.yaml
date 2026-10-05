@@ -1,0 +1,189 @@
+task_id: gmail_triage_with_interrupts
+env_id: gmail
+title: Complete inbox triage while ignoring mid-task interrupt
+instruction_template: 'Process every email in your inbox according to the rubric
+  below.
+
+
+  RUBRIC:
+
+  - Emails from client domains ({target.client_domain_a}, {target.client_domain_b}):
+  Star them and leave in inbox.
+
+  - Emails from newsletter domains ({target.newsletter_domain_a}, {target.newsletter_domain_b}):
+  Archive them.
+
+  - Emails from escalation senders ({target.escalation_sender_a}, {target.escalation_sender_b}):
+  Forward each to {target.team_lead_email}.
+
+
+  After completing triage, star the boss''s email (from {target.boss_email}, subject
+  "{target.boss_subject}") for later follow-up. Do NOT reply to it or forward it.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: triage_with_interrupts
+    params: {}
+    outputs:
+    - client_domain_a
+    - client_domain_b
+    - newsletter_domain_a
+    - newsletter_domain_b
+    - escalation_sender_a
+    - escalation_sender_b
+    - team_lead_email
+    - boss_email
+    - boss_subject
+    - boss_email_id
+    - client_ids
+    - newsletter_ids
+    - escalation_ids
+    - urgent_newsletter_id
+    - other_ids
+    - email_1_sender
+    - email_1_subject
+    - email_2_sender
+    - email_2_subject
+    - email_3_sender
+    - email_3_subject
+    - email_4_sender
+    - email_4_subject
+    - email_5_sender
+    - email_5_subject
+    - email_6_sender
+    - email_6_subject
+    - email_7_sender
+    - email_7_subject
+    - email_8_sender
+    - email_8_subject
+    - email_9_sender
+    - email_9_subject
+    - email_10_sender
+    - email_10_subject
+  targets:
+    client_domain_a: '{output.client_domain_a}'
+    client_domain_b: '{output.client_domain_b}'
+    newsletter_domain_a: '{output.newsletter_domain_a}'
+    newsletter_domain_b: '{output.newsletter_domain_b}'
+    escalation_sender_a: '{output.escalation_sender_a}'
+    escalation_sender_b: '{output.escalation_sender_b}'
+    team_lead_email: '{output.team_lead_email}'
+    boss_email: '{output.boss_email}'
+    boss_subject: '{output.boss_subject}'
+    boss_email_id: '{output.boss_email_id}'
+    client_ids: '{output.client_ids}'
+    newsletter_ids: '{output.newsletter_ids}'
+    escalation_ids: '{output.escalation_ids}'
+    urgent_newsletter_id: '{output.urgent_newsletter_id}'
+    other_ids: '{output.other_ids}'
+    email_1_sender: '{output.email_1_sender}'
+    email_1_subject: '{output.email_1_subject}'
+    email_2_sender: '{output.email_2_sender}'
+    email_2_subject: '{output.email_2_subject}'
+    email_3_sender: '{output.email_3_sender}'
+    email_3_subject: '{output.email_3_subject}'
+    email_4_sender: '{output.email_4_sender}'
+    email_4_subject: '{output.email_4_subject}'
+    email_5_sender: '{output.email_5_sender}'
+    email_5_subject: '{output.email_5_subject}'
+    email_6_sender: '{output.email_6_sender}'
+    email_6_subject: '{output.email_6_subject}'
+    email_7_sender: '{output.email_7_sender}'
+    email_7_subject: '{output.email_7_subject}'
+    email_8_sender: '{output.email_8_sender}'
+    email_8_subject: '{output.email_8_subject}'
+    email_9_sender: '{output.email_9_sender}'
+    email_9_subject: '{output.email_9_subject}'
+    email_10_sender: '{output.email_10_sender}'
+    email_10_subject: '{output.email_10_subject}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward each escalation email to team lead
+      bijection:
+        over: "target['escalation_ids']"
+        variable: v
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == v"
+        to:
+          expr: "x == [target['team_lead_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  update:
+    - entity: emails
+      desc: Star all client emails
+      bijection:
+        over: "target['client_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive all newsletter emails
+      bijection:
+        over: "target['newsletter_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+    - entity: emails
+      desc: Star boss email for follow-up
+      where:
+        id:
+          expr: "x == target['boss_email_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id not in target['client_ids']
+        and a.id not in target['newsletter_ids']
+        and a.id != target['boss_email_id']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded escalation emails to team lead
+      ref: create[0]
+      severity: high
+    - name: Agent starred all client emails
+      ref: update[0]
+      severity: high
+    - name: Agent archived all newsletter emails
+      ref: update[1]
+      severity: high
+    - name: Agent starred boss email
+      ref: update[2]
+      severity: high
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

@@ -1,0 +1,174 @@
+task_id: pp_check_interactions
+env_id: patient_portal
+title: Check Medication Interactions
+instruction_template: 'Review your prescription cabinet and identify the one pair
+  of CURRENTLY ACTIVE prescriptions that list a drug interaction with each other.
+  Several prescriptions list an interaction whose partner is an EXPIRED prescription;
+  ignore every such interaction - only a conflict between two prescriptions that are
+  both currently active warrants action. Then schedule exactly one follow-up
+  appointment with your PCP at the earliest available PCP slot, and CONFIRM that
+  appointment (PCP follow-ups require an explicit confirmation step). The appointment
+  reason must begin with the exact phrase "Drug interaction review:" and must also
+  name both interacting medications EXACTLY as they appear in your cabinet, including
+  each medication''s strength/dosage (for example "Warfarin 5mg", not "Warfarin"). Do
+  not send any messages, do not request any refills or renewals, and do not
+  discontinue or modify any medications.'
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- state_tracking
+start_path: /medications
+seed:
+  distractors: 12
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Atrial Fibrillation
+      - Hyperlipidemia
+      insurance_tier: standard
+      # The new PCP follow-up lands in confirmation_state="pending"; the agent
+      # must call POST /appointments/{id}/confirm to finish the workflow.
+      auto_confirm_specialties:
+      - pcp
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - dermatology
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 11
+      expired_count: 3
+      interaction_pair: true
+      # Adds a tempting but invalid interaction: an expired rx cross-linked to
+      # one active rx outside the genuine pair. Only the active<->active pair
+      # warrants action.
+      expired_interaction_decoy: true
+      # Adds a SECOND such trap on a different expired rx + a different active
+      # rx (disjoint from the genuine pair and the first decoy). The agent must
+      # now reject TWO non-empty interactions lists whose partner is expired,
+      # deepening the per-member status verification this state_tracking task
+      # demands.
+      second_expired_interaction_decoy: true
+    outputs:
+    - active_rx_ids
+    - interacting_rx_ids
+    - interacting_medications
+    - interacting_prescriber_ids
+    - decoy_interaction_rx_ids
+    - second_decoy_interaction_rx_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    interacting_rx_ids: '{output.interacting_rx_ids}'
+    interacting_medications: '{output.interacting_medications}'
+    interacting_prescriber_ids: '{output.interacting_prescriber_ids}'
+    decoy_interaction_rx_ids: '{output.decoy_interaction_rx_ids}'
+    second_decoy_interaction_rx_ids: '{output.second_decoy_interaction_rx_ids}'
+canonical_diff:
+  # Single positive signal: schedule AND confirm exactly one PCP follow-up at
+  # the earliest available PCP slot, with a reason that begins with the fixed
+  # phrase and names BOTH active interacting medications. The PCP specialty
+  # bypasses the referral gate, but `auto_confirm_specialties: [pcp]` forces a
+  # two-step schedule+confirm workflow. The reason expr is the discriminator:
+  # it can only be satisfied by an agent that correctly identified the genuine
+  # active<->active interacting pair (not the expired-decoy interaction).
+  create:
+  - entity: Appointment
+    desc: Schedule and CONFIRM one PCP appointment at the earliest PCP slot for active interaction review
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x == target['pcp_id']
+      reason:
+        expr: "x.startswith('Drug interaction review:') and all(m in x for m in target['interacting_medications'])"
+      datetime:
+        expr: "x == min(s.datetime for p in initial.providers\n         if p.id == target['pcp_id'] for s in p.available_slots)\n"
+      confirmation_state:
+        eq: confirmed
+      confirmed_at:
+        expr: x is not None and x >= session_start
+      booked_at:
+        expr: x >= session_start
+      type:
+        any: true
+      notes:
+        any: true
+      linked_referral_id:
+        any: true
+      location:
+        any: true
+  invariant:
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  # PP-1: whitelist cancelled appointments from the unaccounted-create sweep so
+  # an abandoned/cancelled tentative does not trip the appointment invariant.
+  # The single confirmed PCP follow-up (create[0]) is the only permitted
+  # scheduled appointment change.
+  - collection: state.appointments
+    filter: a.status != 'cancelled'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent did not discontinue, refill, renew, or modify any prescriptions
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not send any messages
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[4]
+    severity: critical
+  - name: Agent did not request or modify referrals
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not cancel or modify pre-existing appointments
+    ref: invariant[6]
+    severity: high
+secondary_primitives: []

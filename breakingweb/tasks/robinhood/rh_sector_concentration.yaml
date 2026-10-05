@@ -1,0 +1,201 @@
+task_id: rh_sector_concentration
+env_id: robinhood
+title: Reduce Technology Sector Concentration
+instruction_template: Calculate what percentage of your portfolio is in the Technology
+  sector. If it exceeds 50%, sell enough of your most overweight tech stock to bring
+  Technology to at or below 50% of the portfolio, then buy {target.buy_symbol} with
+  the proceeds.
+difficulty: hard
+time_limit_seconds: 280
+expected_steps: 12
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - NVDA
+      - SCHD
+      - JNJ
+      - KO
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - NVDA
+      - JNJ
+      - KO
+      quantities:
+      - '50'
+      - '60'
+      - '25'
+      - '10'
+      - '150'
+      - '200'
+      cost_bases:
+      - '170.00'
+      - '380.00'
+      - '155.00'
+      - '800.00'
+      - '155.00'
+      - '55.00'
+    outputs:
+    - largest_tech_symbol
+  targets:
+    largest_tech_symbol: '{output.largest_tech_symbol}'
+    buy_symbol: SCHD
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order placed for most overweight tech stock
+    properties:
+      symbol: {expr: "x == target['largest_tech_symbol']"}
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: Buy order placed for diversifier ETF
+    properties:
+      symbol: {expr: "x == target['buy_symbol']"}
+      side: {eq: buy}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded for the tech sell
+    properties:
+      type: {eq: sell}
+      symbol: {expr: "x == target['largest_tech_symbol']"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: transactions
+    desc: Buy transaction recorded for the diversifier ETF buy
+    properties:
+      type: {eq: buy}
+      symbol: {expr: "x == target['buy_symbol']"}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification for the tech sell
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  - entity: notifications
+    desc: Order-fill notification for the diversifier ETF buy
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  - entity: positions
+    desc: New diversifier ETF position created when not previously held
+    bijection:
+      over: "[1] if target['buy_symbol'] not in [p.symbol for p in initial.positions] else []"
+      variable: v
+    properties:
+      symbol: {expr: "x == target['buy_symbol']"}
+      quantity: {any: true}
+  delete:
+  - entity: positions
+    desc: Tech position fully liquidated when sold completely
+    bijection:
+      over: "[p for p in initial.positions if p.symbol == target['largest_tech_symbol'] and p.symbol not in [q.symbol for q in state.positions]]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  update:
+  - entity: positions
+    desc: Tech position quantity decreased by partial sell (when not fully closed)
+    bijection:
+      over: "[p for p in state.positions if p.symbol == target['largest_tech_symbol']]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      quantity: {any: true}
+  - entity: positions
+    desc: Diversifier ETF position created or updated by buy
+    bijection:
+      over: "[p for p in state.positions if p.symbol == target['buy_symbol'] and any(ip.id == p.id and ip.quantity != p.quantity for ip in initial.positions)]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      quantity: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "(a.side == 'sell' and a.symbol != target['largest_tech_symbol']) or (a.side == 'buy' and a.symbol != target['buy_symbol'])"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol not in (target['largest_tech_symbol'], target['buy_symbol'])"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol not in (target['largest_tech_symbol'], target['buy_symbol'])"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  constraints:
+  - desc: Technology sector concentration is brought to at or below 50%
+    expr: "state.sector_pct('Technology') <= Decimal('50')"
+    severity: critical
+  - desc: Concentration-reduction sell and SCHD buy orders are filled
+    expr: "any(o.symbol == target['largest_tech_symbol'] and o.side == 'sell' and o.status == 'filled' and o.filled_quantity == o.quantity for o in state.orders if o.id not in [io.id for io in initial.orders]) and any(o.symbol == target['buy_symbol'] and o.side == 'buy' and o.status == 'filled' and o.filled_quantity == o.quantity for o in state.orders if o.id not in [io.id for io in initial.orders])"
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, planning, grounding by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor account
+  state.

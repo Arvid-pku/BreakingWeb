@@ -1,0 +1,79 @@
+variant_id: reddit_vote_spree__post_twin
+base_task_id: reddit_vote_spree
+target_primitive: grounding
+description: Three near-duplicate CRISPR posts collide in r/science and a lookalike
+  sub on the exact upvote target title; the agent must distinguish the real
+  upvote/downvote targets by author + body before voting. Pair with silent_fail
+  (fail_count:2) on the post-vote endpoint so the first two vote writes silently
+  no-op and the agent must verify via state read.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: post
+      subreddit: science
+      title: New CRISPR technique edits multiple genes simultaneously with 97% accuracy
+      author: shadow_mod
+      score: 1440
+      comments: 41
+      body: Near-duplicate CRISPR breakthrough post by an alternate author with the
+        exact same title. Distinct post — verify body before voting.
+    - type: post
+      subreddit: science
+      title: New CRISPR technique edits multiple genes simultaneously with 79% accuracy
+      author: lookalike_helper
+      score: 5210
+      comments: 23
+      body: One-word title variant (79% vs 97%) with high engagement; not the
+        actual target.
+    - type: subreddit
+      name: science_
+      display_name: r/science_
+      description: Lookalike subreddit with a nearly identical name.
+      subscribers: 82000
+    - type: post
+      subreddit: science_
+      title: New CRISPR technique edits multiple genes simultaneously with 97% accuracy
+      author: crosspost_helper
+      score: 6420
+      comments: 88
+      body: Crosspost into a lookalike subreddit; identical headline, different
+        community.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*/vote'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: '{target.upvote_id}'
+        subreddit_id: sub_science
+        subreddit_name: science
+        author_name: TripleShotPls
+        author_is_op: true
+        title: '{target.upvote_title}'
+        body: ''
+        url: ''
+        post_type: text
+        score: 18001
+        upvote_ratio: 0.95
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: false
+        is_hidden: false
+        vote_direction: 1
+        permalink: '/r/science/comments/{target.upvote_id}'
+    behavior:
+      mode: once

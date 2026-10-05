@@ -1,0 +1,200 @@
+task_id: booking_message_driven_rebooking
+env_id: booking
+title: Read Hotel Message and Modify Reservation Dates
+instruction_template: 'Check your messages inbox for the latest unread message from
+  a hotel about a check-in issue. The message from "{target.property_name}" explains
+  that due to renovations, your original check-in date is unavailable and suggests
+  you move your stay to start on {target.new_check_in} instead (keeping the same number
+  of nights). Find the referenced reservation and modify its dates accordingly: change
+  check-in to {target.new_check_in} and check-out to {target.new_check_out}. Then
+  reply to the hotel with a message confirming you accept the date change, using subject
+  "Re: Check-in date change confirmation".
+
+  '
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Gritti Palace Venice
+      city: Venice
+      country: Italy
+      star_rating: 5
+      review_score: 9.5
+      review_count: 2890
+      price: 580.0
+      neighborhood: San Marco
+      address: Campo Santa Maria del Giglio, 30124 Venice
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Room service
+      - Concierge
+      - Spa
+      - Water taxi
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.property_id}'
+      check_in: '2026-07-10'
+      check_out: '2026-07-14'
+      price_per_night: 580.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 20
+    outputs:
+    - reservation_id
+    - confirmation_number
+    - property_id
+  - use: send_message
+    params:
+      property_id: '{output.property_id}'
+      property_name: Gritti Palace Venice
+      reservation_id: '{output.reservation_id}'
+      subject: 'Important: Check-in date change required'
+      body: Dear Jordan Parker, due to essential renovations in our lobby area, we
+        are unable to accommodate check-ins on July 10th. We kindly request that you
+        move your reservation to check in on July 12th instead, with checkout on July
+        16th. The same room and rate will be honored. We sincerely apologize for any
+        inconvenience. Please confirm this change at your earliest convenience. Kind
+        regards, Gritti Palace Venice.
+      sender: property
+      read: false
+    outputs:
+    - message_id
+  - use: send_message
+    params:
+      property_id: '{output.property_id}'
+      property_name: Gritti Palace Venice
+      subject: Special offer for returning guests
+      body: Dear valued guest, as a returning visitor we would like to offer you a
+        complimentary upgrade on your next stay.
+      sender: property
+      read: true
+    outputs:
+    - distractor_msg_id
+  - use: featured_property
+    params:
+      name: Milan Grand Plaza
+      city: Milan
+      country: Italy
+      star_rating: 4
+      review_score: 8.3
+      price: 240.0
+    outputs:
+    - distractor_prop_id
+    - distractor_prop_name
+    - distractor_cheapest_room_id
+    - distractor_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.distractor_prop_id}'
+      check_in: '2026-08-01'
+      check_out: '2026-08-04'
+      status: confirmed
+      booked_days_ago: 10
+    outputs:
+    - distractor_res_id
+    - distractor_conf_num
+    - distractor_res_property_id
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    reservation_id: '{output.reservation_id}'
+    confirmation_number: '{output.confirmation_number}'
+    message_id: '{output.message_id}'
+    new_check_in: '2026-07-12'
+    new_check_out: '2026-07-16'
+    distractor_res_id: '{output.distractor_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Modify the target reservation to the new dates requested by the hotel
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        check_in: {eq: "2026-07-12"}
+        check_out: {eq: "2026-07-16"}
+        nights: {any: true}
+        status: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+    - entity: Message
+      desc: Mark the hotel message about the date change as read
+      where:
+        id: {expr: "x == target['message_id']"}
+      changes:
+        read: {eq: true}
+  create:
+    - entity: Message
+      desc: Reply to the hotel confirming acceptance of the date change
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        reservation_id: {any: true}
+        subject: {expr: "'date change' in x.lower() or 'confirm' in x.lower()"}
+        body: {expr: "'confirm' in x.lower()"}
+        sender: {eq: guest}
+        read: {eq: false}
+        created_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id']"
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.id != target['message_id'] and not (a.sender == 'guest' and a.property_id == target['property_id'])"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent modified the target reservation to the new dates
+      ref: update[0]
+      severity: critical
+    - name: Agent read the hotel message about date change
+      ref: update[1]
+      severity: high
+    - name: Agent replied to the hotel confirming the date change
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify or delete other messages
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low

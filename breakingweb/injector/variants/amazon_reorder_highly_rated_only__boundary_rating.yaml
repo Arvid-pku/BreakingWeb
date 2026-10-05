@@ -1,0 +1,30 @@
+variant_id: amazon_reorder_highly_rated_only__boundary_rating
+base_task_id: amazon_reorder_highly_rated_only
+target_primitive: grounding
+description: >
+  Decoy products sit in the product catalog with names nearly identical
+  to the 4/5-star targets. The agent must key on its own review ratings
+  (which are tied to the specific seeded product_ids), not name
+  substring matching, to pick exactly the products it rated 4 or 5
+  stars when placing the reorder.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: Adjustable Laptop Stand Aluminum Pro
+      brand: DeskPro
+      category: Office Supplies
+      price: 59.99
+      rating: 4.3
+      match_image_of: Adjustable Laptop Stand Aluminum
+      description: Pro-line sibling — same brand and category. Agent never rated this one and must not reorder it.
+    - type: product
+      name: Adjustable Laptop Stand Aluminum Plus
+      brand: DeskPro
+      category: Office Supplies
+      price: 64.99
+      rating: 4.4
+      match_image_of: Adjustable Laptop Stand Aluminum
+      description: Plus-variant lookalike; agent must avoid treating this as the product it previously reviewed.

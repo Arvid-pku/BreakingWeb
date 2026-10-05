@@ -1,0 +1,150 @@
+task_id: rh_fix_duplicate_orders
+env_id: robinhood
+title: Cancel Duplicate Pending Orders
+instruction_template: Due to a glitch, duplicate buy orders were placed for several
+  stocks. Review your pending orders, identify any duplicates (same symbol, same side),
+  and cancel the duplicates -- keep the earliest order for each and cancel the rest.
+  If two duplicate orders share the same date, keep the one with the lower limit price.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 20
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - NVDA
+      - TSLA
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      quantities:
+      - '50'
+      - '30'
+      - '20'
+      cost_bases:
+      - '175.00'
+      - '380.00'
+      - '165.00'
+    outputs: []
+  - use: pending_orders
+    params:
+      count: 10
+      order_types:
+      - limit
+      force_side: buy
+      symbols:
+      - AAPL
+      - AAPL
+      - AAPL
+      - MSFT
+      - MSFT
+      - GOOGL
+      - GOOGL
+      - AMZN
+      - NVDA
+      - TSLA
+    outputs:
+    - order_ids
+  targets:
+    order_ids: '{output.order_ids}'
+canonical_diff:
+  # ACTION task: cancel duplicate pending orders, keeping the earliest per
+  # symbol. Bijection enumerates initial.orders that are NOT the earliest
+  # pending non-decoy order for their symbol — those must transition from
+  # pending to cancelled. The unfiltered orders invariant (with
+  # filter:"False" disabled below) is replaced by a filtered invariant that
+  # excludes the duplicate-cancellation set; any other order mutation
+  # (e.g. cancelling AMZN/NVDA/TSLA, or placing new buys) fires it.
+  update:
+  - entity: orders
+    desc: Each duplicate pending order (non-earliest per symbol) cancelled
+    bijection:
+      over: "[o for o in initial.orders if not o.id.startswith('ord_decoy_') and o.status == 'pending' and any(o2.symbol == o.symbol and o2.created_at < o.created_at and not o2.id.startswith('ord_decoy_') and o2.status == 'pending' for o2 in initial.orders)]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      status: {eq: cancelled}
+      cancelled_at: {any: true}
+  invariant:
+  - collection: state.orders
+    # Orders is the positive-target collection — filter "False" disables this
+    # unfiltered invariant so the matched bijection updates aren't double-
+    # penalised. The collateral sweep still flags any unaccounted order
+    # changes (e.g. cancelling AMZN/NVDA/TSLA, or placing new buys).
+    filter: "False"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.transactions
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not cancel non-duplicate orders or place new orders
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not modify positions
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not create transactions
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not initiate transfers
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not modify watchlists
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not modify price alerts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[6]
+    severity: low
+  - name: Agent did not modify recurring investments
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not place options orders
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify options positions
+    ref: invariant[9]
+    severity: high
+  - name: Agent did not modify tax documents
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify linked banks
+    ref: invariant[11]
+    severity: high
+secondary_primitives: []

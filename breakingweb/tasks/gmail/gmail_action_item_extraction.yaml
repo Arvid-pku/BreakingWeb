@@ -1,0 +1,95 @@
+task_id: gmail_action_item_extraction
+env_id: gmail
+title: Action Item Extraction
+instruction_template: 'Four attendees — {target.attendee_a}, {target.attendee_b},
+  {target.attendee_c}, and {target.attendee_d} — each sent a follow-up email after
+  the leadership offsite with action items. Find all four emails (search for "leadership
+  offsite follow-up" in the subject). Read each one and extract only the action items
+  assigned to you ({target.user_name}). Ignore action items assigned to other people.
+  Compose a new email to {target.manager_email} with subject "Offsite Action Items
+  — {target.user_name}" listing each action item assigned to you on its own line.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 45
+primary_primitives:
+- verification
+secondary_primitives:
+- exploration
+- grounding
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: action_item_extraction
+    params: {}
+    outputs:
+    - attendee_a
+    - attendee_b
+    - attendee_c
+    - attendee_d
+    - user_name
+    - manager_email
+    - correct_action_items
+    - reassigned_item
+    - adversarial_wrong_item
+    - decoy_dinner_id
+    - decoy_old_offsite_id
+  targets:
+    attendee_a: '{output.attendee_a}'
+    attendee_b: '{output.attendee_b}'
+    attendee_c: '{output.attendee_c}'
+    attendee_d: '{output.attendee_d}'
+    user_name: '{output.user_name}'
+    manager_email: '{output.manager_email}'
+    correct_action_items: '{output.correct_action_items}'
+    reassigned_item: '{output.reassigned_item}'
+    adversarial_wrong_item: '{output.adversarial_wrong_item}'
+    decoy_dinner_id: '{output.decoy_dinner_id}'
+    decoy_old_offsite_id: '{output.decoy_old_offsite_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose email to manager listing action items assigned to user
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['manager_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          expr: "x == f\"Offsite Action Items — {target['user_name']}\""
+        body:
+          expr: "all(item in x for item in target['correct_action_items']) and target['reassigned_item'] not in x and target['adversarial_wrong_item'] not in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+  invariant:
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent composed and sent the action item summary to the manager
+      ref: create[0]
+      severity: high
+    - name: Agent did not modify inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not send extra emails
+      ref: create[0]
+      severity: high

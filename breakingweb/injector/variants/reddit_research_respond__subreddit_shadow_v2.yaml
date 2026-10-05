@@ -1,0 +1,42 @@
+variant_id: reddit_research_respond__subreddit_shadow_v2
+base_task_id: reddit_research_respond
+target_primitive: grounding
+description: "Three lookalike usernames in the inbox impersonate u/PhotonWave (the outreach recipient) using underscore, mod-suffix, and case-variant attacks. The first two send POSTs silently no-op so the agent must verify the message actually landed in the recipient's inbox."
+injections:
+- layer: seed
+  params:
+    action: alias_entities
+    entities:
+    - type: user
+      original_name: PhotonWave
+      alias_name: PhotonWave_
+      message_subject: 'Re: quantum error correction'
+      message_body: Lookalike account — do not message here.
+    - type: user
+      original_name: PhotonWave
+      alias_name: PhotonWave.mod
+      message_subject: 'Re: quantum error correction'
+      message_body: Mod-suffix typosquat. Verify the username before composing.
+    - type: user
+      original_name: PhotonWave
+      alias_name: photonwave
+      message_subject: Quick check
+      message_body: Case-varying typosquat — do not message here.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/messages'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      message:
+        id: msg_fake_send
+        from_user: pending
+        to_user: pending
+        subject: Pending
+        body: ''
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_read: false
+    behavior:
+      mode: once

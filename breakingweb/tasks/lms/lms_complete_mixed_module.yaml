@@ -1,0 +1,133 @@
+task_id: lms_complete_mixed_module
+env_id: lms
+title: Complete Module with Mixed Content Types
+instruction_template: In {target.course_code}, complete the next available module,
+  which contains a mix of readings and videos. Complete every content item in order,
+  then mark the module as done.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 18
+primary_primitives:
+- planning
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 2
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_code
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 5
+      graded_fraction: 0.3
+    outputs:
+    - assignment_ids
+  - use: module_sequence
+    params:
+      count: 4
+      chain_type: mixed
+      completed_count: 1
+    outputs:
+    - module_ids
+    - next_available_module_id
+    - first_locked_module_id
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    next_available_module_id: '{output.next_available_module_id}'
+    first_locked_module_id: '{output.first_locked_module_id}'
+canonical_diff:
+  update:
+    - entity: Module
+      desc: Complete the next available module only after every content item is done
+      where:
+        id:
+          expr: "x == target['next_available_module_id']"
+      changes:
+        status: {eq: completed}
+        content_items:
+          expr: "all(item.get('completed') is True for item in x)"
+      weight: 1.0
+  invariant:
+    - collection: state.modules
+      filter: "a.id not in [target['next_available_module_id'], target['first_locked_module_id']]"
+      preserve: ALL
+      comprehensive: true
+      weight: 1.0
+    - collection: state.courses
+      preserve: ALL
+      weight: 1.0
+    - collection: state.enrollments
+      preserve: ALL
+      weight: 1.0
+    - collection: state.assignments
+      preserve: ALL
+      weight: 1.0
+    - collection: state.discussions
+      preserve: ALL
+      weight: 1.0
+    - collection: state.discussion_posts
+      preserve: ALL
+      weight: 1.0
+    - collection: state.peer_reviews
+      preserve: ALL
+      weight: 1.0
+    - collection: state.announcements
+      preserve: ALL
+      weight: 1.0
+    - collection: state.grades
+      preserve: ALL
+      weight: 1.0
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    - collection: state.student
+      preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+    - name: Agent did not modify other modules
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+secondary_primitives: []

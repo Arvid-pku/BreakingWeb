@@ -1,0 +1,55 @@
+variant_id: amazon_compare_and_buy_cheapest__product_shadow_v2
+base_task_id: amazon_compare_and_buy_cheapest
+target_primitive: grounding
+description: "Three near-duplicate Bluetooth speaker SKUs share the target's brand and thumbnail. Two tie on the cheapest-price tier but vary on rating (one above, one below the 4.0 bar) and a third hits the target rating but at a slightly higher price. Sort-by-price-then-filter cannot pick the unique winner; the agent must compare exact price+rating per listing. The first two cart-add calls silently no-op so the agent must verify the cart actually changed."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "Basic Bluetooth Speaker - Marketplace Reseller"
+      brand: AmazonBasics
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 12.99
+      rating: 3.9
+      review_count: 820
+      match_image_of: Basic Bluetooth Speaker
+      description: "Reseller listing tied on price with the target but rating below the 4.0 bar; must be rejected by rating."
+    - type: product
+      name: "Basic Bluetooth Speaker - Bargain Listing"
+      brand: AmazonBasics
+      seller: ValueLine Sellers
+      category: Electronics
+      price: 12.99
+      rating: 4.6
+      review_count: 580
+      match_image_of: Basic Bluetooth Speaker
+      description: "Same low price and a rating above 4.0 — looks like a winner; agent must check this is a different SKU from the canonical target product_id."
+    - type: product
+      name: "Basic Bluetooth Speaker Certified"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 13.99
+      rating: 4.2
+      review_count: 410
+      match_image_of: Basic Bluetooth Speaker
+      description: "Same rating as target but slightly higher price; fails the cheapest-with-rating-bar rule."
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/cart/add'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      cart_item:
+        id: cart_fake_retry
+        product_id: prod_fake_retry
+        product_name: Pending cart add
+        quantity: 1
+        unit_price: 0.0
+        variant_selections: {}
+        added_at: '2026-04-26T08:00:00+00:00'
+    behavior: { mode: once }

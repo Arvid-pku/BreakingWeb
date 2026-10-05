@@ -1,0 +1,91 @@
+task_id: booking_profile_update_suite
+env_id: booking
+title: 'Update Account Profile: Name, Phone, and Nationality'
+instruction_template: 'Go to your account settings and update your profile information.
+  Change your display name to "{target.new_name}", update your phone number to "{target.new_phone}",
+  and set your nationality to "{target.new_nationality}". Make sure all three fields
+  are saved successfully.
+
+  '
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+- verification
+start_path: /home
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: set_profile
+    params:
+      owner_name: Jordan Parker
+      owner_email: jordan.parker@email.com
+      owner_phone: +1-217-555-0142
+      owner_nationality: US
+    outputs:
+    - owner_name
+  targets:
+    new_name: Jordan A. Parker
+    new_phone: +1-312-555-0198
+    new_nationality: GB
+canonical_diff:
+  update:
+    - entity: owner_name
+      desc: Display name updated
+      where: { id: { eq: "__singleton_owner_name__" } }
+      changes:
+        value: { eq: "Jordan A. Parker" }
+    - entity: owner_phone
+      desc: Phone number updated
+      where: { id: { eq: "__singleton_owner_phone__" } }
+      changes:
+        value: { eq: "+1-312-555-0198" }
+    - entity: owner_nationality
+      desc: Nationality updated
+      where: { id: { eq: "__singleton_owner_nationality__" } }
+      changes:
+        value: { eq: "GB" }
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    - collection: state.owner_email
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+    - name: Email address was not changed
+      ref: invariant[7]
+      severity: high
+secondary_primitives: []

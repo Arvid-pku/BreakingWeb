@@ -1,0 +1,170 @@
+task_id: reddit_targeted_engagement_campaign
+title: Targeted Cross-Sub Engagement
+instruction_template: '1. In r/technology, find "{target.tech_title}" and upvote it.
+
+  2. In r/gaming, find "{target.game_title}" and save it.
+
+  3. In r/science, find "{target.sci_title}" and comment with exactly: "{target.sci_comment}"
+
+  4. Send a message to u/{target.msg_to} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+  5. Go to Settings, set theme to "dark".
+
+
+  Do not vote on posts in r/gaming or r/science.'
+difficulty: expert
+time_limit_seconds: 540
+expected_steps: 40
+primary_primitives:
+- grounding
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Apple open-sources its entire Swift compiler toolchain
+      body: Including LLVM backend and standard library.
+      score: 67000
+    outputs:
+    - tech_id
+    - tech_title
+    - tech_sub
+  - use: target_post
+    params:
+      subreddit: gaming
+      title: Hollow Knight Silksong finally gets a release date after 6 years
+      body: February 2027.
+      score: 92000
+    outputs:
+    - game_id
+    - game_title
+    - game_sub
+  - use: target_post
+    params:
+      subreddit: science
+      title: First successful pig-to-human kidney transplant patient reaches one year milestone
+      body: The patient reports normal kidney function.
+      score: 41000
+    outputs:
+    - sci_id
+    - sci_title
+    - sci_sub
+  targets:
+    tech_title: '{output.tech_title}'
+    tech_id: '{output.tech_id}'
+    game_title: '{output.game_title}'
+    game_id: '{output.game_id}'
+    sci_title: '{output.sci_title}'
+    sci_id: '{output.sci_id}'
+    sci_comment: A remarkable achievement. The immunosuppression protocol they developed could revolutionize organ transplantation.
+    msg_to: NebulaDrifter
+    msg_subject: Xenotransplantation breakthrough
+    msg_body: Did you see the kidney transplant milestone post in r/science? The one-year survival is groundbreaking.
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Upvoted the tech target post
+    where:
+      id:
+        expr: x == target['tech_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Post
+    desc: Saved the gaming target post (do not vote)
+    where:
+      id:
+        expr: x == target['game_id']
+    changes:
+      is_saved:
+        eq: true
+      vote_direction:
+        eq: 0
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+  create:
+  - entity: Comment
+    desc: Exact comment on the science target post
+    properties:
+      post_id:
+        expr: x == target['sci_id']
+      body:
+        expr: x == target['sci_comment']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Message
+    collection: state.sent_messages
+    desc: Exact message sent to NebulaDrifter about xenotransplantation
+    properties:
+      to_user:
+        expr: x == target['msg_to']
+      subject:
+        expr: x == target['msg_subject']
+      body:
+        expr: x == target['msg_body']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    filter: a.id != target['tech_id'] and a.id != target['game_id']
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: 'True'
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent upvoted the tech target post
+    ref: update[0]
+    severity: high
+  - name: Agent saved the gaming target post
+    ref: update[1]
+    severity: high
+  - name: Agent posted the exact comment on the science target post
+    ref: create[0]
+    severity: high
+  - name: Agent sent the exact message to NebulaDrifter
+    ref: create[1]
+    severity: high
+  - name: Agent did not vote on, save, or otherwise modify other posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify or delete inbox messages
+    ref: invariant[3]
+    severity: medium
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.default_comment_sort == initial.settings.default_comment_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities ==
+      initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

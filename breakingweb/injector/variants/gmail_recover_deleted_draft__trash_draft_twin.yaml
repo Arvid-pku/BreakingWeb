@@ -1,0 +1,32 @@
+variant_id: gmail_recover_deleted_draft__trash_draft_twin
+base_task_id: gmail_recover_deleted_draft
+target_primitive: grounding
+description: Trash contains another near-match deleted thread with the same subject line but the wrong
+  recipient and incomplete talking points. The agent must reconstruct the real deleted draft, not the
+  decoy.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - from_name: Julia Fontaine
+      from: '{target.recipient_email}'
+      to:
+      - me@thornton.com
+      subject: '{target.draft_subject}'
+      body: Following up on the roadmap. I only saw the mobile SDK launch and dashboard redesign notes,
+        but not the final API throughput details.
+      labels:
+      - trash
+      deleted: true
+    - from_name: Avery Stone
+      from: avery.stone@innovate-labs.com
+      to:
+      - me@thornton.com
+      subject: '{target.draft_subject}'
+      body: Old draft copy for a different stakeholder. It mentions only the August SDK milestone and
+        a generic timeline.
+      labels:
+      - trash
+      deleted: true

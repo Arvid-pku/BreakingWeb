@@ -1,0 +1,189 @@
+task_id: gmail_annual_vendor_review
+env_id: gmail
+title: Categorize Six Vendors as Renew/Renegotiate/Terminate and Compose VP Recommendation
+instruction_template: 'Procurement sent an email from procurement@company.com titled
+  "Annual Vendor Review - Policy Criteria" defining three categories: RENEW (satisfaction
+  >= 4.0, no unresolved complaints, contract not expired), RENEGOTIATE (satisfaction
+  >= 3.0, pricing increase > 5% or one unresolved complaint, contract not expired),
+  TERMINATE (satisfaction < 3.0, or contract expired with no renewal notice, or two
+  or more unresolved complaints). Six vendors must be reviewed: AlphaServ (alphaserv.io),
+  BetaLogic (betalogic.com), GammaTech (gammatech.co), DeltaWare (deltaware.net),
+  EpsilonAI (epsilonai.com), and ZetaCloud (zetacloud.org). Read all relevant emails
+  for each vendor — satisfaction survey results are in the Updates tab. Categorize
+  each vendor per the policy. Then: (1) Compose a NEW email to vp-operations@company.com with subject
+  "Annual Vendor Review - Recommendations" listing each vendor name, category (RENEW/RENEGOTIATE/TERMINATE),
+  and a one-line evidence citation. (2) Create three labels: "Vendor-Renew", "Vendor-Renegotiate",
+  "Vendor-Terminate". (3) Apply the correct category label to every email related
+  to each vendor. (4) Create six filters, one per vendor domain, that auto-applies
+  the correct category label to future incoming mail.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 75
+primary_primitives:
+- exploration
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: annual_vendor_review
+    params: {}
+    outputs:
+    - vendor_categories
+    - vendor_email_ids
+    - vendor_domains
+    - all_vendor_email_ids
+    - survey_email_ids
+    - policy_email_id
+    - adversarial_self_report_id
+    - expected_filter_count
+  targets:
+    vendor_categories: '{output.vendor_categories}'
+    vendor_email_ids: '{output.vendor_email_ids}'
+    vendor_domains: '{output.vendor_domains}'
+    all_vendor_email_ids: '{output.all_vendor_email_ids}'
+    survey_email_ids: '{output.survey_email_ids}'
+    policy_email_id: '{output.policy_email_id}'
+    adversarial_self_report_id: '{output.adversarial_self_report_id}'
+    expected_filter_count: '{output.expected_filter_count}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose vendor recommendation email to VP Operations
+      count: 1
+      properties:
+        to:
+          expr: "x == ['vp-operations@company.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        subject:
+          eq: Annual Vendor Review - Recommendations
+        body:
+          substring_all:
+            - AlphaServ
+            - RENEW
+            - BetaLogic
+            - RENEGOTIATE
+            - GammaTech
+            - TERMINATE
+            - DeltaWare
+            - EpsilonAI
+            - ZetaCloud
+        in_reply_to:
+          eq: null
+    - entity: labels
+      desc: Create Vendor-Renew label
+      count: 1
+      properties:
+        name:
+          eq: Vendor-Renew
+    - entity: labels
+      desc: Create Vendor-Renegotiate label
+      count: 1
+      properties:
+        name:
+          eq: Vendor-Renegotiate
+    - entity: labels
+      desc: Create Vendor-Terminate label
+      count: 1
+      properties:
+        name:
+          eq: Vendor-Terminate
+    - entity: filters
+      desc: Create filter for AlphaServ (alphaserv.io) -> Vendor-Renew
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@alphaserv.io"
+        add_labels:
+          set_eq:
+            - Vendor-Renew
+    - entity: filters
+      desc: Create filter for BetaLogic (betalogic.com) -> Vendor-Renegotiate
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@betalogic.com"
+        add_labels:
+          set_eq:
+            - Vendor-Renegotiate
+    - entity: filters
+      desc: Create filter for GammaTech (gammatech.co) -> Vendor-Terminate
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@gammatech.co"
+        add_labels:
+          set_eq:
+            - Vendor-Terminate
+    - entity: filters
+      desc: Create filter for DeltaWare (deltaware.net) -> Vendor-Terminate
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@deltaware.net"
+        add_labels:
+          set_eq:
+            - Vendor-Terminate
+    - entity: filters
+      desc: Create filter for EpsilonAI (epsilonai.com) -> Vendor-Renegotiate
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@epsilonai.com"
+        add_labels:
+          set_eq:
+            - Vendor-Renegotiate
+    - entity: filters
+      desc: Create filter for ZetaCloud (zetacloud.org) -> Vendor-Renew
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@zetacloud.org"
+        add_labels:
+          set_eq:
+            - Vendor-Renew
+  invariant:
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name not in ['Vendor-Renew', 'Vendor-Renegotiate', 'Vendor-Terminate']"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent the vendor recommendation email
+      ref: create[0]
+      severity: high
+    - name: Agent created the Vendor-Renew label
+      ref: create[1]
+      severity: high
+    - name: Agent created the Vendor-Renegotiate label
+      ref: create[2]
+      severity: high
+    - name: Agent created the Vendor-Terminate label
+      ref: create[3]
+      severity: high
+    - name: Agent created the AlphaServ Renew filter
+      ref: create[4]
+      severity: high
+    - name: Agent created the GammaTech Terminate filter
+      ref: create[6]
+      severity: high

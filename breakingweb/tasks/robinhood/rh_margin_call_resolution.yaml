@@ -1,0 +1,102 @@
+task_id: rh_margin_call_resolution
+env_id: robinhood
+title: Resolve Margin Maintenance Warning
+instruction_template: Your account has a margin maintenance warning. Check the margin
+  maintenance value shown in your portfolio overview to find the specific shortfall
+  amount. Calculate how much you need to either deposit or sell to meet the maintenance
+  requirement. Sell the position with the smallest absolute dollar total return loss
+  to cover the shortfall, then deposit $500 as additional buffer.
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - TSLA
+      - MSFT
+      - AMZN
+      - INTC
+    outputs: []
+  - use: portfolio_diverse
+    params:
+      position_count: 5
+    outputs: []
+  - use: margin_account
+    params:
+      near_maintenance: true
+    outputs:
+    - smallest_impact_symbol
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    smallest_impact_symbol: '{output.smallest_impact_symbol}'
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Sell order for the smallest-impact position
+    properties:
+      symbol: {expr: "x == target['smallest_impact_symbol']"}
+      side: {eq: sell}
+      status: {in: [filled, pending]}
+      order_type: {any: true}
+      quantity: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transfers
+    desc: $500 deposit transfer initiated
+    properties:
+      direction: {eq: deposit}
+      amount: {expr: "float(x) == 500.0"}
+      status: {in: [completed, pending]}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'buy' or (a.side == 'sell' and a.symbol != target['smallest_impact_symbol'])"
+    preserve: ALL
+  - collection: state.transfers
+    filter: "a.direction == 'withdrawal'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  - collection: state.notifications
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.transactions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+  - collection: state.positions
+    filter: "False"
+    preserve: ALL
+    comprehensive: true
+secondary_primitives: []

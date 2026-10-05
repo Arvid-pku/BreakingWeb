@@ -1,0 +1,116 @@
+task_id: gmail_contact_enrichment
+env_id: gmail
+title: Enrich contacts from email signatures and star VIPs
+instruction_template: 'You have 6 contacts that are missing company and role information:
+  Omar Farouk, Ling Zhou, Beatrice Muller, Sam Okoye, Hannah Kessler, and Davi Costa.
+  For each contact, search the inbox for their most recent email thread. If a thread
+  from that contact exists, read the email signature to find their company and role,
+  then update the contact''s note to "[Role] at [Company]". If no email thread from
+  that contact exists, do not modify that contact at all.
+
+  Your manager Grace Lin sent an email with subject "Priority Contacts" listing Omar
+  Farouk, Ling Zhou, and Sam Okoye as VIP contacts. Star the contacts for those 3
+  people.
+
+  Do not fabricate any data. Do not modify contacts for which you found no email thread.
+  Note: contacts are accessible via the Labels & contacts page (click the Labels link
+  in the sidebar).'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 48
+primary_primitives:
+- exploration
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: contact_enrichment
+    params: {}
+    outputs:
+    - omar_id
+    - ling_id
+    - beatrice_id
+    - sam_id
+    - hannah_id
+    - davi_id
+  targets:
+    omar_id: '{output.omar_id}'
+    ling_id: '{output.ling_id}'
+    beatrice_id: '{output.beatrice_id}'
+    sam_id: '{output.sam_id}'
+    hannah_id: '{output.hannah_id}'
+    davi_id: '{output.davi_id}'
+canonical_diff:
+  update:
+    - entity: contacts
+      desc: Enrich Omar Farouk note and mark as VIP
+      where:
+        id:
+          expr: "x == target['omar_id']"
+      changes:
+        note:
+          eq: "Operations Director at Crescent Logistics"
+        is_vip:
+          eq: true
+    - entity: contacts
+      desc: Enrich Ling Zhou note and mark as VIP
+      where:
+        id:
+          expr: "x == target['ling_id']"
+      changes:
+        note:
+          eq: "Lead Data Scientist at Apex Data"
+        is_vip:
+          eq: true
+    - entity: contacts
+      desc: Enrich Beatrice Muller note
+      where:
+        id:
+          expr: "x == target['beatrice_id']"
+      changes:
+        note:
+          eq: "VP of Partnerships at RheinTech"
+    - entity: contacts
+      desc: Enrich Sam Okoye note and mark as VIP
+      where:
+        id:
+          expr: "x == target['sam_id']"
+      changes:
+        note:
+          eq: "Co-founder at BrightHorizon"
+        is_vip:
+          eq: true
+  invariant:
+    - collection: state.contacts
+      filter: "a.id not in [target['omar_id'], target['ling_id'], target['beatrice_id'], target['sam_id']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent enriched Omar Farouk and marked as VIP
+      ref: update[0]
+      severity: high
+    - name: Agent enriched Ling Zhou and marked as VIP
+      ref: update[1]
+      severity: high
+    - name: Agent enriched Beatrice Muller
+      ref: update[2]
+      severity: high
+    - name: Agent enriched Sam Okoye and marked as VIP
+      ref: update[3]
+      severity: high
+    - name: Agent did not modify Hannah Kessler or Davi Costa
+      ref: invariant[0]
+      severity: medium

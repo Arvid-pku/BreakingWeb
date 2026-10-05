@@ -1,0 +1,91 @@
+task_id: rh_earnings_play_setup
+env_id: robinhood
+title: Earnings Protection Setup for AAPL
+instruction_template: '{target.symbol} reports earnings tomorrow after market close.
+  Set up protection: place a stop-loss order at 8% below current price and set a price
+  alert at 5% above current price.'
+difficulty: expert
+time_limit_seconds: 350
+expected_steps: 18
+primary_primitives:
+- exploration
+start_path: /
+seed:
+  distractors: 20
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - TSLA
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - AAPL
+      - MSFT
+      - GOOGL
+      quantities:
+      - '50'
+      - '20'
+      - '15'
+      cost_bases:
+      - '165.00'
+      - '380.00'
+      - '140.00'
+    outputs: []
+  - use: earnings_calendar
+    params:
+      include_symbols:
+      - AAPL
+      days_ahead: 1
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets:
+    symbol: AAPL
+canonical_diff:
+  create:
+  - entity: orders
+    desc: Stop-loss sell order for target symbol at 8% below current price
+    properties:
+      symbol: {expr: "x == target['symbol']"}
+      side: {eq: sell}
+      order_type: {eq: stop}
+      status: {in: [pending, filled]}
+      stop_price: {expr: "abs(float(x) - float(state.get_stock(target['symbol']).price) * 0.92) <= 0.1"}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: price_alerts
+    desc: Price alert for target symbol at 5% above current price
+    properties:
+      symbol: {expr: "x == target['symbol']"}
+      condition: {eq: above}
+      target_price: {expr: "abs(float(x) - float(state.get_stock(target['symbol']).price) * 1.05) <= 0.1"}
+      status: {eq: active}
+      created_at: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.symbol != target['symbol'] or (a.symbol == target['symbol'] and a.side == 'buy')"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    filter: "a.symbol != target['symbol']"
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures planning, state_tracking, exploration, grounding by requiring
+  exact completion of the requested Robinhood workflow while ignoring distractor account
+  state.

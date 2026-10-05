@@ -1,0 +1,328 @@
+task_id: booking_expert_review_marathon
+env_id: booking
+title: Review Marathon for Three Completed Stays with Varied Feedback
+instruction_template: 'You have three completed stays that need reviews. Write a unique
+  review for each with the specific details below:
+
+
+  1. "{target.prop_name_1}" in Rome - Overall score: 9.5, title: "Absolutely magnificent",
+  positive: "Stunning rooftop terrace with views of the Colosseum and impeccable room
+  service", negative: (none), travel purpose: leisure, traveled with: couple.
+
+
+  2. "{target.prop_name_2}" in Berlin - Overall score: 7.0, title: "Decent but disappointing",
+  positive: "Convenient location near public transport and helpful concierge", negative:
+  "Bathroom was outdated and breakfast buffet had limited options", travel purpose:
+  business, traveled with: solo.
+
+
+  3. "{target.prop_name_3}" in Barcelona - Overall score: 8.0, title: "Solid choice
+  for families", positive: "Kids loved the pool area and the staff were very accommodating
+  with children", negative: "Restaurant was overpriced for the quality offered", travel
+  purpose: leisure, traveled with: family.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /trips
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Palazzo Dama Rome
+      city: Rome
+      country: Italy
+      star_rating: 5
+      review_score: 9.3
+      review_count: 2890
+      price: 420.0
+      neighborhood: Piazza del Popolo
+      address: Lungotevere Arnaldo da Brescia 2, 00196 Rome
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Room service
+      - Garden
+    outputs:
+    - prop_id_1
+    - prop_name_1
+    - room_id_1
+    - room_name_1
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_1}'
+      check_in: '2026-01-05'
+      check_out: '2026-01-09'
+      price_per_night: 420.0
+      status: completed
+      guests: 2
+      booked_days_ago: 95
+    outputs:
+    - res_id_1
+    - conf_num_1
+    - res_prop_id_1
+  - use: featured_property
+    params:
+      name: NH Collection Berlin Friedrichstrasse
+      city: Berlin
+      country: Germany
+      star_rating: 4
+      review_score: 8.1
+      review_count: 3450
+      price: 185.0
+      neighborhood: Mitte
+      address: Friedrichstrasse 96, 10117 Berlin
+      amenities:
+      - Free WiFi
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Business center
+      - 24-hour front desk
+    outputs:
+    - prop_id_2
+    - prop_name_2
+    - room_id_2
+    - room_name_2
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_2}'
+      check_in: '2026-02-10'
+      check_out: '2026-02-13'
+      price_per_night: 185.0
+      status: completed
+      guests: 1
+      booked_days_ago: 60
+    outputs:
+    - res_id_2
+    - conf_num_2
+    - res_prop_id_2
+  - use: featured_property
+    params:
+      name: Hotel Arts Barcelona
+      city: Barcelona
+      country: Spain
+      star_rating: 5
+      review_score: 9.0
+      review_count: 7890
+      price: 380.0
+      neighborhood: Port Olimpic
+      address: Carrer de la Marina 19-21, 08005 Barcelona
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Beach access
+      - Fitness center
+      - Kids club
+    outputs:
+    - prop_id_3
+    - prop_name_3
+    - room_id_3
+    - room_name_3
+  - use: create_reservation
+    params:
+      property_id: '{output.prop_id_3}'
+      check_in: '2025-12-20'
+      check_out: '2025-12-26'
+      price_per_night: 380.0
+      status: completed
+      guests: 4
+      booked_days_ago: 110
+    outputs:
+    - res_id_3
+    - conf_num_3
+    - res_prop_id_3
+  - use: featured_property
+    params:
+      name: Mercure Rome Colosseum Centre
+      city: Rome
+      country: Italy
+      star_rating: 3
+      review_score: 7.5
+      review_count: 1200
+      price: 130.0
+    outputs:
+    - distractor_prop_id
+    - distractor_prop_name
+    - distractor_room_id
+    - distractor_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.distractor_prop_id}'
+      check_in: '2026-03-01'
+      check_out: '2026-03-04'
+      price_per_night: 130.0
+      status: completed
+      guests: 1
+      booked_days_ago: 40
+    outputs:
+    - distractor_res_id
+    - distractor_conf_num
+    - distractor_res_prop_id
+  - use: add_review
+    params:
+      property_id: '{output.distractor_prop_id}'
+      overall_score: 7.0
+      title: It was fine
+      positive: Central location
+      author_name: Jordan Parker
+    outputs:
+    - existing_review_id
+  targets:
+    prop_id_1: '{output.prop_id_1}'
+    prop_name_1: '{output.prop_name_1}'
+    res_id_1: '{output.res_id_1}'
+    prop_id_2: '{output.prop_id_2}'
+    prop_name_2: '{output.prop_name_2}'
+    res_id_2: '{output.res_id_2}'
+    prop_id_3: '{output.prop_id_3}'
+    prop_name_3: '{output.prop_name_3}'
+    res_id_3: '{output.res_id_3}'
+    distractor_prop_id: '{output.distractor_prop_id}'
+    existing_review_id: '{output.existing_review_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Rome reservation
+      where:
+        id: {expr: "x == target['res_id_1']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Berlin reservation
+      where:
+        id: {expr: "x == target['res_id_2']"}
+      changes:
+        rating_submitted: {any: true}
+    - entity: Reservation
+      desc: Review submission flips rating_submitted on the Barcelona reservation
+      where:
+        id: {expr: "x == target['res_id_3']"}
+      changes:
+        rating_submitted: {any: true}
+  create:
+    - entity: Review
+      desc: Write Rome review - score 9.5, title Absolutely magnificent
+      properties:
+        property_id: {expr: "x == target['prop_id_1']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 9.5}
+        scores: {any: true}
+        title: {eq: "Absolutely magnificent"}
+        positive:
+          expr: "'rooftop terrace' in x.lower()"
+        negative: {any: true}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Write Berlin review - score 7.0, title Decent but disappointing
+      properties:
+        property_id: {expr: "x == target['prop_id_2']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 7.0}
+        scores: {any: true}
+        title: {eq: "Decent but disappointing"}
+        positive:
+          expr: "'location' in x.lower() or 'transport' in x.lower() or 'concierge' in x.lower()"
+        negative:
+          expr: "'bathroom' in x.lower() or 'breakfast' in x.lower()"
+        room_type: {any: true}
+        travel_purpose: {eq: business}
+        traveled_with: {eq: solo}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+    - entity: Review
+      desc: Write Barcelona review - score 8.0, title Solid choice for families
+      properties:
+        property_id: {expr: "x == target['prop_id_3']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.0}
+        scores: {any: true}
+        title: {eq: "Solid choice for families"}
+        positive:
+          expr: "'pool' in x.lower()"
+        negative:
+          expr: "'overpriced' in x.lower() or 'restaurant' in x.lower()"
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: family}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  invariant:
+    - collection: state.reviews
+      filter: >-
+        a.property_id not in (target['prop_id_1'], target['prop_id_2'], target['prop_id_3'])
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.id not in (target['res_id_1'], target['res_id_2'], target['res_id_3'])"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['prop_id_1'], target['prop_id_2'], target['prop_id_3'])"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent wrote Rome review with score 9.5 and correct title
+      ref: create[0]
+      severity: high
+    - name: Agent wrote Berlin review with score 7.0 and correct title
+      ref: create[1]
+      severity: high
+    - name: Agent wrote Barcelona review with score 8.0 and correct title
+      ref: create[2]
+      severity: high
+    - name: Agent did not write reviews for unrelated properties
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send unsolicited messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create spurious notifications
+      ref: invariant[6]
+      severity: low

@@ -1,0 +1,82 @@
+task_id: booking_settings_overhaul
+env_id: booking
+title: 'Update Account Settings: Currency, Language, and Notifications'
+instruction_template: 'Go to your account settings and make the following changes:
+  (1) Change the currency to "{target.new_currency}", (2) Change the language to "{target.new_language}",
+  (3) Disable deal alerts, (4) Enable the newsletter. Make sure all four changes are
+  saved.
+
+  '
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+- verification
+start_path: /home
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: set_settings
+    params:
+      currency: USD
+      language: English
+      deal_alerts: true
+      newsletter: false
+    outputs:
+    - updated
+  targets:
+    new_currency: EUR
+    new_language: French
+    deal_alerts: false
+    newsletter: true
+canonical_diff:
+  update:
+    - entity: settings
+      desc: Settings overhaul (currency EUR, language French, deal alerts off, newsletter on)
+      where: { id: { any: true } }
+      changes:
+        currency: { eq: EUR }
+        language: { eq: French }
+        deal_alerts: { eq: false }
+        newsletter: { eq: true }
+        email_notifications: { expr: "x == initial.settings.email_notifications" }
+        two_factor_enabled: { expr: "x == initial.settings.two_factor_enabled" }
+  invariant:
+    - collection: state.reservations
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent did not modify reservations
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []

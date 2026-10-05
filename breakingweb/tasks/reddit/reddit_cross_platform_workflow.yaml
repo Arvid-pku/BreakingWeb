@@ -1,0 +1,190 @@
+task_id: reddit_cross_platform_workflow
+env_id: reddit
+title: Cross-Platform Research Workflow
+instruction_template: 'Complete this research workflow:
+
+
+  1. Search for "database". Find and save the post "{target.search_title}" in r/{target.search_sub}.
+
+
+  2. Open that post and add a comment with exactly: "{target.search_comment}"
+
+
+  3. Navigate to r/{target.create_sub} and create a new post with title exactly: "{target.create_title}" and body exactly: "{target.create_body}"
+
+
+  4. Go to Messages and compose a message to u/{target.msg_to} with subject "{target.msg_subject}" and body exactly: "{target.msg_body}"
+
+
+  5. Subscribe to r/{target.join_sub}.
+
+
+  Do not save any other posts.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: programming
+      title: SQLite is the most deployed database in the world and nobody talks about it
+      body: It runs on every smartphone, every browser, and most embedded systems.
+      author: drunksandman
+      score: 9200
+    outputs:
+    - search_id
+    - search_title
+    - search_sub
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  targets:
+    search_title: '{output.search_title}'
+    search_sub: '{output.search_sub}'
+    search_id: '{output.search_id}'
+    search_comment: SQLite is a masterpiece of engineering. The test suite alone has over 100 million test cases.
+    create_sub: Python
+    create_title: 'Building a local-first app with SQLite and Python: lessons learned'
+    create_body: After building three production apps with SQLite as the primary database, here are the patterns that worked and the pitfalls to avoid.
+    msg_to: drunksandman
+    msg_subject: Your SQLite post
+    msg_body: Great post about SQLite! I have been using it extensively in my Python projects. Would you be open to co-authoring a blog post about SQLite best practices?
+    join_sub: Piracy
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: SQLite post saved
+    where:
+      id:
+        expr: "x == target['search_id']"
+    changes:
+      is_saved:
+        eq: true
+  - entity: Subreddit
+    desc: Subscribed to r/Piracy
+    where:
+      id:
+        expr: "state.get_subreddit(x).name == target['join_sub']"
+    changes:
+      is_subscribed:
+        eq: true
+  create:
+  - entity: Post
+    desc: Post created in r/Python with exact title and body
+    properties:
+      subreddit_name:
+        expr: "x == target['create_sub']"
+      title:
+        expr: "x == target['create_title']"
+      body:
+        expr: "x == target['create_body']"
+      author_name:
+        expr: "x == state.owner_username"
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    desc: Exact SQLite comment posted
+    properties:
+      post_id:
+        expr: "x == target['search_id']"
+      body:
+        expr: "x == target['search_comment']"
+      parent_id:
+        eq:
+      author_name:
+        expr: "x == state.owner_username"
+  - entity: Message
+    collection: state.sent_messages
+    desc: Outreach message sent with exact subject and body
+    properties:
+      to_user:
+        expr: "x == target['msg_to']"
+      subject:
+        expr: "x == target['msg_subject']"
+      body:
+        expr: "x == target['msg_body']"
+      from_user:
+        expr: "x == state.owner_username"
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.subreddits
+    filter: "True"
+    preserve: ALL
+  - collection: state.posts
+    filter: "True"
+    preserve: ALL
+  - collection: state.comments
+    filter: "True"
+    preserve: ALL
+  - collection: state.sent_messages
+    filter: "True"
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent saved the SQLite post
+    ref: update[0]
+    severity: high
+  - name: Agent subscribed to r/Piracy
+    ref: update[1]
+    severity: high
+  - name: Agent posted the exact Python write-up in r/Python
+    ref: create[0]
+    severity: high
+  - name: Agent posted the exact SQLite comment
+    ref: create[1]
+    severity: high
+  - name: Agent sent the exact outreach message to u/drunksandman
+    ref: create[2]
+    severity: high
+  - name: Agent did not touch unrelated subreddits
+    ref: invariant[0]
+    severity: medium
+  - name: Agent did not modify unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify unrelated comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not send extra outbound messages beyond the target
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not read, delete, or modify inbox messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not touch notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+secondary_primitives: []

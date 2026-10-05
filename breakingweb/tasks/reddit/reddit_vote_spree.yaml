@@ -1,0 +1,96 @@
+task_id: reddit_vote_spree
+env_id: reddit
+title: Vote on Multiple Specific Posts
+instruction_template: Upvote the post titled "{target.upvote_title}" in r/{target.upvote_sub}. Then downvote the post titled "{target.downvote_title}" in r/{target.downvote_sub}. Do not vote on any other posts.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 12
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: target_post
+    params:
+      subreddit: science
+      title: New CRISPR technique edits multiple genes simultaneously with 97% accuracy
+      body: Breakthrough published in Nature this week.
+      score: 18000
+    outputs:
+    - upvote_id
+    - upvote_title
+    - upvote_sub
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Startup claims cold fusion breakthrough but refuses independent verification
+      body: Several physicists have expressed skepticism.
+      score: 2100
+    outputs:
+    - downvote_id
+    - downvote_title
+    - downvote_sub
+  - use: decoy_posts
+    params:
+      subreddit: science
+      count: 2
+      title_pattern: New CRISPR {topic} shows promise
+    outputs:
+    - decoy_post_ids
+  targets:
+    upvote_id: '{output.upvote_id}'
+    upvote_title: '{output.upvote_title}'
+    upvote_sub: '{output.upvote_sub}'
+    downvote_id: '{output.downvote_id}'
+    downvote_title: '{output.downvote_title}'
+    downvote_sub: '{output.downvote_sub}'
+    decoy_post_ids: '{output.decoy_post_ids}'
+canonical_diff:
+  update:
+  - entity: Post
+    desc: Upvote the target science post
+    where:
+      id:
+        expr: "x == target['upvote_id']"
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Post
+    desc: Downvote the cold-fusion post
+    where:
+      id:
+        expr: "x == target['downvote_id']"
+    changes:
+      vote_direction:
+        eq: -1
+  invariant:
+  - collection: state.posts
+    filter: "a.id != target['upvote_id'] and a.id != target['downvote_id']"
+    preserve: ALL
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent upvoted the target science post
+    ref: update[0]
+    severity: high
+  - name: Agent downvoted the cold-fusion post
+    ref: update[1]
+    severity: high
+  - name: Agent did not vote on any other posts
+    ref: invariant[0]
+    severity: high
+secondary_primitives: []

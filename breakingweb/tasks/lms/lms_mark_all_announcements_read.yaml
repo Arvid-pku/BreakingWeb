@@ -1,0 +1,167 @@
+task_id: lms_mark_all_announcements_read
+env_id: lms
+title: Mark All Announcements as Read
+instruction_template: >-
+  Review the announcement feed across all your courses. You are enrolled as a
+  TA in one of your courses and as a student in the others. Mark every
+  announcement that is ALL of: unread, flagged urgent priority, and posted in a
+  course where you are enrolled as a student (not the course you TA). Do not
+  change the read state of any normal-priority announcement, do not change any
+  announcement that is already read, and do not touch the urgent announcement in
+  the course you TA. Do not send any messages.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+  - grounding
+  - exploration
+start_path: /courses
+
+seed:
+  distractors: 0
+  steps:
+    - use: student_profile
+      params: {}
+      outputs:
+        - student_id
+    - use: course_catalog
+      params:
+        count: 5
+      outputs:
+        - course_ids
+    - use: enrollment_set
+      params:
+        ta_course_index: 1
+      outputs:
+        - enrollment_ids
+        - ta_course_ids
+    - use: announcements_feed
+      params:
+        count: 16
+        unread_count: 9
+        urgent_count: 4
+        read_urgent_count: 2
+        exclude_ta_course: true
+      outputs:
+        - announcement_ids
+        - unread_announcement_ids
+        - unread_urgent_announcement_ids
+        - unread_urgent_enrolled_announcement_ids
+        - unread_urgent_ta_course_announcement_ids
+        - read_urgent_announcement_ids
+        - unread_normal_announcement_ids
+  targets:
+    unread_announcement_ids: '{output.unread_announcement_ids}'
+    unread_urgent_announcement_ids: '{output.unread_urgent_announcement_ids}'
+    unread_urgent_enrolled_announcement_ids: '{output.unread_urgent_enrolled_announcement_ids}'
+    unread_urgent_ta_course_announcement_ids: '{output.unread_urgent_ta_course_announcement_ids}'
+    read_urgent_announcement_ids: '{output.read_urgent_announcement_ids}'
+    unread_normal_announcement_ids: '{output.unread_normal_announcement_ids}'
+
+canonical_diff:
+  update:
+    - entity: Announcement
+      desc: Mark every unread urgent announcement in a student-enrolled course as read
+      bijection:
+        over: "target['unread_urgent_enrolled_announcement_ids'].split(',') if target['unread_urgent_enrolled_announcement_ids'] else []"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_read: {eq: true}
+  invariant:
+    - collection: state.announcements
+      filter: "a.id not in (target['unread_urgent_enrolled_announcement_ids'].split(',') if target['unread_urgent_enrolled_announcement_ids'] else [])"
+      preserve: ALL
+      comprehensive: true
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+  constraints:
+  - desc: Agent did not mark any unread normal-priority announcement as read
+    expr: >-
+      all(
+        a.is_read == False
+        for a in state.announcements
+        if a.id in (target['unread_normal_announcement_ids'].split(',') if target['unread_normal_announcement_ids'] else [])
+      )
+    severity: critical
+  - desc: Agent did not mark the urgent announcement in the course it TAs as read
+    expr: >-
+      all(
+        a.is_read == False
+        for a in state.announcements
+        if a.id in (target['unread_urgent_ta_course_announcement_ids'].split(',') if target['unread_urgent_ta_course_announcement_ids'] else [])
+      )
+    severity: critical
+  - desc: Agent left every already-read urgent decoy untouched (still read, still urgent)
+    expr: >-
+      all(
+        (a.is_read == True and a.priority == 'urgent')
+        for a in state.announcements
+        if a.id in (target['read_urgent_announcement_ids'].split(',') if target['read_urgent_announcement_ids'] else [])
+      )
+    severity: high
+  - desc: Agent marked every required unread urgent announcement in a student course as read
+    expr: >-
+      all(
+        a.is_read == True
+        for a in state.announcements
+        if a.id in (target['unread_urgent_enrolled_announcement_ids'].split(',') if target['unread_urgent_enrolled_announcement_ids'] else [])
+      )
+    severity: critical
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+    - name: Agent did not modify any non-urgent or already-read announcement
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: high
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: medium

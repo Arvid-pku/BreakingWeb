@@ -1,0 +1,59 @@
+task_id: gmail_search_and_star
+env_id: gmail
+title: Find Budget Email and Star It
+instruction_template: Find the email about "Q4 Budget Summary" from the Finance Team
+  in your inbox and star it.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 8
+primary_primitives:
+- grounding
+start_path: /inbox
+seed:
+  distractors: 10
+  steps:
+  - use: search_and_star
+    params: {}
+    outputs:
+    - target_email_id
+  targets:
+    target_email_id: '{output.target_email_id}'
+canonical_diff:
+  update:
+    - entity: emails
+      desc: Star the target email about Q4 Budget Summary
+      where:
+        id:
+          expr: "x == target['target_email_id']"
+      changes:
+        is_starred:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['target_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent starred the Q4 Budget Summary email
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not send emails
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not delete emails
+      ref: invariant[3]
+      severity: high

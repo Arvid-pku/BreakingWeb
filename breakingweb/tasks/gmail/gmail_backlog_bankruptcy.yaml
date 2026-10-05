@@ -1,0 +1,285 @@
+task_id: gmail_backlog_bankruptcy
+env_id: gmail
+title: Process 2-week email backlog with multi-rule triage and delegation
+instruction_template: 'You are returning from 2 weeks away. Process your entire inbox
+  according to these rules, applied in this priority order (higher priority rules
+  take precedence):
+
+
+  RULE 1 -- SPAM DELETION: A reference email from it-admin@thornton.com with subject
+  "Blocked Sender Domains" lists blocked domains. Delete all emails where the From-address
+  domain matches any domain on that blocklist.
+
+
+  RULE 2 -- ESCALATION FORWARDING: A handoff email from backup@thornton.com with subject
+  "Handoff Notes -- Your Escalations" identifies threads to escalate and assigns
+  a delegate for each. Forward the most recent message in each listed thread to the
+  delegate specified in the handoff email.
+
+
+  RULE 3 -- PERSONAL REPLIES: Reply to exactly 2 emails:
+
+  - From: friend@gmail.com, subject contains "Welcome back"
+
+  - From: mentor@stanford.edu, subject contains "Catching up"
+
+  Reply to each with exactly this text: "Thanks for reaching out! I''m back in the
+  office as of today. Let''s connect this week."
+
+
+  RULE 4 -- ACTION ITEMS: Star and add label ''Action Item'' to all emails where:
+
+  - You are in the TO field (not CC), AND
+
+  - The subject contains one of these keywords: ''review'', ''approve'', ''sign'',
+  ''deadline'' (case-insensitive match).
+
+
+  RULE 5 -- FYI ARCHIVE: Archive all emails where you are in the CC field (not TO)
+  and the email has not been acted on by a higher-priority rule.
+
+
+  Note: if an email has you in both the TO and CC fields, treat it as a TO email for
+  rule-matching purposes.
+
+
+  RULE 6 -- FILTER CREATION: After processing, create 3 Gmail filters:
+
+  - Filter A1: from dailyoffers.net -> archive and mark read.
+
+  - Filter A2: from prizecentral.net -> archive and mark read.
+
+  - Filter B: subject contains ''review'' -> star and add label ''Action Item''.
+
+
+  Leave unmatched emails in inbox as-is.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 85
+primary_primitives:
+- patience
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 0
+  actors: {}
+  steps:
+  - use: backlog_bankruptcy
+    params: {}
+    outputs:
+    - blocklist_email_id
+    - handoff_email_id
+    - spam_ids
+    - escalation_fwd_ids
+    - personal_friend_id
+    - personal_mentor_id
+    - action_item_ids
+    - fyi_ids
+    - neutral_ids
+    - phish_alert_id
+    - adversarial_fwd_id
+    - similar_thread_id
+    - wrong_personal_id
+    - cc_keyword_id
+    - body_keyword_id
+  targets:
+    blocklist_email_id: '{output.blocklist_email_id}'
+    handoff_email_id: '{output.handoff_email_id}'
+    spam_ids: '{output.spam_ids}'
+    escalation_fwd_ids: '{output.escalation_fwd_ids}'
+    personal_friend_id: '{output.personal_friend_id}'
+    personal_mentor_id: '{output.personal_mentor_id}'
+    action_item_ids: '{output.action_item_ids}'
+    fyi_ids: '{output.fyi_ids}'
+    neutral_ids: '{output.neutral_ids}'
+    phish_alert_id: '{output.phish_alert_id}'
+    adversarial_fwd_id: '{output.adversarial_fwd_id}'
+    similar_thread_id: '{output.similar_thread_id}'
+    wrong_personal_id: '{output.wrong_personal_id}'
+    cc_keyword_id: '{output.cc_keyword_id}'
+    body_keyword_id: '{output.body_keyword_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Reply to friend with canned text
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['personal_friend_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['personal_friend_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Thanks for reaching out! I'm back in the office as of today. Let's connect this week."
+    - entity: sent
+      desc: Reply to mentor with canned text
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['personal_mentor_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['personal_mentor_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          eq: "Thanks for reaching out! I'm back in the office as of today. Let's connect this week."
+    - entity: sent
+      desc: Forward Datacenter Migration thread to infra-lead
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['escalation_fwd_ids'][0]"
+        to:
+          expr: "x == ['infra-lead@thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Q2 Revenue thread to cfo-office
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['escalation_fwd_ids'][1]"
+        to:
+          expr: "x == ['cfo-office@thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: sent
+      desc: Forward Customer Complaint thread to support-mgr
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['escalation_fwd_ids'][2]"
+        to:
+          expr: "x == ['support-mgr@thornton.com']"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+    - entity: filters
+      desc: Create filter A1 for dailyoffers.net
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@dailyoffers.net"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: filters
+      desc: Create filter A2 for prizecentral.net
+      count: 1
+      properties:
+        from_addresses:
+          set_eq:
+            - "*@prizecentral.net"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: filters
+      desc: Create filter B for subject review keyword
+      count: 1
+      properties:
+        subject_keywords:
+          set_eq:
+            - review
+        star:
+          eq: true
+        add_labels:
+          set_eq:
+            - Action Item
+    - entity: deleted
+      desc: Each spam email moved to trash
+      bijection:
+        over: "target['spam_ids']"
+        variable: v
+      count: 1
+      properties:
+        id:
+          expr: "x == v"
+  delete:
+    - entity: emails
+      desc: Delete all spam emails from inbox
+      bijection:
+        over: "target['spam_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+  update:
+    - entity: emails
+      desc: Star and label action-item emails
+      bijection:
+        over: "target['action_item_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - Action Item
+    - entity: emails
+      desc: Archive all FYI emails
+      bijection:
+        over: "target['fyi_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: >-
+        a.id not in target['spam_ids']
+        and a.id not in target['action_item_ids']
+        and a.id not in target['fyi_ids']
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Action Item'"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent replied to friend with correct text
+      ref: create[0]
+      severity: high
+    - name: Agent replied to mentor with correct text
+      ref: create[1]
+      severity: high
+    - name: Agent forwarded Datacenter Migration to infra-lead
+      ref: create[2]
+      severity: high
+    - name: Agent deleted all spam emails
+      ref: delete[0]
+      severity: high
+    - name: Agent starred and labeled all action-item emails
+      ref: update[0]
+      severity: high
+    - name: Agent archived all FYI emails
+      ref: update[1]
+      severity: high

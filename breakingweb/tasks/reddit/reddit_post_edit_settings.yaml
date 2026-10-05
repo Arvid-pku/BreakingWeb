@@ -1,0 +1,117 @@
+task_id: reddit_post_edit_settings
+env_id: reddit
+title: Create Post, Edit, and Update Settings
+instruction_template: '1. Create a text post in r/MachineLearning with title exactly: "{target.post_title}" and body exactly: "{target.post_body}"
+
+
+  2. After creating the post, edit its body to exactly: "{target.edited_body}"
+
+
+  3. Go to Settings. Set theme to "dark" and default comment sort to "new".
+
+
+  4. Subscribe to r/{target.join_sub} if not already subscribed.
+
+
+  Do not create posts in other subreddits.'
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 38
+primary_primitives:
+- grounding
+start_path: /feed
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - Piracy
+    outputs:
+    - subscriptions
+  targets:
+    post_title: 'Scaling Laws for Neural Machine Translation: An Empirical Study'
+    post_body: Draft - will update with results.
+    edited_body: We find that translation quality scales predictably with model size, dataset size, and compute budget. Full paper and code linked in comments.
+    join_sub: Piracy
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribed to r/{target.join_sub}
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join_sub']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      default_comment_sort: {eq: new}
+  create:
+  - entity: Post
+    desc: New post created in r/MachineLearning with exact title and edited body
+    properties:
+      subreddit_name:
+        eq: MachineLearning
+      title:
+        expr: x == target['post_title']
+      body:
+        expr: x == target['edited_body']
+      author_name:
+        expr: x == state.owner_username
+      is_edited:
+        eq: true
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  invariant:
+  - collection: state.subreddits
+    filter: a.id != state.get_subreddit_by_name(target['join_sub']).id
+    preserve: ALL
+  - collection: state.posts
+    filter: a.id in [p.id for p in initial.posts]
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Subscribed to r/{target.join_sub}
+    ref: update[0]
+    severity: high
+  - name: New post created in r/MachineLearning with the exact edited body
+    ref: create[0]
+    severity: high
+  - name: Existing subreddits not re-subscribed or unsubscribed
+    ref: invariant[0]
+    severity: high
+  - name: Existing posts not modified or deleted
+    ref: invariant[1]
+    severity: high
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and
+      state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+secondary_primitives: []

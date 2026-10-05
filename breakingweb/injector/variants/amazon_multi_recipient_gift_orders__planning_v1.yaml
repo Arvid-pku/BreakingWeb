@@ -1,0 +1,49 @@
+variant_id: amazon_multi_recipient_gift_orders__planning_v1
+base_task_id: amazon_multi_recipient_gift_orders
+target_primitive: planning
+description: >
+  Both address creation and checkout silently no-op on the first two
+  attempts, returning fake successes. Agents that don't verify state
+  must replan after seeing intermediate writes never landed.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior: { mode: once }
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/checkout'
+    methods: [POST]
+    fail_count: 2
+    response_body:
+      order:
+        id: order_fake_retry
+        items: []
+        shipping_address_id: ''
+        payment_method_id: ''
+        subtotal: 0.0
+        shipping_cost: 0.0
+        tax: 0.0
+        discount: 0.0
+        total: 0.0
+        status: confirmed
+        placed_at: '2026-04-26T08:00:00+00:00'
+        estimated_delivery: 'Arriving in 3 days'
+        promo_code: null
+    behavior: { mode: once }

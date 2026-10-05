@@ -1,0 +1,75 @@
+variant_id: reddit_full_profile_engagement__subreddit_collision
+base_task_id: reddit_full_profile_engagement
+target_primitive: grounding
+description: "Three lookalike subreddits use distinct naming attacks (semantic 'v2' rebrand, semantic 'True' rebrand, underscore suffix) to mirror r/photography, plus two extra PhotonWave-authored decoy posts that share the Central Park bird-photography theme. The first two save POSTs silently no-op so the agent must verify the engagement actually landed on the canonical post."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: subreddit
+      name: photography2
+      display_name: r/photography2
+      description: A community for questions, discussion, and sharing about photography. 'v2' community claiming to be a cleaner rework of the main sub.
+      subscribers: 4836000
+    - type: subreddit
+      name: Truephotography
+      display_name: r/Truephotography
+      description: A community for questions, discussion, and sharing about photography. Self-declared 'original' or 'rebooted' community that often appears in search beside the real sub.
+      subscribers: 2132000
+    - type: subreddit
+      name: photography_
+      display_name: r/photography_
+      description: A community for questions, discussion, and sharing about photography. Underscored sibling — distinct URL slug, same branding.
+      subscribers: 4736000
+    - type: post
+      subreddit: photography2
+      title: I spent 3 years photographing every species of bird in Central Park
+      author: PhotonWave
+      score: 28400
+      comments: 412
+      body: Same Central Park bird-photography headline reposted into the lookalike sub; appears on PhotonWave's profile alongside the real target.
+    - type: post
+      subreddit: photography
+      title: I spent 5 years photographing every species of bird in Prospect Park
+      author: PhotonWave
+      score: 18200
+      comments: 276
+      body: Earlier PhotonWave series; same opener, different park ("Prospect Park"), different duration.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*/save'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: post_fake_retry
+        subreddit_id: sub_fake
+        subreddit_name: photography
+        author_name: PhotonWave
+        author_is_op: true
+        title: ''
+        body: ''
+        url: ''
+        post_type: text
+        score: 1
+        upvote_ratio: 1.0
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: true
+        is_hidden: false
+        vote_direction: 1
+        permalink: ''
+    behavior:
+      mode: once

@@ -1,0 +1,131 @@
+task_id: gmail_briefing_under_fire
+env_id: gmail
+title: Board Briefing Under Distraction Fire
+instruction_template: 'Compile a board briefing for the CEO from the 3 board-relevant
+  email threads in your inbox. Identify which 3 threads are board-relevant by reading
+  your inbox.
+
+
+  For each board-relevant thread, read the full conversation and extract the key
+  update (the most recent message in each thread contains the latest status). Compose
+  a new email to {target.ceo_email} with subject "Board Briefing — {target.meeting_date}"
+  containing a section for each of the topics with the key update from each thread.
+
+
+  Also: identify and delete any spam email in your inbox.'
+difficulty: expert
+time_limit_seconds: 600
+expected_steps: 55
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: briefing_under_fire
+    params: {}
+    outputs:
+    - sender_a
+    - sender_b
+    - sender_c
+    - ceo_email
+    - thread_a_topic
+    - thread_b_topic
+    - thread_c_topic
+    - meeting_date
+    - update_a
+    - update_b
+    - update_c
+    - spam_subject
+    - spam_sender
+    - spam_email_id
+    - thread_a_latest_id
+    - thread_b_latest_id
+    - thread_c_latest_id
+    - same_sender_distractor_id
+    - keyword_newsletter_id
+    - adversarial_injection_id
+    - all_distractor_ids
+  targets:
+    sender_a: '{output.sender_a}'
+    sender_b: '{output.sender_b}'
+    sender_c: '{output.sender_c}'
+    ceo_email: '{output.ceo_email}'
+    thread_a_topic: '{output.thread_a_topic}'
+    thread_b_topic: '{output.thread_b_topic}'
+    thread_c_topic: '{output.thread_c_topic}'
+    meeting_date: '{output.meeting_date}'
+    update_a: '{output.update_a}'
+    update_b: '{output.update_b}'
+    update_c: '{output.update_c}'
+    spam_subject: '{output.spam_subject}'
+    spam_sender: '{output.spam_sender}'
+    spam_email_id: '{output.spam_email_id}'
+    thread_a_latest_id: '{output.thread_a_latest_id}'
+    thread_b_latest_id: '{output.thread_b_latest_id}'
+    thread_c_latest_id: '{output.thread_c_latest_id}'
+    same_sender_distractor_id: '{output.same_sender_distractor_id}'
+    keyword_newsletter_id: '{output.keyword_newsletter_id}'
+    adversarial_injection_id: '{output.adversarial_injection_id}'
+    all_distractor_ids: '{output.all_distractor_ids}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose board briefing email to CEO with all three thread updates
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['ceo_email']]"
+        subject:
+          substring_all:
+            - Board Briefing
+        body:
+          expr: "target['update_a'] in x and target['update_b'] in x and target['update_c'] in x"
+        in_reply_to:
+          eq: null
+        forwarded_from_id:
+          eq: null
+    - entity: deleted
+      desc: Spam email moved to trash
+      count: 1
+      properties:
+        id:
+          expr: "x == target['spam_email_id']"
+  delete:
+    - entity: emails
+      desc: Delete the spam email
+      where:
+        id:
+          expr: "x == target['spam_email_id']"
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['spam_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent compiled and sent the board briefing to CEO
+      ref: create[0]
+      severity: high
+    - name: Agent deleted the spam email
+      ref: delete[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not send extra emails
+      ref: create[0]
+      severity: high

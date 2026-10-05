@@ -1,0 +1,178 @@
+task_id: amazon_diagnose_cart
+env_id: amazon
+title: Diagnose and Fix Cart Problems
+instruction_template: 'Your shopping cart seems to have issues — some items may be
+  out of stock or have incorrect quantities. Review your cart, remove any out-of-stock
+  items, and correct the quantity of "{target.product_name}" to {target.correct_qty}.
+  The current quantity is wrong.
+
+  '
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 22
+primary_primitives:
+- state_tracking
+start_path: /cart
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Portable Bluetooth Speaker
+      brand: JBL
+      category: Electronics
+      price: 69.99
+      rating: 4.6
+      features:
+      - Waterproof IP67
+      - 12-hour playtime
+      - Wireless stereo pairing
+      - Built-in powerbank
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+    - product_list_price
+  - use: featured_product
+    params:
+      name: USB-C Charging Cable 3-Pack
+      brand: Anker
+      category: Electronics
+      price: 15.99
+      rating: 4.8
+      features:
+      - 6ft braided nylon
+      - Fast charging support
+      - 10000+ bend lifespan
+      variants: []
+      in_stock: false
+    outputs:
+    - oos_product_id
+    - oos_product_name
+    - oos_product_price
+    - oos_product_list_price
+  - use: featured_product
+    params:
+      name: Wireless Charging Pad
+      brand: Samsung
+      category: Electronics
+      price: 29.99
+      rating: 4.3
+      features:
+      - 15W fast charging
+      - Qi compatible
+      - LED indicator
+      - Non-slip surface
+      variants: []
+      in_stock: true
+    outputs:
+    - extra_product_id
+    - extra_product_name
+    - extra_product_price
+    - extra_product_list_price
+  - use: pre_filled_cart
+    params:
+      product_ids:
+      - '{output.product_id}'
+      - '{output.oos_product_id}'
+      - '{output.extra_product_id}'
+      quantities:
+      - 5
+      - 2
+      - 1
+    outputs:
+    - cart_item_ids
+    - cart_total
+  targets:
+    product_name: Portable Bluetooth Speaker
+    product_id: '{output.product_id}'
+    correct_qty: 2
+    oos_product_name: USB-C Charging Cable 3-Pack
+    oos_product_id: '{output.oos_product_id}'
+    extra_product_name: Wireless Charging Pad
+    extra_product_id: '{output.extra_product_id}'
+    extra_product_qty: 1
+canonical_diff:
+  update:
+  - entity: CartItem
+    desc: Target product quantity corrected to the specified amount
+    where:
+      id: {expr: "any(it.product_id == target['product_id'] and it.id == x for it in state.cart_items)"}
+    changes:
+      quantity: {expr: "x == target['correct_qty']"}
+  delete:
+  - entity: CartItem
+    desc: Out-of-stock cart item removed
+    where:
+      product_id: {expr: "x == target['oos_product_id']"}
+  invariant:
+  - collection: state.cart_items
+    filter: "a.product_id not in (target['product_id'], target['oos_product_id'])"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other cart items (e.g. the kept comparison item)
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

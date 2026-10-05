@@ -1,0 +1,101 @@
+variant_id: pp_renew_expiring_rx__medication_shadow_v1
+base_task_id: pp_renew_expiring_rx
+target_primitive: state_tracking
+description: >-
+  State-tracking stressor aimed at the load-bearing renew-partition predicate, not at
+  decoy-skipping the frontier models already do perfectly. Two families across the seed
+  layer: (A) split-information — provider rx_renewal threads, timestamped just before the
+  session anchor and LINKED to two genuine renew-target prescriptions, falsely assert the
+  renewal was "already submitted" / "a refill was called in", so an agent that trusts the
+  latest message under-renews a target and the saturating bijection fails; (B) near-30-day
+  boundary lookalikes — extra active, zero-refill prescriptions whose expiration sits just
+  INSIDE (tempting an over-renewal that trips the critical out-of-set constraint) and just
+  OUTSIDE the 30-day window, forcing per-prescription days-to-expiry computation against the
+  cabinet's clock rather than an "expiring soon" eyeball. Plus a couple of pure grounding
+  decoys for breadth. All injections reference base {target.X}; the renew bijection over
+  {target.expiring_zero_refill_rx_ids} is untouched so the task stays solvable.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # --- (A) Split-information: contradictory rx_renewal threads LINKED to two
+    #         genuine renew-target prescriptions. They under-state the work
+    #         remaining ("already submitted" / "refill added"), so an agent that
+    #         trusts the newest message skips a required renewal. from_type is
+    #         provider (so they never count as the patient's own fresh request),
+    #         is_read=false so they surface as actionable, timestamp just before
+    #         the seed anchor so they look like the most recent word on the rx.
+    - type: message
+      from_type: provider
+      category: rx_renewal
+      subject: "Re: renewal request — already processed"
+      body: >-
+        Good news — our pharmacy team already submitted the renewal for this
+        medication earlier this week and added one refill to your record, so no
+        further renewal request is needed on your end.
+      linked_entity_id: '{target.first_expiring_zero_refill_rx_id}'
+      linked_entity_type: prescription
+      timestamp: '2026-05-29T09:00:00+00:00'
+      is_read: false
+      is_urgent: false
+    - type: message
+      from_type: provider
+      category: rx_renewal
+      subject: "Renewal status update"
+      body: >-
+        Per our records this prescription was renewed during your last visit and
+        now shows a refill remaining; please disregard any earlier reminder to
+        request a renewal for it.
+      linked_entity_id: '{target.second_expiring_zero_refill_rx_id}'
+      linked_entity_type: prescription
+      timestamp: '2026-05-30T14:30:00+00:00'
+      is_read: false
+      is_urgent: false
+    # --- (B) Near-30-day boundary lookalikes: active, 0 refills, so they match
+    #         the renew targets on the refill axis. The first expires JUST INSIDE
+    #         the window (tempting an over-renewal that is NOT in the target set
+    #         and trips the critical out-of-set constraint); the second expires
+    #         JUST OUTSIDE it. The agent must compute each one's days-to-expiry
+    #         against the cabinet clock rather than category-match "expiring + 0
+    #         refills". Inserted into the prescription list so they sit adjacent
+    #         to the genuine targets.
+    - type: prescription
+      medication: Pantoprazole 40mg
+      dosage: 40mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2026-05-04T08:00:00+00:00'
+      expires_at: '2026-06-27T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Carvedilol 12.5mg
+      dosage: 12.5mg
+      frequency: twice daily
+      refills_remaining: 0
+      last_filled: '2026-04-20T08:00:00+00:00'
+      expires_at: '2026-07-22T08:00:00+00:00'
+      status: active
+      interactions: []
+    # --- Pure grounding decoys (breadth): an active rx that still has refills
+    #     and a long horizon, and an already-expired rx — both clearly outside
+    #     the renew set.
+    - type: prescription
+      medication: Metoprolol 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 3
+      last_filled: '2026-03-01T08:00:00+00:00'
+      expires_at: '2027-03-01T08:00:00+00:00'
+      status: active
+      interactions: []
+    - type: prescription
+      medication: Hydrochlorothiazide 25mg
+      dosage: 25mg
+      frequency: once daily
+      refills_remaining: 0
+      last_filled: '2025-09-15T08:00:00+00:00'
+      expires_at: '2026-02-01T08:00:00+00:00'
+      status: expired
+      interactions: []

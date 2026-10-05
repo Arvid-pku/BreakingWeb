@@ -1,0 +1,46 @@
+variant_id: amazon_address_cleanup_consolidate__address_shadow
+base_task_id: amazon_address_cleanup_consolidate
+target_primitive: backtracking
+description: "Three near-duplicate Office address rows collide on the new address's primary disambiguators (street prefix, city, ZIP); name-search alone cannot identify which existing rows must be deleted vs. preserved, and which target the new entry should occupy. The first two address-update PUT calls silently no-op, so the agent must verify the default actually flipped before reporting done."
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: address
+      full_name: Taylor Lin
+      street_address: 88 Harbor View Drive
+      city: San Diego
+      state: CA
+      zip_code: '92101'
+    - type: address
+      full_name: Taylor Lin
+      street_address: 88 Harbor View Drive Apt 2
+      city: San Diego
+      state: CA
+      zip_code: '92101'
+    - type: address
+      full_name: Taylor Lin
+      street_address: 88 Harbor View Drive Suite 100
+      city: San Diego
+      state: CA
+      zip_code: '92102'
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/amazon/addresses/*'
+    methods: [PUT]
+    fail_count: 2
+    response_body:
+      address:
+        id: addr_fake_retry
+        full_name: Pending
+        street_address: ''
+        apt_suite: ''
+        city: ''
+        state: ''
+        zip_code: '00000'
+        country: United States
+        phone: ''
+        is_default: false
+    behavior: { mode: once }

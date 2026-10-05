@@ -1,0 +1,261 @@
+task_id: lms_grade_with_curve
+env_id: lms
+title: Grade Calculation with Instructor Curve
+instruction_template: Your instructor for {target.course_code} announced a 5-point
+  curve on the midterm. Find your midterm grade for {target.course_code}, add the 5-point
+  curve to it, recompute your overall weighted score for {target.course_code} using
+  the syllabus category weights and drop-lowest policy, and determine if the curved
+  score changes your overall letter grade for the course (A >= 90, B >= 80, C >= 70,
+  D >= 60, F < 60). If the curve raises your letter grade, acknowledge it by marking
+  every UNREAD announcement that belongs to {target.course_code} as read; mark exactly
+  those announcements and do not mark any announcement from another course, and do
+  not use a 'mark all as read' action. If the curve does NOT change your letter grade,
+  instead submit the file 'curve_appeal.pdf' to the midterm assignment for {target.course_code}
+  to request a larger curve. Do not send any messages.
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- verification
+start_path: /courses
+seed:
+  distractors: 1
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 3
+      must_include:
+      - CS101
+    outputs:
+    - course_ids
+    - course_codes
+    - course_code
+    - instructor_name
+    - target_course_id
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 6
+      graded_fraction: 0.6
+    outputs:
+    - assignment_ids
+    - exam_assignment_id
+  - use: grade_book
+    params:
+      target_curve_boundary: auto
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - curve_changes_letter
+  - use: announcements_feed
+    params:
+      count: 12
+      unread_count: 8
+      target_course_unread_min: 3
+    outputs:
+    - announcement_ids
+    - unread_announcement_ids
+    - unread_target_announcement_ids
+    - read_target_announcement_ids
+    - course_announcement_ids
+  targets:
+    course_code: '{output.course_code}'
+    target_course_id: '{output.target_course_id}'
+    instructor_name: '{output.instructor_name}'
+    exam_assignment_id: '{output.exam_assignment_id}'
+    curve_changes_letter: '{output.curve_changes_letter}'
+    unread_announcement_ids: '{output.unread_announcement_ids}'
+    unread_target_announcement_ids: '{output.unread_target_announcement_ids}'
+    read_target_announcement_ids: '{output.read_target_announcement_ids}'
+canonical_diff:
+  oneof:
+  # Branch 1: curve RAISES the letter grade -> acknowledge by marking every UNREAD
+  # announcement in the target course as read. Saturating bijection over the
+  # precomputed target-course unread set: exactly those, no more, no fewer. The
+  # branch discriminator (curve_changes_letter) is baked into the where-clause;
+  # the agent must independently re-derive the curved weighted score and its
+  # letter band to know this branch applies.
+  - update:
+    - entity: Announcement
+      desc: Mark every unread target-course announcement as read (curve changes letter grade)
+      bijection:
+        over: "target['unread_target_announcement_ids'].split(',') if target['unread_target_announcement_ids'] else []"
+        variable: v
+      where:
+        id:
+          expr: "x == v and target['curve_changes_letter'] == 'true'"
+      changes:
+        is_read:
+          eq: true
+    invariant:
+    # Freeze every announcement that is NOT a target-course unread announcement:
+    # other-course announcements (read or unread) and already-read target ones.
+    - collection: state.announcements
+      filter: "a.id not in (target['unread_target_announcement_ids'].split(',') if target['unread_target_announcement_ids'] else [])"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.assignments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    - desc: Agent marked the full target-course unread set, no more no fewer
+      expr: "len([a for a in state.announcements if a.course_id == target['target_course_id'] and not a.is_read]) == 0"
+      severity: high
+    - desc: Agent left every other-course announcement in its original read state
+      expr: "all(a.is_read == n.is_read for a in initial.announcements for n in state.announcements if a.id == n.id and a.course_id != target['target_course_id'])"
+      severity: critical
+    named_invariants:
+    - name: Agent marked exactly the target-course unread announcements as read
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify other-course announcements or already-read target announcements
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify assignments
+      ref: invariant[3]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[7]
+      severity: medium
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: critical
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: high
+  # Branch 2: curve does NOT change the letter grade -> submit the appeal file to
+  # the midterm assignment. Tightened predicates: exact file name, fresh
+  # submission (submitted_at >= session_start), and exactly one new attempt over
+  # the seed's recorded attempt count.
+  - update:
+    - entity: Assignment
+      desc: Submit the midterm appeal file for the exam assignment (curve does not change letter)
+      where:
+        id:
+          expr: "x == target['exam_assignment_id'] and target['curve_changes_letter'] == 'false'"
+      changes:
+        submission_status:
+          in:
+          - submitted
+          - late
+        file_name:
+          eq: curve_appeal.pdf
+        attempt_count:
+          expr: "x >= initial.get_assignment(target['exam_assignment_id']).attempt_count + 1"
+        submitted_at:
+          expr: "x >= session_start"
+    invariant:
+    - collection: state.assignments
+      filter: "a.id != target['exam_assignment_id']"
+      preserve: ALL
+    - collection: state.courses
+      preserve: ALL
+    - collection: state.enrollments
+      preserve: ALL
+    - collection: state.modules
+      preserve: ALL
+    - collection: state.discussions
+      preserve: ALL
+    - collection: state.discussion_posts
+      preserve: ALL
+    - collection: state.peer_reviews
+      preserve: ALL
+    - collection: state.announcements
+      preserve: ALL
+    - collection: state.grades
+      preserve: ALL
+    - collection: state.calendar_events
+      preserve: ALL
+    - collection: state.sent_messages
+      preserve: ALL
+    - collection: state.student
+      preserve: ALL
+    constraints:
+    - desc: Agent did not send messages
+      expr: "len(state.sent_messages) == 0"
+      severity: high
+    - desc: Agent did not mark any announcement as read on the appeal branch
+      expr: "all(a.is_read == n.is_read for a in initial.announcements for n in state.announcements if a.id == n.id)"
+      severity: critical
+    named_invariants:
+    - name: Agent submitted the exam appeal file
+      ref: update[0]
+      severity: critical
+    - name: Agent did not modify other assignments
+      ref: invariant[0]
+      severity: critical
+    - name: Agent did not modify course records
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not drop or alter enrollments
+      ref: invariant[2]
+      severity: high
+    - name: Agent did not modify modules
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not modify discussions
+      ref: invariant[4]
+      severity: medium
+    - name: Agent did not create or edit discussion posts
+      ref: invariant[5]
+      severity: medium
+    - name: Agent did not alter peer reviews
+      ref: invariant[6]
+      severity: medium
+    - name: Agent did not modify announcements
+      ref: invariant[7]
+      severity: critical
+    - name: Agent did not modify grades
+      ref: invariant[8]
+      severity: critical
+    - name: Agent did not modify calendar events
+      ref: invariant[9]
+      severity: low
+    - name: Agent did not send messages
+      ref: invariant[10]
+      severity: high
+secondary_primitives: []

@@ -1,0 +1,31 @@
+variant_id: gmail_thread_retraction_recovery__backtracking
+base_task_id: gmail_thread_retraction_recovery
+target_primitive: backtracking
+description: HTTP errors when searching for corrections force retry and alternate
+  search strategies
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/gmail/search**'
+    error_status: 503
+    error_count: 3
+    behavior:
+      mode: once
+      message: Search temporarily unavailable - retry needed
+- layer: seed
+  params:
+    action: add_contradictory_update
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 15
+    topical_count: 7
+    topical_subjects:
+    - 'Re: Correction to previous email'
+    - 'Fwd: Updated information'
+    - 'Thread: Retraction notice'
+    - 'Re: Please disregard'
+    - 'Fwd: Revised details'
+    - 'Re: Amendment required'
+    - 'Thread: Updated version'

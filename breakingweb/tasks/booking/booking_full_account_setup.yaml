@@ -1,0 +1,203 @@
+task_id: booking_full_account_setup
+env_id: booking
+title: Full Account Setup with Payment Methods and Booking
+instruction_template: "Complete the following account setup and booking workflow:\
+  \ 1. Add two new payment methods:\n   - A Mastercard ending in 7777, expiry 08/28,\
+  \ holder name \"Jordan Parker\"\n   - A Visa ending in 9999, expiry 11/29, holder\
+  \ name \"Jordan Parker\"\n2. Set the new Visa card (ending in 9999) as your default\
+  \ payment method. 3. Update your travel preferences: preferred bed type to \"queen\"\
+  ,\n   floor preference to \"low\", and add \"gluten-free\" to dietary restrictions.\n\
+  4. Enable two-factor authentication in your account settings. 5. Search for \"{target.property_name}\"\
+  \ in {target.city} and book the\n   \"Standard Double Room\" for 2 guests checking\
+  \ in on 2026-07-10 and\n   checking out on 2026-07-14 using your new default payment\
+  \ method\n   (the Visa ending in 9999).\n"
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 35
+primary_primitives:
+- planning
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Hotel Monteleone
+      city: New Orleans
+      country: United States
+      star_rating: 4
+      review_score: 8.8
+      review_count: 4521
+      price: 225.0
+      neighborhood: French Quarter
+      address: 214 Royal Street, New Orleans, LA 70130
+      amenities:
+      - Free WiFi
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+      rooms:
+      - name: Standard Double Room
+        price: 225.0
+        bed_type: double
+        max_occupancy: 2
+        cancel_type: free_cancellation
+      - name: Deluxe King Room
+        price: 310.0
+        bed_type: king
+        max_occupancy: 2
+        cancel_type: free_cancellation
+        view_type: city
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: set_preferences
+    params:
+      preferred_bed_type: king
+      floor_preference: high
+      dietary_restrictions:
+      - vegetarian
+    outputs:
+    - updated
+  - use: set_settings
+    params:
+      two_factor_enabled: false
+    outputs:
+    - updated
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    city: New Orleans
+canonical_diff:
+  update:
+    - entity: PaymentMethod
+      desc: Previously-default card's is_default flips to false when new default is set
+      where:
+        is_default: {eq: true}
+      changes:
+        is_default: {eq: false}
+    - entity: travel_preferences
+      desc: Travel preferences — queen bed, low floor, gluten-free dietary
+      where: {id: {eq: "__singleton_travel_preferences__"}}
+      changes:
+        preferred_bed_type: {eq: queen}
+        floor_preference: {eq: low}
+        dietary_restrictions: {expr: "'gluten-free' in x"}
+    - entity: settings
+      desc: Two-factor authentication enabled
+      where: {id: {any: true}}
+      changes:
+        default_payment_id:
+          expr: >-
+            x == next(
+              (pm.id for pm in state.payment_methods
+               if pm.card_type == 'Visa' and pm.last_four == '9999' and pm.is_default),
+              ''
+            )
+        two_factor_enabled: {eq: true}
+  create:
+    - entity: PaymentMethod
+      desc: Add the new Visa card ending in 9999 as default payment method
+      properties:
+        card_type: {eq: "Visa"}
+        last_four: {eq: "9999"}
+        expiry: {any: true}
+        holder_name: {any: true}
+        is_default: {eq: true}
+    - entity: PaymentMethod
+      desc: Add the new Mastercard ending in 7777
+      properties:
+        card_type: {eq: "Mastercard"}
+        last_four: {eq: "7777"}
+        expiry: {any: true}
+        holder_name: {any: true}
+        is_default: {eq: false}
+    - entity: Reservation
+      desc: Book the Standard Double Room at Hotel Monteleone for 4 nights using the new default Visa card
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        property_name: {any: true}
+        room_type_id: {any: true}
+        room_type_name: {eq: "Standard Double Room"}
+        check_in: {eq: "2026-07-10"}
+        check_out: {eq: "2026-07-14"}
+        nights: {eq: 4}
+        guests: {eq: 2}
+        rooms: {any: true}
+        price_per_night: {any: true}
+        total_price: {any: true}
+        taxes_and_fees: {any: true}
+        currency: {any: true}
+        status: {eq: confirmed}
+        booked_at: {any: true}
+        guest_info: {any: true}
+        payment_method_id:
+          expr: >-
+            any(pm.id == x and pm.card_type == 'Visa' and pm.last_four == '9999' and pm.is_default for pm in state.payment_methods)
+        cancellation_policy: {any: true}
+        confirmation_number: {any: true}
+        is_genius_deal: {any: true}
+        genius_discount: {any: true}
+        meals_included: {any: true}
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "not (a.property_id == target['property_id'] and a.check_in == '2026-07-10' and a.check_out == '2026-07-14')"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+    - collection: state.payment_methods
+      filter: "a.last_four not in ('9999', '7777')"
+      preserve: ALL
+  named_invariants:
+    - name: Travel preferences updated (queen bed, low floor, gluten-free)
+      ref: update[1]
+      severity: high
+    - name: Two-factor authentication enabled
+      ref: update[2]
+      severity: critical
+    - name: Agent added the Visa card ending in 9999 as default
+      ref: create[0]
+      severity: critical
+    - name: Agent added the Mastercard ending in 7777
+      ref: create[1]
+      severity: critical
+    - name: Agent booked the Standard Double Room at the target property with correct dates
+      ref: create[2]
+      severity: critical
+    - name: Agent did not modify existing reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[2]
+      severity: low
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not create or modify notifications
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not modify existing payment methods
+      ref: invariant[6]
+      severity: medium

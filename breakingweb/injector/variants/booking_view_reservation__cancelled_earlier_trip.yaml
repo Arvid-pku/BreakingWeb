@@ -1,0 +1,17 @@
+variant_id: booking_view_reservation__cancelled_earlier_trip
+base_task_id: booking_view_reservation
+target_primitive: verification
+description: A cancelled reservation appears with an earlier check-in than the real upcoming trip. The
+  agent must ignore cancelled trips and open the earliest upcoming reservation instead.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: reservation
+      property_name: Coastal Breeze Resort
+      check_in: '2026-04-20'
+      check_out: '2026-04-22'
+      status: cancelled
+      booked_days_ago: 20
+      confirmation_number: CXL-204118

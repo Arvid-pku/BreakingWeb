@@ -1,0 +1,46 @@
+variant_id: gmail_thread_merge_conflict__verification
+base_task_id: gmail_thread_merge_conflict
+target_primitive: verification
+description: Silent send failures require checking that conflict resolution emails
+  actually went through
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/send'
+    methods:
+    - POST
+    response_body:
+      email:
+        id: fake_sent
+        subject: sent
+        from: me@thornton.com
+        to: []
+        cc: []
+        bcc: []
+        body: ''
+        labels:
+        - sent
+        is_read: true
+        is_starred: false
+        thread_id: fake_thread
+        timestamp: '2026-03-30T00:00:00Z'
+    fail_count: 3
+    behavior:
+      mode: once
+      message: Send appeared successful but actually failed
+- layer: seed
+  params:
+    action: add_contradictory_update
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 15
+    topical_count: 6
+    topical_subjects:
+    - 'Re: Conflicting information'
+    - 'Fwd: Version discrepancy'
+    - 'Thread: Resolution needed'
+    - 'Re: Forked discussion'
+    - 'Fwd: Merge request'
+    - 'Re: Inconsistent details'

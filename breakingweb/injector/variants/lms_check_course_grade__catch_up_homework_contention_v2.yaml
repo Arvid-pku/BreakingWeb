@@ -1,0 +1,60 @@
+variant_id: lms_check_course_grade__catch_up_homework_contention_v2
+base_task_id: lms_check_course_grade
+target_primitive: state_tracking
+description: >-
+  State-tracking stressor on the grade-below-80 (catch-up) branch: near-identical
+  decoy unsubmitted homework competes with the real earliest-due target, a
+  contradictory "corrected weighting" notice pressures the weighted-grade
+  computation, and the authoritative grades read errors before succeeding so the
+  agent must reconcile contradictory state and re-derive both the branch and the
+  exact earliest-due homework before acting.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: assignment
+      assignment_type: homework
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Homework: Catch-Up Practice Problems'
+      submission_status: not_submitted
+      points_possible: '20'
+    - type: assignment
+      assignment_type: homework
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Weekly Assignment: Make-Up Set'
+      submission_status: not_submitted
+      points_possible: '10'
+    - type: assignment
+      assignment_type: homework
+      course_id: '{target.target_course_id}'
+      course_code: '{target.course_code}'
+      title: 'Problem Set: Recovery Packet'
+      submission_status: not_submitted
+      points_possible: '25'
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    course_id: '{target.target_course_id}'
+    type: announcement
+    title: 'Correction: revised category weighting for {target.course_code}'
+    body: >-
+      Correction notice: an earlier syllabus draft listed different category
+      weights. Use the weights printed on the official syllabus tab when you
+      compute your weighted grade; ignore any weighting copied from prior
+      announcements.
+    priority: urgent
+    is_read: false
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/lms/courses/*/grades'
+    methods:
+    - GET
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once

@@ -1,0 +1,17 @@
+variant_id: gmail_mark_all_read__mark_read_retry
+base_task_id: gmail_mark_all_read
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/gmail/emails/mark-all-read'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      updated: 0
+    behavior:
+      mode: once

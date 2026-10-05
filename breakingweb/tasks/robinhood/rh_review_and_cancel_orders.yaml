@@ -1,0 +1,65 @@
+task_id: rh_review_and_cancel_orders
+env_id: robinhood
+title: Review and Cancel Far-Below-Market Limit Orders
+instruction_template: Find all pending limit buy orders with prices more than 10%
+  below current market price and cancel them.
+difficulty: medium
+time_limit_seconds: 200
+expected_steps: 8
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - NVDA
+    outputs: []
+  - use: pending_orders
+    params:
+      count: 5
+      order_types:
+      - limit
+      symbols:
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - NVDA
+      far_below_count: 2
+    outputs:
+    - order_ids
+  targets: {}
+canonical_diff:
+  update:
+  - entity: orders
+    desc: All far-below-market limit buy orders cancelled (>10% below current price)
+    bijection:
+      over: "[o for o in initial.orders if o.order_type == 'limit' and o.side == 'buy' and o.limit_price is not None and float(o.limit_price) < float(initial.get_stock(o.symbol).price) * 0.90 and not o.id.startswith('ord_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+    changes:
+      status: {eq: cancelled}
+      cancelled_at: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.order_type == 'limit' and a.side == 'buy' and a.limit_price is not None and float(a.limit_price) >= float(initial.get_stock(a.symbol).price) * 0.90"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures state_tracking, grounding, planning by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor account
+  state.

@@ -1,0 +1,157 @@
+task_id: amazon_cart_recover_from_oos
+env_id: amazon
+title: Replace Out-of-Stock Cart Items with In-Stock Alternatives
+instruction_template: 'Some items in your cart have gone out of stock. Find each
+  out-of-stock item, remove it from the cart, and add one in-stock replacement from
+  the same category — so every removed item is replaced by exactly one alternative.
+
+  '
+difficulty: hard
+time_limit_seconds: 320
+expected_steps: 22
+primary_primitives:
+- state_tracking
+secondary_primitives:
+- planning
+start_path: /cart
+seed:
+  distractors: 12
+  actors: {}
+  steps:
+  - use: cart_stock_mix
+    params:
+      oos_specs:
+      - name: Standing Desk Cable Tray
+        brand: DeskPro
+        category: Office Supplies
+        price: 39.99
+      - name: Dual Monitor Stand Riser
+        brand: ErgoNest
+        category: Office Supplies
+        price: 49.99
+      kept_specs:
+      - name: Whiteboard Magnetic Markers
+        brand: WriteWell
+        category: Office Supplies
+        price: 14.99
+      alternatives_per_category: 3
+    outputs:
+    - oos_cart_item_ids
+    - oos_product_ids
+    - kept_cart_item_ids
+    - alternative_product_ids
+    - oos_category
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 6
+      price_range:
+      - 15.0
+      - 80.0
+    outputs:
+    - catalog_electronics
+  targets:
+    oos_cart_item_ids: '{output.oos_cart_item_ids}'
+    oos_product_ids: '{output.oos_product_ids}'
+    oos_category: '{output.oos_category}'
+    kept_cart_item_id: '{output.kept_cart_item_ids}'
+    alternative_product_ids: '{output.alternative_product_ids}'
+    oos_names_str: Standing Desk Cable Tray, Dual Monitor Stand Riser
+    kept_name: Whiteboard Magnetic Markers
+canonical_diff:
+  create:
+  - entity: CartItem
+    desc: Add one in-stock replacement cart item for every OOS cart item removed
+    bijection:
+      over: "target['oos_cart_item_ids']"
+      variable: v
+    properties:
+      product_id:
+        expr: "any(p.id == x and p.in_stock and p.category == target['oos_category']
+          for p in state.products) and x not in target['oos_product_ids']"
+      quantity:
+        eq: 1
+      product_name: {any: true}        # auto-populated from product
+      unit_price: {any: true}          # auto-populated from product price
+      variant_selections: {any: true}  # variant choice not specified
+      added_at: {any: true}            # server-generated timestamp
+  delete:
+  - entity: CartItem
+    desc: Remove first OOS cart item
+    where:
+      id: {expr: "x in target['oos_cart_item_ids']"}
+  - entity: CartItem
+    desc: Remove second OOS cart item
+    where:
+      id: {expr: "x in target['oos_cart_item_ids']"}
+  invariant:
+  - collection: state.cart_items
+    filter: "a.id not in target['oos_cart_item_ids']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other cart items (e.g. the kept in-stock item)
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not add more replacement cart items than OOS removed
+    ref: create[0]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

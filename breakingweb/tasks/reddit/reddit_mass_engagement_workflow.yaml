@@ -1,0 +1,296 @@
+task_id: reddit_mass_engagement_workflow
+title: Mass Engagement Across Platform
+instruction_template: "1. In r/technology find \"{target.t1}\" — upvote.\n2. In r/gaming find \"{target.t2}\" — save.\n3. In r/science find \"{target.t3}\" — comment: \"{target.c3}\"\n4. In r/programming find \"{target.t4}\" — upvote and comment: \"{target.c4}\"\n5. Subscribe to r/{target.join}.\n6. Create post in r/{target.join}: title \"{target.pt}\" body \"{target.pb}\".\n7. Send message to u/{target.m_to} subject \"{target.ms}\" body: \"{target.mb}\"\n8. Mark all notifications read. Set theme \"dark\", feed sort \"top\", comment sort \"new\".\n\nDo not downvote. Do not unsubscribe."
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 55
+primary_primitives:
+- state_tracking
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+      - Piracy
+    outputs:
+    - subscriptions
+  - use: filler_posts
+    params:
+      subreddit: memes
+      count: 2
+    outputs:
+    - meme_ids
+  - use: saved_posts
+    params:
+      post_ids: '{output.meme_ids}'
+    outputs:
+    - saved_ids
+  - use: target_post
+    params:
+      subreddit: technology
+      title: Breakthrough in solid-state battery cuts EV charging time to six minutes
+      body: Prototype tested across 1,000 cycles with negligible capacity loss.
+      score: 48000
+    outputs:
+    - tech_id
+    - tech_title
+    - tech_sub
+  - use: target_post
+    params:
+      subreddit: gaming
+      title: Indie studio ships a 20-hour RPG built by a team of three in 18 months
+      body: Full release notes and design retrospective inside.
+      score: 37000
+    outputs:
+    - game_id
+    - game_title
+    - game_sub
+  - use: target_post
+    params:
+      subreddit: science
+      title: Global carbon emissions fall for first time without economic recession
+      body: IEA data shows renewable transition driving decline.
+      score: 55000
+    outputs:
+    - sci_id
+    - sci_title
+    - sci_sub
+  - use: target_post
+    params:
+      subreddit: programming
+      title: How we reduced our CI/CD pipeline from 45 minutes to 3 minutes
+      body: Caching, parallelization, and smarter test selection.
+      author: CompileError
+      score: 11000
+    outputs:
+    - prog_id
+    - prog_title
+    - prog_sub
+  - use: target_comment
+    params:
+      post_id: '{output.prog_id}'
+      body: Test selection based on code coverage diff is the biggest win here. We saw similar results.
+      author: DeepDiver
+      score: 2100
+    outputs:
+    - reply_id
+    - reply_body
+  - use: target_message
+    params:
+      from_user: DigitalSage
+      subject: Collaboration request
+      body: Want to work together?
+      is_read: false
+    outputs:
+    - r_msg_id
+    - r_msg_sub
+    - r_msg_from
+  - use: target_message
+    params:
+      from_user: ryushin6
+      subject: FREE NFT DROP!!!
+      body: Limited time offer!
+      is_read: false
+    outputs:
+    - del_msg_id
+    - del_msg_sub
+    - del_msg_from
+  targets:
+    subscriptions: '{output.subscriptions}'
+    initial_subscriptions: '{output.subscriptions}'
+    tech_id: '{output.tech_id}'
+    game_id: '{output.game_id}'
+    sci_id: '{output.sci_id}'
+    wn_title: '{output.sci_title}'
+    wn_id: '{output.sci_id}'
+    prog_title: '{output.prog_title}'
+    prog_id: '{output.prog_id}'
+    reply_author: DeepDiver
+    reply_hint: code coverage
+    reply_id: '{output.reply_id}'
+    r_from: '{output.r_msg_from}'
+    r_sub: '{output.r_msg_sub}'
+    r_body: Sounds great, let us set up a call next week.
+    del_sub: '{output.del_msg_sub}'
+    del_id: '{output.del_msg_id}'
+    block_user: CryptoSkeptic
+    leave_sub: memes
+    join: MachineLearning
+    j1: MachineLearning
+    j2: Piracy
+    j3: dataisbeautiful
+    sub1: '{output.sci_sub}'
+    p1: '{output.sci_title}'
+    c1: Finally some good news on climate. The renewable transition is working.
+    sub2: '{output.prog_sub}'
+    p2: '{output.prog_title}'
+    t1: '{output.tech_title}'
+    t2: '{output.game_title}'
+    t3: '{output.sci_title}'
+    t4: '{output.prog_title}'
+    c3: This data gives me hope.
+    c4: Smart test selection is underrated.
+    ct: '{output.prog_title}'
+    cc: Great CI/CD improvements.
+    pt: Practical guide to deploying ML models with FastAPI and Docker
+    pb: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    py_title: Async Python patterns that actually improve performance
+    py_body: Not all async code is faster. Here are the patterns where async Python genuinely helps and where it hurts.
+    ml_title: 'Fine-tuning LLMs on domain-specific data: lessons from healthcare NLP'
+    ml_body: We fine-tuned several models on clinical notes. Here is what worked and what did not.
+    p1_title: Practical guide to deploying ML models with FastAPI and Docker
+    p1_body: Step-by-step walkthrough from local development to production Kubernetes deployment.
+    post_title: Practical guide to deploying ML models with FastAPI and Docker
+    post_body: Step-by-step walkthrough from development to production.
+    prog_comment: Caching alone cut our pipeline by 60 percent.
+    reply_text: Code coverage diff is the key insight. Most teams over-test unchanged code.
+    msg_to: CompileError
+    msg_sub: Your CI/CD post
+    ms: Community announcement
+    mb: Just published a new guide in r/MachineLearning. Would love your review.
+    m_to: CompileError
+    wn_comment: Renewables are finally delivering on their promise. This is the turning point.
+canonical_diff:
+  update:
+  - entity: Notification
+    collection: notifications
+    bijection:
+      over: '[n.id for n in initial.notifications if not n.is_read]'
+      variable: v
+    desc: Mark every unread notification as read
+    where:
+      id:
+        expr: x == v
+    changes:
+      is_read:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Upvote the technology target post
+    where:
+      id:
+        expr: x == target['tech_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Post
+    collection: posts
+    desc: Save the gaming target post
+    where:
+      id:
+        expr: x == target['game_id']
+    changes:
+      is_saved:
+        eq: true
+  - entity: Post
+    collection: posts
+    desc: Upvote the programming target post
+    where:
+      id:
+        expr: x == target['prog_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: Subreddit
+    collection: subreddits
+    desc: Subscribe to the join subreddit
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      theme: {eq: dark}
+      default_feed_sort: {eq: top}
+      default_comment_sort: {eq: new}
+  create:
+  - entity: Comment
+    collection: comments
+    desc: Comment on the science target post with the exact text
+    properties:
+      post_id:
+        expr: x == target['sci_id']
+      body:
+        expr: x == target['c3']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Comment
+    collection: comments
+    desc: Comment on the programming target post with the exact text
+    properties:
+      post_id:
+        expr: x == target['prog_id']
+      body:
+        expr: x == target['c4']
+      author_name:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  - entity: Post
+    collection: posts
+    desc: Create the post in r/{join} with the exact title and body
+    properties:
+      subreddit_name:
+        expr: x == target['join']
+      title:
+        expr: x == target['pt']
+      body:
+        expr: x == target['pb']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Message
+    collection: sent_messages
+    desc: Send the announcement to the target recipient
+    properties:
+      to_user:
+        expr: x == target['m_to']
+      subject:
+        expr: x == target['ms']
+      body:
+        expr: x == target['mb']
+      from_user:
+        expr: x == state.owner_username
+      parent_id:
+        eq:
+  invariant:
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  constraints:
+  - expr: state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and state.settings.language == initial.settings.language and
+      state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high
+  - expr: sorted(state.saved_post_ids) == sorted([p.id for p in state.posts if p.is_saved])
+    desc: Saved-post primitive list matches saved post flags
+    severity: high
+  - expr: sorted(state.saved_comment_ids) == sorted([c.id for c in state.comments if c.is_saved])
+    desc: Saved-comment primitive list matches saved comment flags
+    severity: high
+  - expr: sorted(state.blocked_users) == sorted(initial.blocked_users)
+    desc: Blocked users preserved when blocking is not requested
+    severity: high
+env_id: reddit
+start_path: /feed
+secondary_primitives: []

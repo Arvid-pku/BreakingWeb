@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Electronics accessory">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <rect x="72" y="96" width="176" height="196" rx="24" fill="#ffffff" stroke="#d1d5db" stroke-width="6"/>
+  <rect x="106" y="126" width="108" height="62" rx="12" fill="#232f3e"/>
+  <rect x="118" y="214" width="84" height="18" rx="9" fill="#ff9900"/>
+  <path d="M248 204c42 0 68 18 68 48 0 36-34 52-80 32" fill="none" stroke="#374151" stroke-width="16" stroke-linecap="round"/>
+  <rect x="290" y="166" width="34" height="72" rx="10" fill="#111827"/>
+</svg>

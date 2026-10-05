@@ -1,0 +1,49 @@
+variant_id: gmail_thread_archaeology__exploration
+base_task_id: gmail_thread_archaeology
+target_primitive: exploration
+description: >
+  Moves the target thread into Updates so it disappears from the inbox,
+  injects 30 recent distractors (10 with similar project/action-item
+  subjects), and returns stale empty results on the first 2 searches.
+  Agent must retry search, inspect alternate labels, or otherwise explore
+  beyond the default inbox view to locate the buried thread.
+injections:
+- layer: server
+  params:
+    action: scramble_timestamps
+    seed: 33
+- layer: seed
+  params:
+    action: hide_in_non_obvious_location
+    subject_contains: "{target.thread_subject}"
+    move_to_label: updates
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: "**/api/env/gmail/search**"
+    stale_body:
+      items: []
+      total: 0
+      page: 1
+      page_size: 25
+      pages: 1
+      query: ""
+    stale_count: 3
+    behavior:
+      mode: once
+- layer: seed
+  params:
+    action: increase_distractors
+    count: 45
+    topical_count: 10
+    topical_subjects:
+      - "Re: Action items from kickoff"
+      - "Fwd: Launch review follow-up"
+      - "Re: Project action items — old thread"
+      - "Signal project weekly status"
+      - "Re: Launch review notes (outdated)"
+      - "Fwd: Action item summary from last quarter"
+      - "Re: Signal initiative debrief"
+      - "Launch readiness checklist — archived"
+      - "Action items from last sprint review"
+      - "Re: Signal project handoff notes"

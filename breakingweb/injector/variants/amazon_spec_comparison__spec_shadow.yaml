@@ -1,0 +1,39 @@
+variant_id: amazon_spec_comparison__spec_shadow
+base_task_id: amazon_spec_comparison
+target_primitive: grounding
+description: "Three near-duplicate monitor SKUs share brand and thumbnail with the target LG UltraWide Monitor 34-inch but advertise subtly different spec sheets at the same price tier. Sort-by-price-then-rating produces a tie, so the agent must verify each candidate's product_id matches the canonical target before clicking through. (This is a read-only research task; no silent_fail layer is added because the task forbids cart writes.)"
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: product
+      name: "LG UltraWide Monitor 34-inch - Pro Edition"
+      brand: LG
+      seller: LG
+      category: Electronics
+      price: 449.99
+      rating: 4.6
+      review_count: 820
+      match_image_of: LG UltraWide Monitor 34-inch
+      description: "Pro-edition sibling at the same price/rating; spec sheet differs only on minor refresh-rate boost."
+    - type: product
+      name: "LG UltraWide Monitor 34-inch Gaming"
+      brand: LG
+      seller: LG
+      category: Electronics
+      price: 449.99
+      rating: 4.6
+      review_count: 580
+      match_image_of: LG UltraWide Monitor 34-inch
+      description: "Gaming sibling with subtly different spec sheet (higher Hz tag) but a separate SKU from the canonical target."
+    - type: product
+      name: "LG UltraWide Monitor 34-inch Refurbished"
+      brand: "OEM Reseller"
+      seller: ElectroDeals Marketplace
+      category: Electronics
+      price: 449.99
+      rating: 4.6
+      review_count: 410
+      match_image_of: LG UltraWide Monitor 34-inch
+      description: "Refurbished listing with identical thumbnail and a slightly trimmed spec list; not the canonical target SKU."

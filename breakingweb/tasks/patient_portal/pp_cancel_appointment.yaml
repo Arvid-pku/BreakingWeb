@@ -1,0 +1,168 @@
+task_id: pp_cancel_appointment
+env_id: patient_portal
+title: Cancel Accidental Duplicate Bookings
+instruction_template: 'You accidentally booked the same visit with {target.provider_name}
+  several times: there are multiple scheduled appointments with that provider, all
+  on {target.apt_date} at the same time. Clinic policy is to keep your ORIGINAL
+  booking and cancel every accidental re-book of that same visit. Cancel the
+  redundant re-bookings (keep the original you made first) and give each cancellation
+  a reason that contains the word duplicate. Do not touch any of your other
+  appointments.'
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 12
+primary_primitives:
+- grounding
+secondary_primitives:
+- backtracking
+start_path: /appointments
+seed:
+  distractors: 15
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - dermatology
+      - orthopedics
+      - neurology
+      must_include:
+      - pcp
+      - cardiology
+      - dermatology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 3
+    outputs:
+    - default_pharmacy_id
+  - use: appointment_history
+    params:
+      upcoming_count: 4
+      completed_count: 3
+      cancelled_count: 2
+      conflict_pair: true
+      conflict_same_provider: true
+      conflict_count: 3
+    outputs:
+    - upcoming_ids
+    - conflict_apt_ids
+    - conflict_apt_date
+    - conflict_provider_name
+    - conflict_keep_apt_id
+    - conflict_cancel_apt_ids
+    - pcp_apt_id
+    - pcp_apt_date
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+      expired_count: 1
+    outputs:
+    - active_rx_ids
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 1
+    outputs:
+    - approved_ref_ids
+  - use: insurance_claims
+    params:
+      approved_count: 1
+      denied_count: 1
+      with_eob: true
+    outputs:
+    - denied_claim_ids
+  targets:
+    target_apt_id: '{output.conflict_keep_apt_id}'
+    conflict_keep_apt_id: '{output.conflict_keep_apt_id}'
+    conflict_cancel_apt_ids: '{output.conflict_cancel_apt_ids}'
+    conflict_apt_ids: '{output.conflict_apt_ids}'
+    provider_name: '{output.conflict_provider_name}'
+    apt_date: '{output.conflict_apt_date}'
+canonical_diff:
+  update:
+  - entity: Appointment
+    desc: Cancel every accidental re-book (every member of the same-provider /
+      same-datetime duplicate cluster EXCEPT the earliest-booked original), each
+      with a cancellation reason containing the word "duplicate".
+    bijection:
+      over: "target['conflict_cancel_apt_ids']"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      status:
+        eq: cancelled
+      cancellation_reason:
+        regex: (?i)duplicate
+  invariant:
+  - collection: state.appointments
+    filter: a.id == target['conflict_keep_apt_id']
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.id not in target['conflict_cancel_apt_ids']
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.status != 'cancelled'
+    preserve: ALL
+    comprehensive: true
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent kept the earliest-booked original of the duplicate cluster intact
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not cancel or modify any appointment outside the accidental
+      re-book set
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify immunization records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify prescriptions
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not create or modify lab results
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not send unsolicited messages
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not touch insurance claims
+    ref: invariant[6]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[7]
+    severity: high
+  - name: Agent cancelled exactly the accidental re-books, no more and no fewer
+    ref: update[0]
+    severity: critical

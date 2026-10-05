@@ -1,0 +1,17 @@
+variant_id: booking_modify_and_message__message_shadow_v2
+base_task_id: booking_modify_and_message
+target_primitive: grounding
+description: Inbox threads include a stale same-property message that looks almost identical to the active
+  request. The agent must answer or follow up on the exact hotel thread.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: message
+      property_name: '{target.property_name}'
+      subject: Follow-up on your stay details
+      body: This is an old thread about a previous stay. It is not the active hotel message referenced
+        in the task.
+      sender: property
+      read: false

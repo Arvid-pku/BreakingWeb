@@ -1,0 +1,194 @@
+task_id: rh_live_multi_stock_limits
+env_id: robinhood
+title: Multi-Stock Limit Order Monitoring
+instruction_template: 'Set limit buy orders: AAPL below $180 for 10 shares, GOOGL
+  below $165 for 10 shares, AMZN below $175 for 10 shares. Monitor which orders fill.'
+difficulty: frontier
+time_limit_seconds: 500
+expected_steps: 30
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 30
+      must_include:
+      - AAPL
+      - GOOGL
+      - AMZN
+      - MSFT
+      - TSLA
+    outputs: []
+  - use: linked_banks
+    params: {}
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      AAPL:
+        keyframes:
+        - - 0
+          - 190.0
+        - - 15
+          - 178.0
+        - - 30
+          - 183.0
+        noise_pct: 0.3
+      AMZN:
+        keyframes:
+        - - 0
+          - 185.0
+        - - 20
+          - 173.0
+        - - 35
+          - 179.0
+        noise_pct: 0.3
+      GOOGL:
+        keyframes:
+        - - 0
+          - 171.0
+        - - 50
+          - 171.0
+        noise_pct: 0.2
+canonical_diff:
+  create:
+  - entity: orders
+    desc: AAPL limit buy of 10 shares at ≤$180, filled (price drops below limit)
+    properties:
+      symbol: {eq: AAPL}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      quantity: {eq: 10}
+      limit_price: {expr: "x is not None and x <= Decimal('180')"}
+      status: {eq: filled}
+      filled_quantity: {eq: 10}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: AMZN limit buy of 10 shares at ≤$175, filled (price drops below limit)
+    properties:
+      symbol: {eq: AMZN}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      quantity: {eq: 10}
+      limit_price: {expr: "x is not None and x <= Decimal('175')"}
+      status: {eq: filled}
+      filled_quantity: {eq: 10}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: orders
+    desc: GOOGL limit buy of 10 shares at ≤$165, stays pending (price never crosses)
+    properties:
+      symbol: {eq: GOOGL}
+      side: {eq: buy}
+      order_type: {eq: limit}
+      quantity: {eq: 10}
+      limit_price: {expr: "x is not None and x <= Decimal('165')"}
+      status: {eq: pending}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: positions
+    desc: AAPL position created with 10 shares from the AAPL fill
+    properties:
+      symbol: {eq: AAPL}
+      quantity: {eq: 10}
+      avg_cost_basis: {any: true}
+      current_price: {any: true}
+      day_change_pct: {any: true}
+      total_return: {any: true}
+      total_return_pct: {any: true}
+      asset_type: {any: true}
+      name: {any: true}
+      lots: {any: true}
+  - entity: positions
+    desc: AMZN position created with 10 shares from the AMZN fill
+    properties:
+      symbol: {eq: AMZN}
+      quantity: {eq: 10}
+      avg_cost_basis: {any: true}
+      current_price: {any: true}
+      day_change_pct: {any: true}
+      total_return: {any: true}
+      total_return_pct: {any: true}
+      asset_type: {any: true}
+      name: {any: true}
+      lots: {any: true}
+  - entity: transactions
+    desc: Buy transaction recorded by the AAPL fill
+    properties:
+      type: {eq: buy}
+      symbol: {eq: AAPL}
+      quantity: {eq: 10}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: transactions
+    desc: Buy transaction recorded by the AMZN fill
+    properties:
+      type: {eq: buy}
+      symbol: {eq: AMZN}
+      quantity: {eq: 10}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted by the AAPL buy
+    properties:
+      type: {eq: order_fill}
+      title: {expr: "'AAPL' in str(x)"}
+      message: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted by the AMZN buy
+    properties:
+      type: {eq: order_fill}
+      title: {expr: "'AMZN' in str(x)"}
+      message: {any: true}
+      timestamp: {any: true}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol not in ('AAPL', 'AMZN')"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol not in ('AAPL', 'AMZN')"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+secondary_primitives: []
+primitive_thesis: Measures planning, patience, state_tracking, verification, grounding
+  by requiring exact completion of the requested Robinhood workflow while ignoring
+  distractor account state.

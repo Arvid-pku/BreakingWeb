@@ -1,0 +1,208 @@
+task_id: amazon_high_value_return_with_upgrade
+env_id: amazon
+title: Return the Highest-Value Recent Order and Order an Upgrade
+instruction_template: 'Find your most expensive DELIVERED order in your order history.
+  File a return request for the item in that order with reason "Upgrading to a better
+  model" (use the "Other reason" option in the return form to enter this exact text).
+  Then place a new order for "{target.upgrade_product_name}" using your default address
+  and default payment method.
+
+  '
+difficulty: expert
+time_limit_seconds: 420
+expected_steps: 30
+primary_primitives:
+- backtracking
+secondary_primitives: []
+start_path: /orders
+seed:
+  distractors: 15
+  actors: {}
+  steps:
+  - use: existing_order_with_product
+    params:
+      product_name: Basic Wired Headphones
+      product_brand: SoundCore
+      product_category: Electronics
+      product_price: 149.99
+      product_rating: 4.2
+      features:
+      - Over-ear
+      - 3.5mm jack
+      status: delivered
+      days_ago: 20
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+    - order_id
+  - use: existing_order_with_product
+    params:
+      product_name: Entry Level Smartwatch
+      product_brand: TechNova
+      product_category: Electronics
+      product_price: 229.99
+      product_rating: 4.1
+      features:
+      - Step counter
+      - Basic notifications
+      status: delivered
+      days_ago: 12
+    outputs:
+    - product_id_mid
+    - product_name_mid
+    - product_price_mid
+    - order_id_mid
+  - use: existing_order_with_product
+    params:
+      product_name: Wireless Noise-Cancelling Earbuds
+      product_brand: AudioPeak
+      product_category: Electronics
+      product_price: 299.99
+      product_rating: 4.3
+      features:
+      - Active noise cancellation
+      - 30-hour battery case
+      - Wireless charging
+      status: delivered
+      days_ago: 7
+    outputs:
+    - product_id_top
+    - product_name_top
+    - product_price_top
+    - order_id_top
+  - use: featured_product
+    params:
+      name: Premium Hi-Fi Wireless Headphones
+      brand: AudioPeak
+      category: Electronics
+      price: 399.99
+      rating: 4.8
+      features:
+      - Hi-Res Audio certified
+      - Adaptive noise cancellation
+      - 50-hour battery
+      - Premium leather cups
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id_upgrade
+    - product_name_upgrade
+    - product_price_upgrade
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 4
+      price_range:
+      - 20.0
+      - 100.0
+    outputs:
+    - product_ids
+  targets:
+    old_order_id: '{output.order_id_top}'
+    old_product_id: '{output.product_id_top}'
+    upgrade_product_id: '{output.product_id_upgrade}'
+    upgrade_product_name: '{output.product_name_upgrade}'
+canonical_diff:
+  create:
+  - entity: ReturnRequest
+    desc: Return request filed for the most expensive delivered order with
+      upgrade reason
+    properties:
+      order_id: {expr: "x == target['old_order_id']"}
+      product_id: {expr: "x == target['old_product_id']"}
+      reason: {eq: "Upgrading to a better model"}
+      status:
+        eq: pending
+      refund_amount: {any: true}
+      order_item_index: {any: true}
+      product_name: {any: true}
+      created_at: {any: true}
+      resolution_note: {any: true}
+  - entity: Order
+    desc: Replacement upgrade order containing the upgrade product
+    properties:
+      items:
+        expr: "len(x) == 1 and x[0]['product_id'] == target['upgrade_product_id']
+          and x[0]['quantity'] == 1"
+      status: {eq: confirmed}
+      shipping_address_id: {expr: "x == initial.settings.default_address_id"}
+      payment_method_id: {expr: "x == initial.settings.default_payment_id"}
+      subtotal: {any: true}
+      shipping_cost: {any: true}
+      tax: {any: true}
+      total: {any: true}
+      placed_at: {any: true}
+      estimated_delivery: {any: true}
+      promo_code: {any: true}
+      discount: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "not any(it.get('product_id') == target['upgrade_product_id'] for it in
+      (a.items or []))"
+    preserve: ALL
+  - collection: state.returns
+    filter: "a.order_id != target['old_order_id']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other orders
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other return requests
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify product catalog
+    ref: invariant[2]
+    severity: critical
+  - name: Agent did not modify saved addresses
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not leave items in cart after checkout
+    ref: invariant[10]
+    severity: medium
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

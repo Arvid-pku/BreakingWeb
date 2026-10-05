@@ -1,0 +1,25 @@
+variant_id: rh_year_end_tax_planning__state_tracking_v1
+base_task_id: rh_year_end_tax_planning
+target_primitive: state_tracking
+description: >
+  Noise orders for loss-position symbols inject recent buy activity
+  that could confuse wash sale analysis, and misleading alerts suggest
+  positions are recovering. Agent must track the actual transaction
+  ledger and unrealized P/L without being misled by the injected data.
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    count: 5
+    side: "buy"
+    symbols: ["INTC", "BA", "NFLX"]
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+      - symbol: "INTC"
+        condition: "above"
+        target_price: 45.00
+      - symbol: "BA"
+        condition: "above"
+        target_price: 220.00

@@ -1,0 +1,63 @@
+variant_id: reddit_comment_save_settings__thread_branch_collision
+base_task_id: reddit_comment_save_settings
+target_primitive: grounding
+description: Three decoy comments by author variants of u/CompileError appear in
+  adjacent branches of the singleton-pattern thread, each at a different depth —
+  the canonical reply target is ambiguous on author alone. The agent must use
+  parent_id + exact body to pick the right branch. Pair with silent_fail
+  (fail_count:2) on the comment-create endpoint so the first two reply writes
+  silently no-op and the agent must verify via state read.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: comment
+      post_title: '{target.post_title}'
+      author: '{target.reply_author}_'
+      body: The singleton pattern exists for a reason. Dependency injection without
+        it leads to spaghetti code.
+      score: 18
+      depth: 1
+    - type: comment
+      post_title: '{target.post_title}'
+      author: '{target.reply_author}.alt'
+      body: The singleton pattern exists for a reason. Dependency injection without
+        it leads to spaghetti code.
+      score: 35
+      depth: 2
+    - type: comment
+      post_title: '{target.post_title}'
+      author: '{target.reply_author}2'
+      body: The singleton pattern exists for a reason. Dependency injection without
+        it leads to spaghetti code.
+      score: 12
+      depth: 0
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts/*/comments'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      comment:
+        id: comment_fake_retry
+        post_id: '{target.post_id}'
+        parent_id: '{target.reply_target_id}'
+        author_name: TechNomad_42
+        body: '{target.reply_text}'
+        score: 1
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_edited: false
+        edited_at:
+        is_removed: false
+        is_collapsed: false
+        is_saved: false
+        is_submitter: false
+        vote_direction: 1
+        depth: 1
+        awards: []
+        flair_text:
+    behavior:
+      mode: once

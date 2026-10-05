@@ -1,0 +1,21 @@
+variant_id: gmail_compliance_settings__patience_v1
+base_task_id: gmail_compliance_settings_audit
+target_primitive: patience
+description: >
+  Progressive delays that escalate as the task progresses. First 3 API calls
+  are fast (1s), next 5 are moderate (3s), remaining are slow (5s). Agent must
+  calibrate patience at each stage, not just learn to wait once.
+injections:
+  - layer: network
+    params:
+      action: delay
+      url_pattern: "**/api/env/gmail/**"
+      behavior:
+        mode: progressive
+        stages:
+          - after_call: 0
+            delay_ms: 1500
+          - after_call: 3
+            delay_ms: 4500
+          - after_call: 8
+            delay_ms: 7000

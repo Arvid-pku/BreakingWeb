@@ -1,0 +1,137 @@
+task_id: booking_account_security_and_payment
+env_id: booking
+title: Account Security Overhaul and Payment Method Management
+instruction_template: "Complete the following account security and payment updates:\n\
+  1. Enable two-factor authentication in your account settings. 2. Find and remove\
+  \ the Mastercard ending in {target.remove_last_four}\n   (held by \"{target.remove_holder}\"\
+  ) from your payment methods.\n3. Add a new Visa card: number ending in 3333, expiry\
+  \ 06/30, holder name\n   \"Jordan Parker\".\n4. Set the new Visa card (ending in\
+  \ 3333) as your default payment method. 5. Update notification preferences: disable\
+  \ deal alerts and enable SMS\n   notifications.\n"
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 25
+primary_primitives:
+- exploration
+secondary_primitives: []
+start_path: /settings
+seed:
+  distractors: 8
+  actors: {}
+  steps:
+  - use: add_payment_method
+    params:
+      card_type: Mastercard
+      last_four: '5555'
+      expiry: 03/27
+      holder_name: Alex Parker
+      is_default: false
+    outputs:
+    - payment_method_id
+    - last_four
+  - use: set_settings
+    params:
+      two_factor_enabled: false
+      deal_alerts: true
+      sms_notifications: false
+    outputs:
+    - updated
+  targets:
+    remove_last_four: '5555'
+    remove_holder: Alex Parker
+    remove_pm_id: '{output.payment_method_id}'
+canonical_diff:
+  delete:
+  - entity: PaymentMethod
+    desc: Remove the Mastercard ending in 5555 held by Alex Parker
+    where:
+      id:
+        expr: x == target['remove_pm_id']
+  update:
+  - entity: PaymentMethod
+    desc: Previous default card loses default status when new Visa is set as default
+    where:
+      id:
+        expr: x == next((pm.id for pm in initial.payment_methods if pm.is_default),
+          '')
+    changes:
+      is_default:
+        eq: false
+  - entity: settings
+    desc: 2FA enabled, deal alerts disabled, SMS notifications enabled
+    where:
+      id: { any: true }
+    changes:
+      default_payment_id:
+        expr: >-
+          x == next(
+            (pm.id for pm in state.payment_methods
+             if pm.card_type == 'Visa' and pm.last_four == '3333' and pm.is_default),
+            ''
+          )
+      two_factor_enabled: { eq: true }
+      deal_alerts: { eq: false }
+      sms_notifications: { eq: true }
+      email_notifications: { expr: "x == initial.settings.email_notifications" }
+  create:
+  - entity: PaymentMethod
+    desc: Add new Visa card ending in 3333 set as default
+    properties:
+      card_type:
+        eq: Visa
+      last_four:
+        eq: '3333'
+      expiry:
+        eq: 06/30
+      holder_name:
+        eq: Jordan Parker
+      is_default:
+        eq: true
+  invariant:
+  - collection: state.payment_methods
+    filter: a.last_four != '3333' and not (a.last_four == '5555' and a.card_type ==
+      'Mastercard') and not (a.last_four == '4242' and a.card_type == 'Visa')
+    preserve: ALL
+  - collection: state.reservations
+    preserve: ALL
+  - collection: state.properties
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.saved_lists
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  named_invariants:
+  - name: Agent removed the Mastercard ending in 5555
+    ref: delete[0]
+    severity: high
+  - name: Agent added the new Visa card ending in 3333 as default
+    ref: create[0]
+    severity: high
+  - name: Settings updated (2FA on, deal alerts off, SMS on, email_notifications preserved)
+    ref: update[1]
+    severity: critical
+  - name: Agent did not modify other payment methods
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify reservations
+    ref: invariant[1]
+    severity: medium
+  - name: Agent did not modify properties
+    ref: invariant[2]
+    severity: low
+  - name: Agent did not create or modify reviews
+    ref: invariant[3]
+    severity: low
+  - name: Agent did not modify saved lists
+    ref: invariant[4]
+    severity: low
+  - name: Agent did not send or modify messages
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not create notifications
+    ref: invariant[6]
+    severity: low

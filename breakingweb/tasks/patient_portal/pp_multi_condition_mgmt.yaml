@@ -1,0 +1,202 @@
+task_id: pp_multi_condition_mgmt
+env_id: patient_portal
+title: Multi-Condition Coordination
+instruction_template: 'Manage your chronic-condition follow-up using only objective
+  portal actions: 1) Schedule one PCP appointment in the next available slot with
+  reason exactly "Hypertension medication review", 2) Schedule one cardiology appointment
+  in the next available slot with reason exactly "Quarterly cardiac review", 3) Schedule
+  one endocrinology appointment in the next available slot with reason exactly "Quarterly
+  diabetes review". The cardiology and endocrinology appointments must use approved
+  referrals. Do not send any messages, do not cancel any existing appointments, and
+  do not discontinue any prescriptions.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 45
+primary_primitives:
+- planning
+start_path: /appointments
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      - Coronary Artery Disease
+      allergies:
+      - Sulfa
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 7
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - neurology
+      - radiology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      interaction_pair: true
+    outputs:
+    - active_rx_ids
+  - use: referral_chain
+    params:
+      approved_count: 2
+      pending_count: 1
+      with_prior_auth: true
+      must_have_specialties:
+      - cardiology
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+    - pending_ref_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 2
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    cardio_provider_ids: '{output.providers_by_specialty.cardiology}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    active_rx_ids: '{output.active_rx_ids}'
+    approved_ref_ids: '{output.approved_ref_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+canonical_diff:
+  # Shape: three non-bijection creates on Appointment.
+  #   (a) PCP hypertension-review appointment in next available PCP slot.
+  #   (b) Cardiology quarterly-review appointment in next available cardiology
+  #       slot, linked to an approved cardiology referral.
+  #   (c) Endocrinology quarterly-review appointment in next available
+  #       endocrinology slot, linked to an approved endocrinology referral.
+  # Seed fixes approved_ref_ids[0] -> cardiology, approved_ref_ids[1] -> endocrinology
+  # via must_have_specialties: [cardiology, endocrinology], but the predicates
+  # check specialty via initial.referrals lookup so any approved referral with
+  # matching to_specialty is accepted.
+  create:
+    - entity: Appointment
+      desc: "Schedule one PCP appointment at the next available PCP slot with reason 'Hypertension medication review'"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Hypertension medication review"}
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id == target['pcp_id'] for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one cardiology appointment at the next available cardiology slot with an approved cardiology referral"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['cardio_provider_ids']"
+        reason: {eq: "Quarterly cardiac review"}
+        linked_referral_id:
+          expr: >
+            x is not None
+            and x in target['approved_ref_ids']
+            and any(r.id == x and r.status == 'approved' and r.to_specialty == 'cardiology' for r in initial.referrals)
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['cardio_provider_ids']
+                     for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+    - entity: Appointment
+      desc: "Schedule one endocrinology appointment at the next available endocrinology slot with an approved endocrinology referral"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x in target['endo_provider_ids']"
+        reason: {eq: "Quarterly diabetes review"}
+        linked_referral_id:
+          expr: >
+            x is not None
+            and x in target['approved_ref_ids']
+            and any(r.id == x and r.status == 'approved' and r.to_specialty == 'endocrinology' for r in initial.referrals)
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['endo_provider_ids']
+                     for s in p.available_slots)
+        type: {any: true}
+        notes: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    # Pre-existing appointments (upcoming + completed history) must not be
+    # cancelled or modified. New creates are scoped to IDs not in the
+    # initial snapshot.
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    # Prescriptions untouched (explicit instruction).
+    - collection: state.prescriptions
+      preserve: ALL
+    # No new patient messages ("do not send any messages").
+    - collection: state.messages
+      preserve: ALL
+    # Referrals remain as seeded; agent does not create / modify them.
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not discontinue or modify prescriptions"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+secondary_primitives: []

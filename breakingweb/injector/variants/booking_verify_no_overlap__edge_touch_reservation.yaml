@@ -1,0 +1,17 @@
+variant_id: booking_verify_no_overlap__edge_touch_reservation
+base_task_id: booking_verify_no_overlap
+target_primitive: verification
+description: An extra reservation starts the same day another stay ends, creating an edge-touch case that
+  is close but not actually overlapping. The agent must not cancel anything unless dates truly overlap.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: reservation
+      property_name: The Ritz London
+      check_in: '2026-06-05'
+      check_out: '2026-06-10'
+      status: confirmed
+      booked_days_ago: 3
+      confirmation_number: EDGE-601205

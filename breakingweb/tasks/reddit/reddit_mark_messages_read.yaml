@@ -1,0 +1,48 @@
+task_id: reddit_mark_messages_read
+env_id: reddit
+title: Mark All Messages as Read
+instruction_template: Go to your Messages inbox and mark all messages as read. Do not delete any messages or send any replies.
+difficulty: easy
+time_limit_seconds: 60
+expected_steps: 4
+primary_primitives:
+- backtracking
+start_path: /feed
+seed:
+  distractors: 0
+  actors: {}
+  steps: []
+  targets: {}
+canonical_diff:
+  # Positive update + invariants form. The update bijection iterates
+  # every initially-unread inbox message id and requires the agent to
+  # mark each one as read. Adding this positive entry flips
+  # constraint_only=False so the unaccounted-collateral sweep runs
+  # against sibling collections (matcher.py:330).
+  update:
+  - entity: Message
+    collection: messages
+    bijection:
+      over: "[m.id for m in initial.messages if not m.is_read]"
+      variable: v
+    desc: "Mark every unread inbox message as read"
+    where:
+      id: {expr: "x == v"}
+    changes:
+      is_read: {eq: true}
+  invariant:
+  - collection: state.subreddits
+    preserve: ALL
+  - collection: state.posts
+    preserve: ALL
+  - collection: state.comments
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+secondary_primitives: []

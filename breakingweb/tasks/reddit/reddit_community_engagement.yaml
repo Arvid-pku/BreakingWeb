@@ -1,0 +1,224 @@
+task_id: reddit_community_engagement
+env_id: reddit
+title: Multi-Community Engagement Workflow
+instruction_template: 'Complete all of the following community engagement tasks in order:
+
+  1. Subscribe to r/{target.join_subreddit} (you are not currently a member).
+
+  2. Create a new text post in r/{target.join_subreddit} with the title exactly: "{target.new_post_title}" and body exactly: "{target.new_post_body}".
+
+  3. Navigate to the post titled "{target.comment_post_title}" in r/{target.comment_subreddit} by u/{target.comment_post_author}. Upvote that post and add a top-level comment with the exact text: "{target.comment_text}".
+
+  4. Find and reply to the comment by u/{target.reply_author} on the same post (the comment that says "{target.reply_target_body}") with the exact text: "{target.reply_text}".
+
+  5. Go to Settings and change the default comment sort to "new" and switch the theme to "dark".
+
+  Do not downvote any posts. Do not unsubscribe from any communities.
+
+  '
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 40
+primary_primitives:
+- grounding
+secondary_primitives: []
+start_path: /feed
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: subscription_state
+    params:
+      unsubscribe:
+      - MachineLearning
+    outputs:
+    - subscriptions
+  - use: target_post
+    params:
+      subreddit: AskReddit
+      title: What common advice is actually terrible and you wish people would stop giving?
+      body: ''
+      author: QuantumPanda
+      score: 42000
+      flair_text:
+    outputs:
+    - post_id
+    - post_title
+    - subreddit_name
+  - use: target_comment
+    params:
+      post_id: '{output.post_id}'
+      body: Honey never spoils. Archaeologists have found 3000-year-old honey in Egyptian tombs that was still perfectly edible.
+      author: MidnightCoder
+      score: 8500
+    outputs:
+    - comment_id
+    - comment_body
+  - use: decoy_posts
+    params:
+      subreddit: AskReddit
+      count: 4
+      title_pattern: What's a {topic} that sounds unbelievable?
+      score_range:
+      - 10000
+      - 35000
+    outputs:
+    - decoy_post_ids
+  - use: comment_thread
+    params:
+      post_id: '{output.post_id}'
+      depth: 2
+      comments_per_level: 3
+      bodies:
+      - Octopuses have three hearts and blue blood.
+      - A day on Venus is longer than a year on Venus.
+      - The inventor of Pringles is buried in a Pringles can.
+      - Bananas are berries but strawberries aren't.
+      - Honey is essentially bee vomit.
+      - There are more trees on Earth than stars in the Milky Way.
+    outputs:
+    - comment_ids
+  targets:
+    join_subreddit: MachineLearning
+    new_post_title: 'Paper Discussion: Attention Is All You Need revisited in 2026'
+    new_post_body: It's been 9 years since the original transformer paper. How has the architecture evolved, and what are the most impactful modifications since then?
+    comment_subreddit: AskReddit
+    comment_post_title: '{output.post_title}'
+    comment_post_author: QuantumPanda
+    comment_post_id: '{output.post_id}'
+    comment_text: The mantis shrimp can punch with the force of a .22 caliber bullet and can see 16 types of color receptors (humans have 3).
+    reply_author: MidnightCoder
+    reply_target_comment_id: '{output.comment_id}'
+    reply_target_body: Honey never spoils
+    reply_text: This is one of my favorites! The key is the low moisture content and acidic pH that create an inhospitable environment for bacteria.
+    decoy_post_ids: '{output.decoy_post_ids}'
+    initial_subscriptions: '{output.subscriptions}'
+canonical_diff:
+  update:
+  - entity: Subreddit
+    desc: Subscribed to r/MachineLearning
+    where:
+      id:
+        expr: state.get_subreddit(x).name == target['join_subreddit']
+    changes:
+      is_subscribed:
+        eq: true
+  - entity: Post
+    desc: AskReddit post was upvoted
+    where:
+      id:
+        expr: x == target['comment_post_id']
+    changes:
+      vote_direction:
+        eq: 1
+  - entity: settings
+    desc: Settings updated
+    where: {id: {any: true}}
+    changes:
+      default_comment_sort: {eq: new}
+      theme: {eq: dark}
+  create:
+  - entity: Post
+    desc: Post created in r/MachineLearning with exact title and body
+    properties:
+      subreddit_name:
+        expr: x == target['join_subreddit']
+      title:
+        expr: x == target['new_post_title']
+      body:
+        expr: x == target['new_post_body']
+      author_name:
+        expr: x == state.owner_username
+      post_type:
+        eq: text
+      url:
+        eq: ''
+  - entity: Comment
+    desc: Exact top-level comment posted on AskReddit post
+    properties:
+      post_id:
+        expr: x == target['comment_post_id']
+      body:
+        expr: x == target['comment_text']
+      parent_id:
+        eq:
+      author_name:
+        expr: x == state.owner_username
+  - entity: Comment
+    desc: Exact reply posted to the MidnightCoder comment
+    properties:
+      post_id:
+        expr: x == target['comment_post_id']
+      parent_id:
+        expr: x == target['reply_target_comment_id']
+      body:
+        expr: x == target['reply_text']
+      author_name:
+        expr: x == state.owner_username
+  invariant:
+  - collection: state.subreddits
+    filter: 'True'
+    preserve: ALL
+  - collection: state.posts
+    filter: 'True'
+    preserve: ALL
+  - collection: state.comments
+    filter: 'True'
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.user_profiles
+    preserve: ALL
+  - collection: state.settings
+    filter: 'False'
+    preserve: ALL
+    comprehensive: true
+  named_invariants:
+  - name: Agent subscribed to r/MachineLearning
+    ref: update[0]
+    severity: high
+  - name: Agent upvoted the target AskReddit post
+    ref: update[1]
+    severity: high
+  - name: Agent posted the exact discussion post in r/MachineLearning
+    ref: create[0]
+    severity: high
+  - name: Agent posted the exact top-level comment on the AskReddit post
+    ref: create[1]
+    severity: high
+  - name: Agent posted the exact reply under the MidnightCoder comment
+    ref: create[2]
+    severity: high
+  - name: Agent did not unsubscribe from any existing communities
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify unrelated posts
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify existing comments
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not read, delete, or modify inbox messages
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not send any direct messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not mark or delete notifications
+    ref: invariant[5]
+    severity: low
+  - name: Agent did not modify user profiles
+    ref: invariant[6]
+    severity: low
+  constraints:
+  - expr: state.settings.default_feed_sort == initial.settings.default_feed_sort and state.settings.show_nsfw == initial.settings.show_nsfw and state.settings.blur_nsfw == initial.settings.blur_nsfw and state.settings.open_links_in_new_tab == initial.settings.open_links_in_new_tab and state.settings.compact_view == initial.settings.compact_view and state.settings.email_comment_reply == initial.settings.email_comment_reply and state.settings.email_post_reply == initial.settings.email_post_reply and state.settings.email_mentions == initial.settings.email_mentions and state.settings.email_messages == initial.settings.email_messages and state.settings.email_digest == initial.settings.email_digest and state.settings.show_online_status == initial.settings.show_online_status and state.settings.allow_followers == initial.settings.allow_followers and state.settings.show_active_communities == initial.settings.show_active_communities and state.settings.country == initial.settings.country and
+      state.settings.language == initial.settings.language and state.settings.auto_play_media == initial.settings.auto_play_media and state.settings.reduce_animations == initial.settings.reduce_animations
+    desc: Unmentioned settings preserved
+    severity: high
+  - expr: sorted(state.subscriptions) == sorted([s.id for s in state.subreddits if s.is_subscribed])
+    desc: Subscription primitive list matches subreddit subscription flags
+    severity: high

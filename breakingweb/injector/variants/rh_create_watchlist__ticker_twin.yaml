@@ -1,0 +1,31 @@
+variant_id: rh_create_watchlist__ticker_twin
+base_task_id: rh_create_watchlist
+target_primitive: grounding
+description: Search results include confusingly similar ticker symbols next to the real target. The agent
+  must verify the exact symbol before trading or adding it to a watchlist.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_stocks
+    multiplier: 2
+    decoys:
+    - symbol: KOF
+      name: Coca-Cola Femsa
+      price: 88.15
+    - symbol: KOX
+      name: Coca-Cola Income Trust
+      price: 41.05
+    - symbol: PGX
+      name: Invesco Preferred ETF
+      price: 11.85
+    - symbol: PGY
+      name: Pagaya Technologies
+      price: 15.4
+- layer: seed
+  params:
+    action: add_misleading_alert
+    alerts:
+    - symbol: KOX
+      condition: above
+      target_price: 41.00
+      status: triggered

@@ -1,0 +1,33 @@
+variant_id: gmail_multi_party_rsvp__grounding_v1
+base_task_id: gmail_multi_party_rsvp
+target_primitive: grounding
+description: Ambiguous RSVP responses and unclear attendance status make compiling
+  accurate list difficult
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+    - Maybe means no but sounds positive
+    - Will try to make it (not attending)
+    - Tentatively yes (later declined)
+    - Can't confirm yet (eventually no)
+    - Should be able to (did not attend)
+- layer: seed
+  params:
+    action: alias_entities
+    multiplier: 2
+    aliases:
+      - name: "S. Martinez"
+        email: "s.martinez@thornton.com"
+        note: "Team lead"
+      - name: "E. Novak"
+        email: "e.novak@thornton.com"
+        note: "Department contact"
+      - name: "N. Park"
+        email: "n.park@thornton.com"
+        note: "Project coordinator"
+- layer: server
+  params:
+    action: shuffle_contacts

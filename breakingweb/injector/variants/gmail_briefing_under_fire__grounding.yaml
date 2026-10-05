@@ -1,0 +1,47 @@
+variant_id: gmail_briefing_under_fire__grounding_v1
+base_task_id: gmail_briefing_under_fire
+target_primitive: grounding
+description: >
+  Adds 6 confusing decoy emails with similar senders and subjects to the 3 target threads to stress identification of correct messages.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    multiplier: 2
+    decoys:
+      - from_name: "J. Martinez"
+        from: "jmartinez@company.com"
+        subject: "Q4 Revenue Numbers"
+        body: "Preliminary revenue data for Q4 review."
+        timestamp: "2024-03-15T09:15:00Z"
+        labels: ["inbox"]
+      - from_name: "Dr. Sarah Chen"
+        from: "schen@company.com"
+        subject: "Product Launch Schedule"
+        body: "Updated product launch timeline and milestones."
+        timestamp: "2024-03-15T10:30:00Z"
+        labels: ["inbox"]
+      - from_name: "Marcus Johnson"
+        from: "mjohnson2@company.com"
+        subject: "Competitor Intel Report"
+        body: "Recent competitive intelligence findings."
+        timestamp: "2024-03-15T11:45:00Z"
+        labels: ["inbox"]
+      - from_name: "Jane Martinez"
+        from: "jane.martinez@company.com"
+        subject: "Revenue Forecast Update"
+        body: "Alternative revenue projection scenario."
+        timestamp: "2024-03-15T09:30:00Z"
+        labels: ["inbox"]
+      - from_name: "Sarah Chen PhD"
+        from: "sarah.chen@company.com"
+        subject: "Product Development Status"
+        body: "Current status of product development pipeline."
+        timestamp: "2024-03-15T10:45:00Z"
+        labels: ["inbox"]
+      - from_name: "M. Johnson"
+        from: "marcus.j@company.com"
+        subject: "Market Analysis Brief"
+        body: "Competitive market positioning analysis."
+        timestamp: "2024-03-15T12:00:00Z"
+        labels: ["inbox"]

@@ -1,0 +1,17 @@
+variant_id: lms_grade_appeal_preparation__discussion_search_noise_v2
+base_task_id: lms_grade_appeal_preparation
+target_primitive: exploration
+description: Search-space noise and a later LMS correction spread the clue trail across
+  surfaces. The agent must continue exploring until the real target is confirmed.
+injections:
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    title: 'Correction: use the latest LMS update'
+    body: 'Correction: the earlier LMS view was incomplete. Use the latest course
+      state before you finish.'
+    priority: normal
+    course_id: '{target.target_course_id}'
+    type: discussion_post
+    discussion_id: '{target.target_discussion_id}'

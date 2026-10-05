@@ -1,0 +1,34 @@
+variant_id: booking_expert_deal_hunter__property_shadow_v2
+base_task_id: booking_expert_deal_hunter
+target_primitive: grounding
+description: Search results include a same-city sibling property with a nearly identical name and overlapping
+  amenities. The agent must still book or compare the exact target hotel.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # Three near-typo siblings of target "Hotel V Nesplein Amsterdam".
+    # rs > target's 8.9 to lure rating sorts; none have Genius discount
+    # so "largest Genius discount" still uniquely points at the real one.
+    - type: property
+      name: Hotel V Nesplein Amsterdarm   # extra r in city
+      city: Amsterdam
+      country: Netherlands
+      price: 275.0
+      review_score: 9.1
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel V Nesplein Amstrdam     # drop e
+      city: Amsterdam
+      country: Netherlands
+      price: 278.0
+      review_score: 9.0
+      amenities: [Free WiFi, Restaurant, Air conditioning]
+    - type: property
+      name: Hotel V Nessplein Amsterdam   # extra s in Nesplein
+      city: Amsterdam
+      country: Netherlands
+      price: 282.0
+      review_score: 9.2
+      amenities: [Free WiFi, Restaurant, Air conditioning]

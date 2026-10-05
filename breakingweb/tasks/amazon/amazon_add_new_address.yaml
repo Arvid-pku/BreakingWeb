@@ -1,0 +1,117 @@
+task_id: amazon_add_new_address
+env_id: amazon
+title: Add a New Shipping Address
+instruction_template: 'Go to your account settings and add a new shipping address
+  with name "{target.full_name}", street "{target.street}", city "{target.city}",
+  state "{target.state_code}", and ZIP code "{target.zip}".
+
+  '
+difficulty: easy
+time_limit_seconds: 150
+expected_steps: 10
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 5
+  actors: {}
+  steps:
+  - use: checkout_ready
+    params:
+      items:
+      - name: Placeholder Notebook
+        price: 9.99
+        quantity: 1
+    outputs:
+    - cart_item_ids
+    - address_id
+    - payment_id
+    - expected_total
+  targets:
+    full_name: Jordan Lee
+    street: 742 Evergreen Terrace
+    city: Portland
+    state_code: OR
+    zip: '97201'
+canonical_diff:
+  create:
+  - entity: Address
+    desc: New address with target full_name, street, city, state, and ZIP
+    properties:
+      full_name: {expr: "x == target['full_name']"}
+      street_address: {expr: "target['street'] in x"}
+      city: {expr: "x == target['city']"}
+      state: {expr: "x == target['state_code']"}
+      zip_code: {expr: "x == target['zip']"}
+      apt_suite: {any: true}
+      country: {any: true}
+      is_default: {any: true}
+      phone: {any: true}
+  invariant:
+  - collection: state.addresses
+    filter: "a.full_name != target['full_name']"
+    preserve: ALL
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify other saved addresses
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify product catalog
+    ref: invariant[1]
+    severity: critical
+  - name: Agent did not modify cart
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

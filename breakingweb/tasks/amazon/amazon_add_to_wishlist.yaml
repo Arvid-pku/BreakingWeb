@@ -1,0 +1,119 @@
+task_id: amazon_add_to_wishlist
+env_id: amazon
+title: Add a Product to Wishlist
+instruction_template: >
+  Find the product "{target.product_name}" and add it to your wishlist.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 7
+primary_primitives:
+- grounding
+start_path: /
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: featured_product
+    params:
+      name: Noise Cancelling Headphones
+      brand: AudioPeak
+      category: Electronics
+      price: 149.99
+      rating: 4.6
+      features:
+      - Active noise cancellation
+      - 40-hour battery life
+      - Foldable design
+      - Built-in microphone
+      variants: []
+      in_stock: true
+    outputs:
+    - product_id
+    - product_name
+    - product_price
+  - use: product_catalog
+    params:
+      category: Electronics
+      count: 5
+      price_range:
+      - 50.0
+      - 250.0
+    outputs:
+    - product_ids
+  targets:
+    product_name: '{output.product_name}'
+    product_id: '{output.product_id}'
+canonical_diff:
+  create:
+  - entity: wishlist
+    desc: Target product added to wishlist
+    properties:
+      value: { expr: "x == target['product_id']" }
+  invariant:
+  - collection: state.products
+    preserve: ALL
+  - collection: state.cart_items
+    preserve: ALL
+  - collection: state.addresses
+    preserve: ALL
+  - collection: state.payment_methods
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.reviews
+    preserve: ALL
+  - collection: state.returns
+    preserve: ALL
+  - collection: state.promo_codes
+    preserve: ALL
+  - collection: state.questions
+    preserve: ALL
+  - collection: state.gift_cards
+    preserve: ALL
+  - collection: state.notifications
+    preserve: ALL
+  - collection: state.wishlist
+    filter: "a.value != target['product_id']"
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify product catalog
+    ref: invariant[0]
+    severity: critical
+  - name: Agent did not add items to cart instead of wishlist
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify saved addresses
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify payment methods
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not place orders
+    ref: invariant[4]
+    severity: high
+  - name: Agent did not write product reviews
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not create return requests
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not apply or modify promo codes
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not create Q&A posts
+    ref: invariant[8]
+    severity: medium
+  - name: Agent did not create or modify gift cards
+    ref: invariant[9]
+    severity: medium
+  - name: Agent did not create notifications
+    ref: invariant[10]
+    severity: low
+  - name: Agent did not modify wishlist
+    ref: invariant[11]
+    severity: medium
+  - name: Agent did not modify account settings
+    ref: invariant[12]
+    severity: medium

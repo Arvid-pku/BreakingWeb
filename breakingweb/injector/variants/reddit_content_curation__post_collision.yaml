@@ -1,0 +1,89 @@
+variant_id: reddit_content_curation__post_collision
+base_task_id: reddit_content_curation
+target_primitive: grounding
+description: Three lookalike r/technology subreddits collide on the GPT-5 save
+  target's subscriber count and description, plus same-title decoy posts; the
+  agent must engage with the canonical r/technology thread and create its post
+  in the canonical r/Piracy. Pair with silent_fail (fail_count:2) on the
+  create-post endpoint so the first two submissions silently no-op and the agent
+  must verify via the feed.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: post
+      subreddit: technology
+      title: '{target.save_title}'
+      author: shadow_mod
+      score: 1440
+      comments: 72
+      is_saved: false
+      body: Near-duplicate GPT-5 announcement with the exact same title; alternate
+        author. Distinct post — verify body and author before saving.
+    - type: subreddit
+      name: Technology
+      display_name: r/Technology
+      description: Subreddit dedicated to the news and discussion of technology.
+        Case-differing sibling community — distinct URL, near-identical display to
+        the real sub.
+      subscribers: 14912901
+    - type: post
+      subreddit: Technology
+      title: '{target.save_title}'
+      author: lookalike_helper
+      score: 5210
+      comments: 88
+      is_saved: false
+      body: Same title in a case-differing lookalike community.
+    - type: subreddit
+      name: technology_
+      display_name: r/technology_
+      description: Underscore-suffixed lookalike of r/technology with mirrored
+        subscriber count.
+      subscribers: 14000000
+    - type: post
+      subreddit: technology_
+      title: '{target.save_title}'
+      author: crosspost_helper
+      score: 6420
+      comments: 178
+      is_saved: false
+      body: Same title in an underscore-suffixed lookalike community.
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/reddit/posts'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      post:
+        id: post_fake_retry
+        subreddit_id: sub_piracy
+        subreddit_name: '{target.join_sub}'
+        author_name: TechNomad_42
+        author_is_op: true
+        title: '{target.new_title}'
+        body: '{target.new_body}'
+        url: ''
+        post_type: text
+        score: 1
+        upvote_ratio: 1.0
+        comment_count: 0
+        created_at: '2026-04-26T08:00:00+00:00'
+        is_pinned: false
+        is_locked: false
+        is_removed: false
+        is_edited: false
+        is_spoiler: false
+        is_nsfw: false
+        flair_text:
+        flair_color:
+        awards: []
+        is_saved: false
+        is_hidden: false
+        vote_direction: 1
+        permalink: '/r/{target.join_sub}/comments/post_fake_retry'
+    behavior:
+      mode: once

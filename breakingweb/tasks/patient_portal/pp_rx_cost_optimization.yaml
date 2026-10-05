@@ -1,0 +1,139 @@
+task_id: pp_rx_cost_optimization
+env_id: patient_portal
+title: Prescription Cost Optimization
+instruction_template: Your plan offers several mail-order pharmacies, and their
+  90-day supply costs are close together. Compare every mail-order pharmacy and
+  identify the single one with the lowest 90-day supply cost (if two are tied, the
+  cheapest is still uniquely determined). Then transfer every active prescription
+  that is currently filled at a retail (non-mail-order) pharmacy AND still has at
+  least one refill remaining to that lowest-cost mail-order pharmacy. Do not
+  transfer any active prescription that has zero refills remaining, even if it is
+  currently at a retail pharmacy, and do not transfer any prescription that is
+  already at a mail-order pharmacy. An expired prescription that shares the name of
+  one of your active medications is not eligible and must be left untouched. Do not
+  change your default pharmacy, do not send any messages, do not request a renewal,
+  and do not modify any expired or other prescription.
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 22
+primary_primitives:
+- grounding
+start_path: /medications
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - High Cholesterol
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 4
+      specialties:
+      - pcp
+      - cardiology
+      - billing
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 3
+      include_mail_order: true
+      mail_order_count: 3
+      mail_order_costs_override:
+      - 22
+      - 21
+      - 35
+    outputs:
+    - pharmacy_ids
+    - default_pharmacy_id
+    - mail_order_pharmacy_id
+    - mail_order_pharmacy_ids
+    - mail_order_costs
+    - cheapest_mail_order_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 6
+      expired_count: 2
+      zero_refill_count: 2
+      retail_refillable_pin_count: 4
+      mail_order_active_count: 1
+      retail_zero_refill_count: 2
+      expired_target_decoy: true
+      target_medication_name: Atorvastatin
+      target_exclude_mail_order: true
+    outputs:
+    - active_rx_ids
+    - target_rx_id
+    - retail_refillable_active_rx_ids
+  targets:
+    active_rx_ids: '{output.active_rx_ids}'
+    target_rx_id: '{output.target_rx_id}'
+    default_pharmacy_id: '{output.default_pharmacy_id}'
+    mail_order_pharmacy_id: '{output.mail_order_pharmacy_id}'
+    mail_order_pharmacy_ids: '{output.mail_order_pharmacy_ids}'
+    cheapest_mail_order_pharmacy_id: '{output.cheapest_mail_order_pharmacy_id}'
+    retail_refillable_active_rx_ids: '{output.retail_refillable_active_rx_ids}'
+canonical_diff:
+  update:
+    - entity: Prescription
+      desc: "Transfer each retail, still-refillable active prescription to the lowest-cost mail-order pharmacy"
+      bijection:
+        over: "target['retail_refillable_active_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        pharmacy_id: {expr: "x == target['cheapest_mail_order_pharmacy_id']"}
+  invariant:
+    - collection: state.prescriptions
+      filter: "a.id not in target['retail_refillable_active_rx_ids']"
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+    - collection: state.messages
+      filter: "a.id in {x.id for x in initial.messages}"
+      preserve: ALL
+    - collection: state.appointments
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not transfer zero-refill, mail-order, or expired prescriptions, and modified no other rx"
+      ref: invariant[0]
+      severity: critical
+    - name: "Agent did not change the default pharmacy or modify any pharmacy record"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send new messages, request a renewal, or modify existing messages"
+      ref: invariant[2]
+      severity: critical
+    - name: "Agent did not create, cancel, or modify appointments"
+      ref: invariant[3]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[4]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[5]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[6]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[7]
+      severity: high
+secondary_primitives: []

@@ -1,0 +1,35 @@
+variant_id: lms_waitlist_strategy__course_clutter_v1
+base_task_id: lms_waitlist_strategy
+target_primitive: exploration
+description: Extra course noise expands the LMS search surface. All enrolled
+  courses remain visible; 2-3 decoy catalog courses with similar codes/titles are
+  added so the agent must keep exploring until it finds the real target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: course
+      course_code: COURSE-ALT
+      title: COURSE Alternate Section
+      status: enrolled
+    - type: course
+      course_code: COURSE-LAB
+      title: COURSE Lab Companion Section
+      status: catalog
+    - type: course
+      course_code: COURSE-SEM
+      title: COURSE Seminar Add-on
+      status: catalog
+    - type: announcement
+      title: COURSE registration note
+      body: Archived enrollment reminder for a similar course code.
+      priority: normal
+# NOTE (audit_reports/w05.md): removed stale_data network injection.
+# The React courses list does not re-fetch after a stale empty response,
+# so the first-call empty body erased the agent's enrolled courses
+# (CS101/MATH201/ENG102) and left only the waitlisted one — making
+# the "check prerequisites / assess load" steps impossible. The seed
+# decoys (one extra enrolled alternate section plus catalog-only
+# decoys and an archival announcement) exercise the exploration
+# primitive while leaving every real enrolled course visible.

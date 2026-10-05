@@ -1,0 +1,75 @@
+task_id: rh_consolidate_recurring
+env_id: robinhood
+title: Consolidate Duplicate Recurring Investments
+instruction_template: Review your recurring investments. Find any stocks that have
+  multiple recurring investments set up. For each, consolidate them into a single
+  monthly investment with the combined amount. Always set the consolidated frequency
+  to monthly regardless of the originals' frequency.
+difficulty: hard
+time_limit_seconds: 280
+expected_steps: 12
+primary_primitives:
+- planning
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - AAPL
+      - MSFT
+      - VOO
+      - SCHD
+    outputs: []
+  - use: recurring_investments
+    params:
+      count: 6
+      symbols:
+      - AAPL
+      - AAPL
+      - MSFT
+      - MSFT
+      - VOO
+      - SCHD
+      frequencies:
+      - weekly
+      - monthly
+    outputs:
+    - duplicate_symbols
+    - combined_amounts
+  targets:
+    duplicate_symbols: '{output.duplicate_symbols}'
+    combined_amounts: '{output.combined_amounts}'
+canonical_diff:
+  create:
+  - entity: recurring_investments
+    desc: New consolidated monthly recurring investment for each duplicate symbol
+    bijection:
+      over: "target['duplicate_symbols']"
+      variable: v
+    properties:
+      symbol: {expr: "x == v"}
+      frequency: {eq: monthly}
+      status: {eq: active}
+      amount: {expr: "abs(float(x) - float(target['combined_amounts'][v])) < 0.01"}
+  delete:
+  - entity: recurring_investments
+    desc: Old duplicate recurring investments removed
+    bijection:
+      over: "[ri for ri in initial.recurring_investments if ri.symbol in target['duplicate_symbols'] and not ri.id.startswith('ri_decoy_')]"
+      variable: v
+    where:
+      id: {expr: "x == v.id"}
+  invariant:
+  - collection: state.recurring_investments
+    filter: "a.symbol not in target['duplicate_symbols'] and not a.id.startswith('ri_decoy_')"
+    preserve: ALL
+  - collection: state.positions
+    preserve: ALL
+  - collection: state.orders
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+secondary_primitives: []

@@ -1,0 +1,146 @@
+task_id: pp_message_about_lab
+env_id: patient_portal
+title: Schedule Follow-Up for Abnormal Lab
+instruction_template: Find your most recent HbA1c result. Schedule exactly one follow-up
+  appointment with the provider who ordered that result, using that provider's next
+  available slot. Use the appointment reason exactly "HbA1c result follow-up". Do
+  not send any messages.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 8
+primary_primitives:
+- grounding
+start_path: /labs
+seed:
+  distractors: 8
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - endocrinology
+      - cardiology
+      - dermatology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 5
+      pending_count: 1
+      abnormal_count: 1
+      trend_test: HbA1c
+      trend_values:
+      - '6.1'
+      - '6.8'
+      - '7.4'
+    outputs:
+    - abnormal_lab_ids
+    - pending_lab_ids
+    - trend_lab_ids
+  # PP-4: scheduling with the lab's ordering provider (an endocrinologist
+  # in the seed) requires an approved referral; seed one upfront so the
+  # task is solvable without the messaging path the instruction forbids.
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      must_have_specialties:
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one appointment with the ordering provider of the most-recent HbA1c result, using their next available slot"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "HbA1c result follow-up"}
+        provider_id:
+          expr: >-
+            x == max(
+              (lab for lab in initial.lab_results if lab.test_name == 'HbA1c'),
+              key=lambda lab: lab.collected_at,
+            ).ordered_by
+        datetime:
+          expr: >-
+            x == min(
+              s.datetime
+              for p in initial.providers
+              if p.id == max(
+                (lab for lab in initial.lab_results if lab.test_name == 'HbA1c'),
+                key=lambda lab: lab.collected_at,
+              ).ordered_by
+              for s in p.available_slots
+            )
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not send any messages"
+      ref: invariant[1]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

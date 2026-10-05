@@ -1,0 +1,163 @@
+task_id: lms_final_exam_prep_plan
+env_id: lms
+title: Final Exam Prep — Drop Impossible Courses, Submit for Achievable Ones
+instruction_template: 'For each course: find the final exam date, check the exam weight,
+  determine your current grade, and compute the minimum final score needed for a B
+  (80%). For any course where achieving a B requires more than 95% on the final (nearly
+  impossible), drop that course. For the remaining courses, submit "exam_prep.pdf"
+  for the final exam assignment to reserve your study slot.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 40
+primary_primitives:
+- verification
+start_path: /dashboard
+seed:
+  distractors: 2
+  steps:
+  - use: student_profile
+    params: {}
+    outputs:
+    - student_id
+  - use: course_catalog
+    params:
+      count: 4
+      must_include:
+      - CS101
+      - MATH201
+      - ENG102
+      - PHYS201
+      vary_late_policies: true
+    outputs:
+    - course_ids
+    - course_codes
+  - use: enrollment_set
+    params: {}
+    outputs:
+    - enrollment_ids
+  - use: assignment_battery
+    params:
+      per_course_count: 7
+      graded_fraction: 0.6
+    outputs:
+    - assignment_ids
+  - use: grade_book
+    params: {}
+    outputs:
+    - grade_ids
+    - current_weighted_scores
+    - impossible_b_course_ids
+    - impossible_b_enrollment_ids
+    - final_exam_assignment_ids
+    - achievable_final_exam_assignment_ids
+    - achievable_course_ids
+  - use: calendar_events
+    params:
+      include_recurring: false
+    outputs:
+    - event_ids
+  targets:
+    impossible_b_course_ids: '{output.impossible_b_course_ids}'
+    impossible_b_enrollment_ids: '{output.impossible_b_enrollment_ids}'
+    final_exam_assignment_ids: '{output.final_exam_assignment_ids}'
+    achievable_final_exam_assignment_ids: '{output.achievable_final_exam_assignment_ids}'
+    achievable_course_ids: '{output.achievable_course_ids}'
+    course_codes: '{output.course_codes}'
+canonical_diff:
+  update:
+  - entity: Enrollment
+    desc: Drop every course where a B requires more than 95% on the final
+    bijection:
+      over: "target['impossible_b_enrollment_ids'].split(',') if target['impossible_b_enrollment_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      status:
+        eq: dropped
+  - entity: Assignment
+    desc: Submit exam_prep.pdf for each achievable course's final exam assignment
+    bijection:
+      over: "target['achievable_final_exam_assignment_ids'].split(',') if target['achievable_final_exam_assignment_ids'] else []"
+      variable: v
+    where:
+      id:
+        expr: "x == v"
+    changes:
+      file_name:
+        eq: exam_prep.pdf
+      attempt_count:
+        expr: "x >= initial.get_assignment(v).attempt_count + 1"
+      submitted_at:
+        expr: "x is not None and x >= session_start"
+  invariant:
+  - collection: state.enrollments
+    filter: "a.id not in (target['impossible_b_enrollment_ids'].split(',') if target['impossible_b_enrollment_ids'] else [])"
+    preserve: ALL
+  - collection: state.assignments
+    filter: "a.id not in (target['achievable_final_exam_assignment_ids'].split(',') if target['achievable_final_exam_assignment_ids'] else [])"
+    preserve: ALL
+  - collection: state.courses
+    preserve: ALL
+  - collection: state.modules
+    preserve: ALL
+  - collection: state.discussions
+    preserve: ALL
+  - collection: state.discussion_posts
+    preserve: ALL
+  - collection: state.peer_reviews
+    preserve: ALL
+  - collection: state.announcements
+    preserve: ALL
+  - collection: state.grades
+    preserve: ALL
+  - collection: state.calendar_events
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  constraints:
+  - desc: Agent did not send messages
+    expr: "len(state.sent_messages) == 0"
+    severity: medium
+  named_invariants:
+  - name: Agent dropped every impossible B course
+    ref: update[0]
+    severity: high
+  - name: Agent submitted exam_prep.pdf for each achievable final exam
+    ref: update[1]
+    severity: high
+  - name: Agent did not modify other enrollments
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not modify other assignments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify course records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not modify modules
+    ref: invariant[3]
+    severity: medium
+  - name: Agent did not modify discussions
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not create or edit discussion posts
+    ref: invariant[5]
+    severity: medium
+  - name: Agent did not alter peer reviews
+    ref: invariant[6]
+    severity: medium
+  - name: Agent did not modify announcements
+    ref: invariant[7]
+    severity: medium
+  - name: Agent did not modify grades
+    ref: invariant[8]
+    severity: high
+  - name: Agent did not modify calendar events
+    ref: invariant[9]
+    severity: low
+  - name: Agent did not send messages
+    ref: invariant[10]
+    severity: medium
+secondary_primitives: []

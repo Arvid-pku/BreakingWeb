@@ -1,0 +1,63 @@
+variant_id: pp_cancel_duplicate_appointments__appointment_cancel_retry_v1
+base_task_id: pp_cancel_duplicate_appointments
+target_primitive: backtracking
+description: >-
+  A two-layer backtracking gauntlet on the duplicate-cancellation flow. (1) The
+  first TWO cancel writes (>= the two cancellations the task requires) silently
+  fail: the backend returns a 200 whose body advertises status=cancelled AND the
+  exact cancellation_reason, so a content-blind read of the response looks fully
+  successful even though nothing persisted. The agent must verify that BOTH
+  duplicate appointments actually changed on the real backend, not just one, and
+  re-issue every cancel that did not land. (2) When the agent re-reads the
+  /appointments list to verify, the first two list reads are served from a stale
+  (pre-cancel) snapshot, so a verification pass that trusts the list view sees the
+  cluster still 'scheduled' and cannot tell which writes landed — forcing a
+  genuine reconcile-and-retry loop before declaring the task done. Both layers are
+  scoped to the cancel + appointments-list endpoints so unrelated reads stay clean.
+injections:
+# Layer 1 — silent_fail on cancel: the first two cancel POSTs (a global counter,
+# >= the two required cancellations) are faked. The misleading body echoes the
+# exact post-state the task grades on (status + cancellation_reason), so an agent
+# that trusts the response body declares success with zero appointments actually
+# cancelled. fail_count: 2 (== the number of cancellations) guarantees BOTH
+# initial writes are corrupted, not just one — partial verification leaves at
+# least one bijection slot unsatisfied (matched 1 of 2 -> still fails).
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/patient_portal/appointments/*/cancel'
+    methods:
+    - POST
+    fail_count: 2
+    response_body:
+      id: apt_d4f1c823a9
+      provider_id: prov_a82c441f
+      datetime: '2026-06-15T10:00:00+00:00'
+      duration_minutes: 30
+      type: in-person
+      status: cancelled
+      reason: Follow-up
+      notes: ''
+      linked_referral_id: null
+      pre_auth_status: not_required
+      booked_at: '2026-04-26T08:00:00+00:00'
+      location: Main Campus
+      cancellation_reason: Duplicate booking - keeping earliest
+    behavior:
+      mode: once
+# Layer 2 — stale_data on the appointments LIST: the first two GET /appointments
+# calls are replayed from the snapshot captured on the FIRST read (before any
+# cancel landed), so the cluster still shows status='scheduled'. An agent that
+# verifies by re-reading the list trusts a stale view that masks which cancel
+# writes actually persisted, and must reconcile against the per-appointment
+# detail / re-cancel rather than declare done off the list view. stale_count: 2
+# covers the agent's pre-read plus the first post-cancel verification read.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/patient_portal/appointments'
+    methods:
+    - GET
+    stale_count: 2
+    behavior:
+      mode: once

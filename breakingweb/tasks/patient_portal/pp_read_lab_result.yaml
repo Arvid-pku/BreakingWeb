@@ -1,0 +1,109 @@
+task_id: pp_read_lab_result
+env_id: patient_portal
+title: Check Lab Result and Schedule PCP Follow-Up
+instruction_template: Review your most recent LDL Cholesterol result. If it is above 130 mg/dL, schedule exactly one follow-up
+  appointment with your PCP at the next available slot using the appointment reason exactly "LDL result follow-up". If it
+  is at or below 130 mg/dL, do nothing. Do not send any messages.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 6
+primary_primitives:
+- grounding
+start_path: /labs
+seed:
+  distractors: 13
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - High Cholesterol
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 4
+      specialties:
+      - pcp
+      - cardiology
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 3
+      abnormal_count: 3
+      trend_test: LDL Cholesterol
+      trend_values:
+      - '158'
+    outputs:
+    - resulted_lab_ids
+    - abnormal_lab_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+canonical_diff:
+  create:
+  - entity: Appointment
+    desc: Schedule one PCP follow-up appointment at the next available slot for the abnormal LDL result
+    properties:
+      status:
+        eq: scheduled
+      provider_id:
+        expr: x == target['pcp_id']
+      reason:
+        eq: LDL result follow-up
+      datetime:
+        expr: "x == min(s.datetime for p in initial.providers\n         if p.id == target['pcp_id'] for s in p.available_slots)\n"
+  invariant:
+  - collection: state.prescriptions
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.appointments
+    filter: a.id in {x.id for x in initial.appointments}
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not modify prescriptions
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not send any messages
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not touch insurance claims
+    ref: invariant[4]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[5]
+    severity: high
+  - name: Agent did not cancel or modify pre-existing appointments
+    ref: invariant[6]
+    severity: high
+secondary_primitives: []

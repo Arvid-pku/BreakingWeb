@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Clothing product">
+  <rect width="400" height="400" fill="#f7f7f7"/>
+  <path d="M148 82l34 24h36l34-24 78 48-38 62-34-18v142H142V174l-34 18-38-62z" fill="#334155" stroke="#1f2937" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M182 106c4 20 32 20 36 0" fill="none" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+  <rect x="166" y="198" width="68" height="16" rx="8" fill="#ff9900"/>
+</svg>

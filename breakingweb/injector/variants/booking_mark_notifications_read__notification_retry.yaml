@@ -1,0 +1,18 @@
+variant_id: booking_mark_notifications_read__notification_retry
+base_task_id: booking_mark_notifications_read
+target_primitive: verification
+description: First write returns a fake successful response without persisting. The agent must verify the change actually
+  took effect on the real backend (e.g., re-fetch the entity and check the field) before declaring done.
+injections:
+- layer: network
+  params:
+    action: silent_fail
+    url_pattern: '**/api/env/booking/notifications/read-all'
+    methods:
+    - POST
+    fail_count: 1
+    response_body:
+      ok: true
+      marked_read: 0
+    behavior:
+      mode: once

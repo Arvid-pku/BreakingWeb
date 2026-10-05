@@ -1,0 +1,17 @@
+variant_id: rh_options_covered_call__ticker_twin
+base_task_id: rh_options_covered_call
+target_primitive: grounding
+description: Ticker search includes lookalikes next to the covered-call underlying. The agent must open
+  the exact stock before selecting the options chain and selling the call.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_stocks
+    multiplier: 2
+    decoys:
+    - symbol: AAPLX
+      name: Apple Holdings Trust
+      price: 189.4
+    - symbol: APLE
+      name: Apple Hospitality REIT
+      price: 16.9

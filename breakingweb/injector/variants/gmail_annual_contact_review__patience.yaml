@@ -1,0 +1,22 @@
+variant_id: gmail_annual_contact_review__patience_v1
+base_task_id: gmail_annual_contact_review
+target_primitive: patience
+description: >
+  First 3 contact delete calls and first 2 contact update calls return 503 to stress retry behavior during bulk contact operations.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/contacts/*"
+    error_status: 503
+    error_count: 3
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/gmail/contacts/*/update"
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once

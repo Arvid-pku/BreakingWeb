@@ -1,0 +1,13 @@
+variant_id: gmail_action_item_extraction__click_swallow
+base_task_id: gmail_action_item_extraction
+target_primitive: verification
+description: >
+  First click on any primary action button is swallowed. Agent must verify
+  that state actually changed and retry if not.
+injections:
+  - layer: client
+    params:
+      action: click_swallow
+      selector: "button[type=submit], button.primary, [data-wab-submit]"
+      swallow_count: 1
+      behavior: { mode: persistent }

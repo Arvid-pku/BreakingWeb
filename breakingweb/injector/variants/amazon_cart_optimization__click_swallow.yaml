@@ -1,0 +1,42 @@
+variant_id: amazon_cart_optimization__click_swallow
+base_task_id: amazon_cart_optimization
+target_primitive: verification
+description: >
+  First click on the Add-to-Cart / Place-order button is swallowed, and the
+  first two cart-update PUTs return a fake 200 with a realistic cart_item body
+  but never persist. The agent must verify cart state via re-read (not by
+  trusting the success toast or a single retry) before declaring done.
+injections:
+  - layer: client
+    params:
+      action: click_swallow
+      # The Amazon SPA uses semantic aria-labels for the critical submit
+      # buttons: "Add to Cart" on ProductDetail, "Place your simulated
+      # order" on Checkout. Match those plus the dedicated CSS classes
+      # on the place-order / cart-checkout buttons so the injection
+      # covers both the product-detail and checkout flows.
+      selector: >-
+        [aria-label="Add to Cart"],
+        [aria-label="Place your simulated order"],
+        .checkout-summary-box__place-order,
+        .cart-summary-box__checkout
+      swallow_count: 1
+      behavior: { mode: persistent }
+  - layer: network
+    params:
+      action: silent_fail
+      url_pattern: '**/api/env/amazon/cart/*'
+      methods:
+        - PUT
+      fail_count: 2
+      response_body:
+        cart_item:
+          id: cart_fake_retry
+          product_id: prod_fake_retry
+          product_name: Pending cart update
+          quantity: 1
+          unit_price: 0.0
+          variant_selections: {}
+          added_at: '2026-04-26T08:00:00+00:00'
+      behavior:
+        mode: once

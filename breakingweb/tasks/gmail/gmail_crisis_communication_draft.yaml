@@ -1,0 +1,160 @@
+task_id: gmail_crisis_communication_draft
+env_id: gmail
+title: Crisis Communication Draft
+instruction_template: 'A PR incident has generated multiple email threads. Find and
+  read the following:
+
+  (1) The original customer complaint from {target.complainant_email} with subject
+  containing "{target.complaint_subject}".
+
+  (2) The internal legal advice email from {target.legal_counsel} with subject containing
+  "Legal Guidance — {target.incident_name}".
+
+  (3) The two draft response threads from the comms team. Find the two draft response
+  emails: one from {target.comms_author_a} with subject "{target.draft_a_subject}"
+  and one from {target.comms_author_b} with subject "{target.draft_b_subject}". Identify
+  which draft was approved by {target.approver_name} — exactly one draft''s thread
+  contains a reply from {target.approver_name} with the phrase "{target.approval_phrase}".
+  That is the approved draft. The other was rejected.
+
+
+  Then perform all of the following actions:
+
+  (a) Compose a new email to {target.complainant_email} only (no CC, no BCC) with
+  subject "Re: {target.complaint_subject}" using the body text from the approved draft
+  as the response.
+
+  (b) Forward the legal guidance email to {target.comms_lead_email}.
+
+  (c) Star the approved draft email and archive the rejected draft email.'
+difficulty: frontier
+time_limit_seconds: 720
+expected_steps: 65
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: crisis_communication_draft
+    params: {}
+    outputs:
+    - complainant_email
+    - legal_counsel
+    - comms_author_a
+    - comms_author_b
+    - approver_name
+    - comms_lead_email
+    - complaint_subject
+    - incident_name
+    - draft_a_subject
+    - draft_b_subject
+    - approval_phrase
+    - approved_snippet
+    - rejected_snippet
+    - complaint_id
+    - legal_id
+    - approved_draft_id
+    - rejected_draft_id
+    - unauthorized_approval_id
+    - decoy_old_complaint_id
+    - decoy_legal_general_id
+  targets:
+    complainant_email: '{output.complainant_email}'
+    legal_counsel: '{output.legal_counsel}'
+    comms_author_a: '{output.comms_author_a}'
+    comms_author_b: '{output.comms_author_b}'
+    approver_name: '{output.approver_name}'
+    comms_lead_email: '{output.comms_lead_email}'
+    complaint_subject: '{output.complaint_subject}'
+    incident_name: '{output.incident_name}'
+    draft_a_subject: '{output.draft_a_subject}'
+    draft_b_subject: '{output.draft_b_subject}'
+    approval_phrase: '{output.approval_phrase}'
+    approved_snippet: '{output.approved_snippet}'
+    rejected_snippet: '{output.rejected_snippet}'
+    complaint_id: '{output.complaint_id}'
+    legal_id: '{output.legal_id}'
+    approved_draft_id: '{output.approved_draft_id}'
+    rejected_draft_id: '{output.rejected_draft_id}'
+    unauthorized_approval_id: '{output.unauthorized_approval_id}'
+    decoy_old_complaint_id: '{output.decoy_old_complaint_id}'
+    decoy_legal_general_id: '{output.decoy_legal_general_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Compose external reply to complainant using approved draft body
+      count: 1
+      properties:
+        to:
+          expr: "x == [target['complainant_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['approved_snippet'] in x"
+    - entity: sent
+      desc: Forward legal guidance to comms lead
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['legal_id']"
+        to:
+          expr: "x == [target['comms_lead_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+  update:
+    - entity: emails
+      desc: Star the approved draft email
+      where:
+        id:
+          expr: "x == target['approved_draft_id']"
+      changes:
+        is_starred:
+          eq: true
+    - entity: emails
+      desc: Archive the rejected draft email
+      where:
+        id:
+          expr: "x == target['rejected_draft_id']"
+      changes:
+        archived:
+          eq: true
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in [target['approved_draft_id'], target['rejected_draft_id']]"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent sent external reply to complainant with approved draft
+      ref: create[0]
+      severity: high
+    - name: Agent forwarded legal guidance to comms lead
+      ref: create[1]
+      severity: high
+    - name: Agent starred the approved draft
+      ref: update[0]
+      severity: high
+    - name: Agent archived the rejected draft
+      ref: update[1]
+      severity: medium
+    - name: Agent did not modify other emails
+      ref: invariant[0]
+      severity: high

@@ -1,0 +1,88 @@
+variant_id: lms_study_around_exams__calendar_update_shadow_v2
+base_task_id: lms_study_around_exams
+target_primitive: state_tracking
+description: The live exam-course set must be held across many calendar reads while
+  the calendar endpoint intermittently returns a stale snapshot that wrongly pulls
+  two near-boundary non-exam courses INTO the 14-day window, and a correction notice
+  contradicts the live state. The agent must keep re-tracking the true exam-course
+  set rather than anchoring on any single (possibly stale) read.
+injections:
+# ── Load-bearing state_tracking stressor ───────────────────────────────────
+# The calendar read is the source of truth for the exam-course set. This makes
+# that read intermittently lie: on a seeded fraction of GETs it returns a stale
+# snapshot in which two REAL enrolled courses whose exams are actually JUST
+# OUTSIDE the 14-day window (first/second_non_exam_course_id) appear to have an
+# exam only 6 days out (in-window), while one true exam course's exam is dropped.
+# Because the mode is intermittent, a single re-read is NOT guaranteed to be
+# clean — the agent must read the calendar multiple times and reconcile the
+# flickering results to recover the true exam-course set. Backend state is never
+# mutated, so the canonical answer is unchanged; only an agent that anchors on a
+# stale read marks the wrong courses' announcements.
+- layer: network
+  params:
+    action: stale_data
+    url_pattern: '**/api/env/lms/calendar**'
+    stale_body:
+      items:
+      - id: evt_stale_exam_a
+        course_id: '{target.first_non_exam_course_id}'
+        title: 'Final Exam (rescheduled)'
+        event_type: exam
+        start_datetime: '{target.stale_exam_datetime}'
+        end_datetime: '{target.stale_exam_end_datetime}'
+        location: 'Exam Hall A'
+        recurrence: none
+        recurrence_end_date: null
+      - id: evt_stale_exam_b
+        course_id: '{target.second_non_exam_course_id}'
+        title: 'Final Exam (rescheduled)'
+        event_type: exam
+        start_datetime: '{target.stale_exam_datetime}'
+        end_datetime: '{target.stale_exam_end_datetime}'
+        location: 'Exam Hall B'
+        recurrence: none
+        recurrence_end_date: null
+    stale_count: 3
+    behavior:
+      mode: intermittent
+      probability: 0.5
+      seed: 42
+# ── Contradictory-update correction notice (load-bearing decoy) ─────────────
+# An URGENT announcement posted in a currently-NON-exam course (the day-15
+# near-boundary course) claiming its exam was moved into the window. It contains
+# no datum that survives a live-calendar re-check; an agent that trusts the
+# notice (or the stale read above) marks this course's unread announcements and
+# trips the critical near-boundary-decoy constraint. It is is_read=false so it
+# is itself a frozen sibling the agent must not touch.
+- layer: server
+  params:
+    action: add_lms_correction_notice
+    seed: 42
+    course_id: '{target.first_non_exam_course_id}'
+    title: 'URGENT: exam schedule correction'
+    body: 'Correction: our final exam has been moved up into the next two weeks.
+      Please review the latest calendar before acting on announcements.'
+    priority: urgent
+    is_read: false
+    type: announcement
+# ── Near-threshold unread decoys in the stale-injected courses ──────────────
+# Extra unread announcements in exactly the two courses the stale read pulls
+# in-window, so the wrong exam-course set looks internally consistent (it has
+# fresh unread announcements waiting). These are frozen siblings; marking any of
+# them read fails the critical near-boundary-decoy constraint and invariant[0].
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: announcement
+      course_id: '{target.first_non_exam_course_id}'
+      title: 'Exam logistics update'
+      body: 'Reminder about exam room assignments and what to bring.'
+      priority: urgent
+      is_read: false
+    - type: announcement
+      course_id: '{target.second_non_exam_course_id}'
+      title: 'Study session added'
+      body: 'An extra review session has been scheduled before the exam.'
+      priority: normal
+      is_read: false

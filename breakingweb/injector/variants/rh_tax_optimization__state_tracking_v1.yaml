@@ -1,0 +1,26 @@
+variant_id: rh_tax_optimization__state_tracking_v1
+base_task_id: rh_tax_optimization
+target_primitive: state_tracking
+description: >
+  Inject pending buy orders and misleading price alerts on the LOSER symbols
+  (not unrelated symbols) so the agent has to look past surface signals when
+  deciding which positions to harvest. Pending orders look superficially like
+  wash-sale risk but aren't (orders ≠ trades); alerts make selling feel risky.
+  Previously this variant targeted INTC/BA/NFLX/META which were never the
+  losers for any seed, so the noise didn't show up where the agent actually
+  looks — an annotator flagged "didn't feel any intervention".
+injections:
+- layer: seed
+  params:
+    action: add_noise_orders
+    count: 6
+    side: "buy"
+    symbols_from_target: loss_symbols
+- layer: seed
+  params:
+    action: add_misleading_alert
+    symbols_from_target: loss_symbols
+    alert_template:
+      condition: "below"
+      below_pct: "0.90"
+      status: "triggered"

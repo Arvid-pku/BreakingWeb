@@ -1,0 +1,104 @@
+variant_id: reddit_selective_vote_save__subreddit_shadow_v2
+base_task_id: reddit_selective_vote_save
+target_primitive: grounding
+description: >
+  Per-target lookalike posts: each of the four task subreddits gets a same-shape
+  lookalike post with near-identical wording (forcing exact-title grounding),
+  plus crossposts of the real target titles into wrong-but-plausible
+  subreddits (forcing exact-subreddit grounding). Previously this variant
+  added only a single lookalike subreddit + one crosspost, so 3 of the 4 task
+  steps had no per-step intervention — an annotator flagged "didn't feel any
+  intervention".
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    # ============================================================
+    # Lookalike subreddits (3 total) — official-sounding twins of the real ones.
+    # Agents that ground on subreddit name alone will be tempted by these.
+    # ============================================================
+    - type: subreddit
+      name: worldnewsofficial
+      display_name: r/worldnewsofficial
+      description: Official-sounding lookalike of r/worldnews — focuses on press-release-style world news.
+      subscribers: 88000
+    - type: subreddit
+      name: techinsider
+      display_name: r/techinsider
+      description: Lookalike of r/technology — industry analysis, startup coverage.
+      subscribers: 142000
+    - type: subreddit
+      name: scienceupdates
+      display_name: r/scienceupdates
+      description: Lookalike of r/science — research summaries and press digests.
+      subscribers: 91000
+
+    # ============================================================
+    # Step 1 — r/worldnews upvote target. Lookalike post in same sub + crosspost in lookalike sub.
+    # Real: "EU passes landmark right to disconnect law for all member states"
+    # ============================================================
+    - type: post
+      subreddit: worldnews
+      title: "EU advances landmark right-to-disconnect proposals across several member states"
+      author: bruxelles_today
+      score: 18400
+      comments: 412
+      body: Draft text circulating. Final adoption schedule still tentative.
+    - type: post
+      subreddit: worldnewsofficial
+      title: "{target.up_title}"
+      author: crosspost_bot
+      score: 212
+      comments: 24
+      body: Same title posted into the wrong, official-sounding subreddit.
+
+    # ============================================================
+    # Step 2 — r/technology downvote target. Lookalike post + crosspost in r/techinsider.
+    # Real: "Startup raised $100M to build AI that replaces software engineers"
+    # ============================================================
+    - type: post
+      subreddit: technology
+      title: "Startup secures $100M Series B for AI that augments software engineers"
+      author: vc_watch
+      score: 5100
+      comments: 287
+      body: Pitch deck stresses "augment, not replace" — distinct from the high-profile claim circulating elsewhere.
+    - type: post
+      subreddit: techinsider
+      title: "{target.down_title}"
+      author: crosspost_bot
+      score: 880
+      comments: 96
+      body: Crosspost into a lookalike industry-analysis subreddit.
+
+    # ============================================================
+    # Step 3 — r/science save (no vote) target. Lookalike post + crosspost in r/scienceupdates.
+    # Real: "Ancient DNA reveals Vikings were far more diverse than previously thought"
+    # ============================================================
+    - type: post
+      subreddit: science
+      title: "Ancient DNA suggests Vikings traveled further than previously thought"
+      author: archaeo_press
+      score: 12600
+      comments: 318
+      body: Different study — focuses on travel range rather than genetic diversity.
+    - type: post
+      subreddit: scienceupdates
+      title: "{target.save_title}"
+      author: crosspost_bot
+      score: 540
+      comments: 41
+      body: Crosspost of the real research summary into a lookalike subreddit.
+
+    # ============================================================
+    # Step 4 — r/gaming exact-comment target. Lookalike post with similar wording.
+    # Real: "After 500 hours I finally 100% completed Elden Ring DLC and I have thoughts"
+    # ============================================================
+    - type: post
+      subreddit: gaming
+      title: "After 500 hours I finally beat Elden Ring DLC and here are my thoughts"
+      author: AshenWanderer
+      score: 9400
+      comments: 612
+      body: Slightly different wording — "beat" instead of "100% completed" — easy to misidentify.

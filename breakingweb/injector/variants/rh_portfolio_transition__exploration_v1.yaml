@@ -1,0 +1,16 @@
+variant_id: rh_portfolio_transition__exploration_v1
+base_task_id: rh_portfolio_transition
+target_primitive: exploration
+description: >
+  Portfolio positions are shuffled and distractor notifications draw attention
+  away from the income-focused watchlist. The agent must explore the account
+  to locate the "Income Ideas" watchlist and identify its top-yield symbols
+  despite the noisy environment.
+injections:
+- layer: server
+  params:
+    action: shuffle_positions
+- layer: seed
+  params:
+    action: inject_distractor_notifications
+    count: 6

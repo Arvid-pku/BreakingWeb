@@ -1,0 +1,120 @@
+task_id: rh_live_stop_loss_execution
+env_id: robinhood
+title: Stop-Loss Order Execution
+instruction_template: You own 5 shares of NVDA. Set a stop-loss order at 8% below
+  the current price to protect against a downturn.
+difficulty: hard
+time_limit_seconds: 250
+expected_steps: 10
+primary_primitives:
+- state_tracking
+start_path: /
+seed:
+  distractors: 5
+  steps:
+  - use: stock_universe
+    params:
+      count: 20
+      must_include:
+      - NVDA
+      - AAPL
+      - MSFT
+    outputs: []
+  - use: portfolio_basic
+    params:
+      stocks:
+      - NVDA
+      quantities:
+      - '5'
+      cost_bases:
+      - '850.00'
+    outputs: []
+  targets: {}
+  price_trajectory:
+    tick_interval_seconds: 2
+    stocks:
+      NVDA:
+        keyframes:
+        - - 0
+          - 875.0
+        - - 25
+          - 800.0
+        - - 40
+          - 815.0
+        noise_pct: 0.3
+canonical_diff:
+  create:
+  - entity: orders
+    desc: NVDA stop-loss sell of 5 shares at ~8% below starting price, filled
+    properties:
+      symbol: {eq: NVDA}
+      side: {eq: sell}
+      order_type: {eq: stop}
+      quantity: {eq: 5}
+      stop_price: {expr: "x is not None and x >= initial.get_stock('NVDA').price * Decimal('0.86') and x <= initial.get_stock('NVDA').price * Decimal('0.94')"}
+      status: {eq: filled}
+      filled_quantity: {eq: 5}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: transactions
+    desc: Sell transaction recorded by the NVDA stop-loss fill
+    properties:
+      type: {eq: sell}
+      symbol: {eq: NVDA}
+      quantity: {eq: 5}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order-fill notification emitted by the NVDA stop trigger
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+  delete:
+  - entity: positions
+    desc: NVDA position fully liquidated by the stop-loss fill of all 5 shares
+    where:
+      symbol: {eq: NVDA}
+  invariant:
+  - collection: state.positions
+    filter: "a.symbol != 'NVDA'"
+    preserve: ALL
+  - collection: state.transactions
+    filter: "a.symbol is not None and a.symbol != 'NVDA'"
+    preserve: ALL
+  - collection: state.notifications
+    filter: "a.type != 'order_fill'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  - collection: state.transfers
+    preserve: ALL
+  - collection: state.options_positions
+    preserve: ALL
+  - collection: state.options_orders
+    preserve: ALL
+  - collection: state.recurring_investments
+    preserve: ALL
+  - collection: state.linked_banks
+    preserve: ALL
+  - collection: state.tax_documents
+    preserve: ALL
+  constraints:
+  - desc: NVDA stop-loss filled only after the stop threshold was reached
+    expr: any(o.symbol == 'NVDA' and o.side == 'sell' and o.order_type == 'stop'
+      and o.status == 'filled' and o.filled_tick is not None and o.filled_price
+      is not None and o.stop_price is not None and o.filled_price <=
+      o.stop_price for o in state.orders)
+    severity: critical
+secondary_primitives: []
+primitive_thesis: Measures planning, grounding, state_tracking by requiring exact
+  completion of the requested Robinhood workflow while ignoring distractor account
+  state.

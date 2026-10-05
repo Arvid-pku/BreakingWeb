@@ -1,0 +1,122 @@
+task_id: gmail_thread_archaeology
+env_id: gmail
+title: Thread Archaeology
+instruction_template: Find the email thread about '{target.thread_subject}' and read
+  through all the messages — the most important details are in the earlier messages,
+  not the latest one. Look for the action item assigned to a specific person and the
+  deadline mentioned. Forward the thread to that person with a note that includes
+  the deadline. CC their manager (also mentioned in the thread). Reply to the thread
+  confirming you have delegated the action item. Create a 'Pending Action' label and
+  apply it to the thread. Star it for follow-up.
+difficulty: hard
+time_limit_seconds: 420
+expected_steps: 48
+primary_primitives:
+- exploration
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: thread_archaeology
+    params: {}
+    outputs:
+    - thread_subject
+    - thread_email_id
+    - assignee_email
+    - assignee_name
+    - manager_email
+    - manager_name
+    - deadline
+    - wrong_person_email
+  targets:
+    thread_subject: '{output.thread_subject}'
+    thread_email_id: '{output.thread_email_id}'
+    assignee_email: '{output.assignee_email}'
+    assignee_name: '{output.assignee_name}'
+    manager_email: '{output.manager_email}'
+    manager_name: '{output.manager_name}'
+    deadline: '{output.deadline}'
+    wrong_person_email: '{output.wrong_person_email}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward thread to assignee with manager CC and deadline in body
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['thread_email_id']"
+        to:
+          expr: "x == [target['assignee_email']]"
+        cc:
+          expr: "x == [target['manager_email']]"
+        bcc:
+          eq: []
+        body:
+          expr: "target['deadline'] in x"
+    - entity: sent
+      desc: Reply to thread confirming delegation
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['thread_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['thread_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: labels
+      desc: Create Pending Action label
+      count: 1
+      properties:
+        name:
+          eq: Pending Action
+  update:
+    - entity: emails
+      desc: Apply Pending Action label and star thread email
+      where:
+        id:
+          expr: "x == target['thread_email_id']"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - Pending Action
+  invariant:
+    - collection: state.emails
+      filter: "a.id != target['thread_email_id']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "True"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'Pending Action'"
+      preserve: ALL
+    - collection: state.filters
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded thread to assignee with manager CC
+      ref: create[0]
+      severity: high
+    - name: Agent replied confirming delegation
+      ref: create[1]
+      severity: high
+    - name: Agent created Pending Action label
+      ref: create[2]
+      severity: medium
+    - name: Agent starred and labeled the thread email
+      ref: update[0]
+      severity: high
+    - name: Agent did not modify other inbox emails
+      ref: invariant[0]
+      severity: high

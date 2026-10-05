@@ -1,0 +1,26 @@
+variant_id: rh_quarterly_performance_review__patience_v1
+base_task_id: rh_quarterly_performance_review
+target_primitive: patience
+description: >
+  Notification-related endpoints return 503 on the first two attempts,
+  requiring the agent to patiently retry when marking notifications as read
+  rather than abandoning that sub-task.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/robinhood/notifications/read-all"
+    methods: ["POST"]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: "**/api/env/robinhood/notifications/*/read"
+    methods: ["POST"]
+    error_status: 503
+    error_count: 2
+    behavior:
+      mode: once

@@ -1,0 +1,102 @@
+task_id: reddit_triage_spam_inbox
+env_id: reddit
+title: Delete Spam From Inbox
+instruction_template: "Triage your message inbox. Delete spam messages from strangers and keep legitimate ones.\n"
+difficulty: easy
+time_limit_seconds: 180
+expected_steps: 10
+primary_primitives:
+- grounding
+secondary_primitives:
+- verification
+start_path: /messages
+seed:
+  distractors: 0
+  actors: {}
+  steps:
+  - use: target_message
+    params:
+      from_user: ModTeam
+      subject: Welcome to the community
+      body: Thanks for joining! Please review our rules in the sidebar before posting.
+      is_read: false
+    outputs:
+    - legit1_id
+    - legit1_subject
+    - legit1_from
+  - use: target_message
+    params:
+      from_user: TechHelper
+      subject: 'Re: Build help request'
+      body: I'd recommend the Ryzen 7 5800X3D for your use case. Great price-to-performance ratio — it matches what you described in the build thread you started last week.
+      is_read: false
+    outputs:
+    - legit2_id
+    - legit2_subject
+    - legit2_from
+  - use: target_message
+    params:
+      from_user: CryptoRewardsX
+      subject: "🎉 CONGRATULATIONS! You've won 5 ETH"
+      body: 'Claim your prize today! Visit our secure portal at bit.ly/crypto-claim-2026 to verify your wallet and receive your 5 ETH reward. Limited time offer — this link expires in 24 hours!'
+      is_read: false
+    outputs:
+    - spam1_id
+    - spam1_subject
+    - spam1_from
+  - use: target_message
+    params:
+      from_user: GiveAwayWinner_2025
+      subject: Your account was selected for our grand giveaway
+      body: 'You are one of 50 lucky users chosen for our exclusive $1,000 gift card drawing. Simply reply with your PayPal email and phone number to receive your prize. This offer is not affiliated with Reddit.'
+      is_read: false
+    outputs:
+    - spam2_id
+    - spam2_subject
+    - spam2_from
+  - use: target_message
+    params:
+      from_user: promoBot_9482
+      subject: Earn passive income with this one weird trick
+      body: Financial freedom is just 3 clicks away. Click http://earn-money-quick.ru/ref=123 to start earning $500/day working from home. No experience needed.
+      is_read: false
+    outputs:
+    - spam3_id
+    - spam3_subject
+    - spam3_from
+  targets:
+    legit1_id: '{output.legit1_id}'
+    legit2_id: '{output.legit2_id}'
+    spam1_id: '{output.spam1_id}'
+    spam2_id: '{output.spam2_id}'
+    spam3_id: '{output.spam3_id}'
+    spam_ids:
+    - '{output.spam1_id}'
+    - '{output.spam2_id}'
+    - '{output.spam3_id}'
+
+canonical_diff:
+  delete:
+  - entity: Message
+    collection: messages
+    bijection:
+      over: "target['spam_ids']"
+      variable: v
+    desc: "Delete each spam message"
+    where:
+      id: {expr: "x == v"}
+  invariant:
+  - collection: state.messages
+    filter: "a.id == target['legit1_id'] or a.id == target['legit2_id']"
+    preserve: ALL
+  - collection: state.sent_messages
+    preserve: ALL
+  - collection: state.settings
+    preserve: ALL
+  named_invariants:
+  - name: "Legitimate messages were not deleted or modified"
+    ref: invariant[0]
+    severity: critical
+  - name: "Agent did not send any messages"
+    ref: invariant[1]
+    severity: high

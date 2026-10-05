@@ -1,0 +1,23 @@
+variant_id: reddit_full_platform_overhaul__notification_shadow_v2
+base_task_id: reddit_full_platform_overhaul
+target_primitive: state_tracking
+description: Unread alerts emphasize a nearby crosspost and a lookalike user interaction. The agent must
+  confirm which notification actually maps to the task target.
+injections:
+- layer: seed
+  params:
+    action: add_confusing_decoys
+    decoys:
+    - type: notification
+      title: Crosspost activity on "{target.post_title}"
+      body: A same-title thread is trending in r/{target.join}official. Confirm the real target before
+        engaging.
+      subreddit_name: '{target.join}official'
+      from_user: '{target.msg_to}_shadow'
+      is_read: false
+    - type: notification
+      title: u/{target.msg_to}_shadow replied
+      body: Lookalike-user activity can appear beside the real target in the inbox.
+      subreddit_name: '{target.join}'
+      from_user: '{target.msg_to}_shadow'
+      is_read: false

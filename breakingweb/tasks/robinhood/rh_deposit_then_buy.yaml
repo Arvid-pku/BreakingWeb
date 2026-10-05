@@ -1,0 +1,110 @@
+task_id: rh_deposit_then_buy
+env_id: robinhood
+title: Deposit Funds Then Buy Stock
+instruction_template: Deposit $2,000 from your Chase checking account, then buy
+  $1,500 worth of VTI at market price.
+difficulty: medium
+time_limit_seconds: 180
+expected_steps: 7
+primary_primitives:
+- backtracking
+start_path: /
+seed:
+  distractors: 10
+  steps:
+  - use: stock_universe
+    params:
+      count: 25
+      must_include:
+      - VTI
+      - SPY
+      - QQQ
+    outputs: []
+  - use: linked_banks
+    params:
+      banks:
+      - name: Chase Checking
+        type: checking
+        last_four: '4521'
+      - name: Wells Fargo Savings
+        type: savings
+        last_four: '8832'
+    outputs: []
+  targets: {}
+canonical_diff:
+  create:
+  - entity: transfers
+    desc: $2,000 deposit from Chase Checking
+    properties:
+      direction: {eq: deposit}
+      amount: {eq: 2000}
+      status: {in: [pending, completed]}
+      bank_account_id: {any: true}
+      initiated_at: {any: true}
+      completed_at: {any: true}
+  - entity: transactions
+    desc: Deposit transaction record
+    properties:
+      type: {eq: deposit}
+      amount: {eq: 2000}
+      symbol: {any: true}
+      quantity: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: orders
+    desc: Market buy order for VTI
+    properties:
+      symbol: {eq: VTI}
+      side: {eq: buy}
+      order_type: {eq: market}
+      status: {eq: filled}
+      quantity: {any: true}
+      filled_quantity: {any: true}
+      filled_price: {any: true}
+      limit_price: {any: true}
+      stop_price: {any: true}
+      trail_amount: {any: true}
+      trail_pct: {any: true}
+      time_in_force: {any: true}
+      extended_hours: {any: true}
+  - entity: positions
+    desc: New VTI position created
+    properties:
+      symbol: {eq: VTI}
+      quantity: {any: true}
+  - entity: transactions
+    desc: Buy transaction for VTI
+    properties:
+      type: {eq: buy}
+      symbol: {eq: VTI}
+      quantity: {any: true}
+      amount: {any: true}
+      description: {any: true}
+      timestamp: {any: true}
+  - entity: notifications
+    desc: Order fill notification
+    properties:
+      type: {eq: order_fill}
+      title: {any: true}
+      message: {any: true}
+      timestamp: {any: true}
+      is_read: {any: true}
+      action_url: {any: true}
+  invariant:
+  - collection: state.orders
+    filter: "a.side == 'buy' and a.symbol != 'VTI'"
+    preserve: ALL
+  - collection: state.positions
+    filter: "a.symbol != 'VTI'"
+    preserve: ALL
+  - collection: state.watchlists
+    preserve: ALL
+  - collection: state.price_alerts
+    preserve: ALL
+  constraints:
+  - desc: VTI market buy filled completely
+    expr: any(o.symbol == 'VTI' and o.side == 'buy' and o.order_type == 'market'
+      and o.status == 'filled' and o.filled_quantity == o.quantity for o in
+      state.orders)
+    severity: critical
+secondary_primitives: []

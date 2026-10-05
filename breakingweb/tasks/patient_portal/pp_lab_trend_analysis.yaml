@@ -1,0 +1,137 @@
+task_id: pp_lab_trend_analysis
+env_id: patient_portal
+title: Lab Trend Analysis and Endocrinology Follow-Up
+instruction_template: Review your HbA1c results from the past 6 months, then schedule
+  exactly one follow-up appointment with an endocrinologist using the next available
+  endocrinology slot. Use the appointment reason exactly "HbA1c trend review". Do
+  not send any messages and do not modify any prescriptions.
+difficulty: hard
+time_limit_seconds: 300
+expected_steps: 15
+primary_primitives:
+- grounding
+start_path: /labs
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - endocrinology
+      - cardiology
+      - dermatology
+      - billing
+      - admin
+      must_include:
+      - pcp
+      - endocrinology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: lab_results_panel
+    params:
+      resulted_count: 5
+      pending_count: 2
+      abnormal_count: 1
+      trend_test: HbA1c
+      trend_values:
+      - '6.5'
+      - '6.9'
+      - '7.4'
+      - '7.8'
+    outputs:
+    - resulted_lab_ids
+    - pending_lab_ids
+    - abnormal_lab_ids
+    - trend_lab_ids
+    - trend_test_name
+  - use: prescription_cabinet
+    params:
+      active_count: 3
+    outputs:
+    - active_rx_ids
+  # PP-4: scheduling with the endocrinologist requires an approved
+  # referral; seed one so the task is solvable without messaging.
+  - use: referral_chain
+    params:
+      approved_count: 1
+      pending_count: 0
+      must_have_specialties:
+      - endocrinology
+    outputs:
+    - approved_ref_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    endo_provider_ids: '{output.providers_by_specialty.endocrinology}'
+    trend_lab_ids: '{output.trend_lab_ids}'
+    trend_test_name: '{output.trend_test_name}'
+    pending_lab_ids: '{output.pending_lab_ids}'
+    active_rx_ids: '{output.active_rx_ids}'
+canonical_diff:
+  create:
+    - entity: Appointment
+      desc: "Schedule one endocrinology follow-up appointment at the next available endocrinology slot for the upward HbA1c trend"
+      properties:
+        status: {eq: "scheduled"}
+        reason: {eq: "HbA1c trend review"}
+        provider_id:
+          expr: "x in target['endo_provider_ids']"
+        datetime:
+          expr: >
+            x == min(s.datetime for p in initial.providers
+                     if p.id in target['endo_provider_ids']
+                     for s in p.available_slots)
+  invariant:
+    - collection: state.appointments
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.prescriptions
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[0]
+      severity: high
+    - name: "Agent did not modify prescriptions"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not send any messages"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not modify referrals"
+      ref: invariant[6]
+      severity: high
+secondary_primitives: []

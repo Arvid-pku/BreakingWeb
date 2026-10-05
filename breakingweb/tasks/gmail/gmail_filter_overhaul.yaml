@@ -1,0 +1,130 @@
+task_id: gmail_filter_overhaul
+env_id: gmail
+title: Filter Overhaul
+instruction_template: 'Review your inbox and set up a comprehensive filter system.
+  Browse your Primary, Promotions, and Updates tabs to identify recurring patterns.
+  Then go to Settings > Filters and review the existing filters. If any of them is
+  matching the wrong sender domain for its label, delete the broken filter and recreate
+  it with the correct domain ({target.correct_domain}), setting it to archive and
+  label ''{target.billing_label}''. Then create three additional filters: one that
+  stars emails with ''{target.keyword}'' in the subject and labels them ''{target.keyword_label}'',
+  one that archives emails from {target.archive_domain} and marks them read, and
+  one that forwards emails from {target.forward_sender} to {target.forward_to}. Do
+  not delete any correctly-configured existing filters.'
+difficulty: expert
+time_limit_seconds: 480
+expected_steps: 55
+primary_primitives:
+- patience
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: filter_overhaul
+    params: {}
+    outputs:
+    - broken_filter_id
+    - correct_domain
+    - wrong_domain
+    - billing_label
+    - keyword
+    - keyword_label
+    - archive_domain
+    - forward_sender
+    - forward_to
+    - good_filter_a_id
+    - good_filter_b_id
+  targets:
+    broken_filter_id: '{output.broken_filter_id}'
+    correct_domain: '{output.correct_domain}'
+    wrong_domain: '{output.wrong_domain}'
+    billing_label: '{output.billing_label}'
+    keyword: '{output.keyword}'
+    keyword_label: '{output.keyword_label}'
+    archive_domain: '{output.archive_domain}'
+    forward_sender: '{output.forward_sender}'
+    forward_to: '{output.forward_to}'
+    good_filter_a_id: '{output.good_filter_a_id}'
+    good_filter_b_id: '{output.good_filter_b_id}'
+canonical_diff:
+  create:
+    - entity: filters
+      desc: Recreated billing filter with correct domain, archive and label
+      count: 1
+      properties:
+        from_addresses:
+          expr: "any(target['correct_domain'] in a for a in x)"
+        add_labels:
+          expr: "target['billing_label'] in x"
+        archive:
+          eq: true
+    - entity: filters
+      desc: Keyword filter that stars and labels matching subjects
+      count: 1
+      properties:
+        subject_keywords:
+          expr: "target['keyword'] in x"
+        add_labels:
+          expr: "target['keyword_label'] in x"
+        star:
+          eq: true
+    - entity: filters
+      desc: Archive filter for archive_domain emails marked as read
+      count: 1
+      properties:
+        from_addresses:
+          expr: "any(target['archive_domain'] in a for a in x)"
+        archive:
+          eq: true
+        mark_read:
+          eq: true
+    - entity: filters
+      desc: Forward filter from forward_sender to forward_to
+      count: 1
+      properties:
+        from_addresses:
+          expr: "target['forward_sender'] in x"
+        forward_to:
+          expr: "x == target['forward_to']"
+  delete:
+    - entity: filters
+      desc: Delete the broken filter with wrong domain
+      where:
+        id:
+          expr: "x == target['broken_filter_id']"
+  invariant:
+    - collection: state.filters
+      filter: "a.id not in [target['broken_filter_id']]"
+      preserve: ALL
+    - collection: state.emails
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      preserve: ALL
+  named_invariants:
+    - name: Agent created fixed billing filter
+      ref: create[0]
+      severity: high
+    - name: Agent created keyword filter
+      ref: create[1]
+      severity: high
+    - name: Agent created archive filter
+      ref: create[2]
+      severity: high
+    - name: Agent created forward filter
+      ref: create[3]
+      severity: high
+    - name: Agent deleted broken filter
+      ref: delete[0]
+      severity: high
+    - name: Agent preserved good filters
+      ref: invariant[0]
+      severity: high

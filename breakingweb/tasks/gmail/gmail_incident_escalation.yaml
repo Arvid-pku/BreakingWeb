@@ -1,0 +1,145 @@
+task_id: gmail_incident_escalation
+env_id: gmail
+title: Incident Escalation
+instruction_template: A production incident has been reported. Find the alert email
+  (check all inbox tabs) and read the full thread to understand the issue. The error
+  code is in one of the earlier messages, and the on-call engineer's email is mentioned
+  in another. Forward the alert to the on-call engineer, including the error code
+  in your note. Then reply to the separate thread from {target.manager_name} confirming
+  you are handling the incident (Reply only — the thread includes leadership). Star
+  all emails related to the incident. Create a 'P0 Incident' label and apply it to
+  all incident-related emails. Finally, go to Settings and create a filter that stars
+  and labels future emails from the alerting system address ({target.alert_system_email})
+  with 'CRITICAL' in the subject.
+difficulty: hard
+time_limit_seconds: 480
+expected_steps: 55
+primary_primitives:
+- state_tracking
+start_path: /inbox
+seed:
+  distractors: 40
+  actors: {}
+  steps:
+  - use: incident_escalation
+    params: {}
+    outputs:
+    - alert_id
+    - oncall_email
+    - error_code
+    - manager_email_id
+    - manager_name
+    - status_phrase
+    - incident_ids
+    - alert_system_email
+    - resolved_alert_id
+  targets:
+    alert_id: '{output.alert_id}'
+    oncall_email: '{output.oncall_email}'
+    error_code: '{output.error_code}'
+    manager_email_id: '{output.manager_email_id}'
+    manager_name: '{output.manager_name}'
+    status_phrase: '{output.status_phrase}'
+    incident_ids: '{output.incident_ids}'
+    alert_system_email: '{output.alert_system_email}'
+    resolved_alert_id: '{output.resolved_alert_id}'
+canonical_diff:
+  create:
+    - entity: sent
+      desc: Forward alert to on-call engineer with error code
+      count: 1
+      properties:
+        forwarded_from_id:
+          expr: "x == target['alert_id']"
+        to:
+          expr: "x == [target['oncall_email']]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        body:
+          expr: "target['error_code'] in x"
+    - entity: sent
+      desc: Reply to manager thread confirming handling
+      count: 1
+      properties:
+        in_reply_to:
+          expr: "x == target['manager_email_id']"
+        to:
+          expr: "x == [next(e.from_addr for e in initial.emails if e.id == target['manager_email_id'])]"
+        cc:
+          eq: []
+        bcc:
+          eq: []
+        forwarded_from_id:
+          eq: null
+    - entity: labels
+      desc: Create P0 Incident label
+      count: 1
+      properties:
+        name:
+          eq: "P0 Incident"
+    - entity: filters
+      desc: Create filter for alert system that stars and labels P0 Incident for CRITICAL subjects
+      count: 1
+      properties:
+        from_addresses:
+          expr: "target['alert_system_email'] in x"
+        subject_keywords:
+          set_eq:
+            - CRITICAL
+        star:
+          eq: true
+        add_labels:
+          set_eq:
+            - "P0 Incident"
+  update:
+    - entity: emails
+      desc: Star all incident-related emails and apply P0 Incident label
+      bijection:
+        over: "target['incident_ids']"
+        variable: v
+      where:
+        id:
+          expr: "x == v"
+      changes:
+        is_starred:
+          eq: true
+        labels:
+          superset:
+            - "P0 Incident"
+  invariant:
+    - collection: state.emails
+      filter: "a.id not in target['incident_ids']"
+      preserve: ALL
+    - collection: state.drafts
+      preserve: ALL
+    - collection: state.sent
+      filter: "a.in_reply_to is None and a.forwarded_from_id is None"
+      preserve: ALL
+    - collection: state.deleted
+      preserve: ALL
+    - collection: state.contacts
+      preserve: ALL
+    - collection: state.labels
+      filter: "a.name != 'P0 Incident'"
+      preserve: ALL
+    - collection: state.filters
+      filter: "True"
+      preserve: ALL
+  named_invariants:
+    - name: Agent forwarded alert to on-call with error code
+      ref: create[0]
+      severity: high
+    - name: Agent replied to manager thread
+      ref: create[1]
+      severity: high
+    - name: Agent created P0 Incident label
+      ref: create[2]
+      severity: high
+    - name: Agent created future alert filter
+      ref: create[3]
+      severity: high
+    - name: Agent starred and labeled all incident emails
+      ref: update[0]
+      severity: high

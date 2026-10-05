@@ -1,0 +1,190 @@
+task_id: booking_notification_chain
+env_id: booking
+title: Read Notification, Cancel Reservation, and Save Property
+instruction_template: "Complete this multi-step workflow: 1. Go to your notifications\
+  \ and find the booking confirmation notification\n   titled \"{target.notif_title}\"\
+  . Read it to learn which reservation it\n   refers to.\n2. Find that reservation\
+  \ (at \"{target.property_name}\") in your trips and\n   cancel it.\n3. Create a\
+  \ new saved list named \"Revisit Later\" and save the property\n   \"{target.property_name}\"\
+  \ to that list for future reference.\n"
+difficulty: hard
+time_limit_seconds: 360
+expected_steps: 18
+primary_primitives:
+- state_tracking
+secondary_primitives: []
+start_path: /home
+seed:
+  distractors: 10
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: The Savoy London
+      city: London
+      country: United Kingdom
+      star_rating: 5
+      review_score: 9.3
+      review_count: 5678
+      price: 520.0
+      neighborhood: Strand
+      address: Strand, London WC2R 0EZ
+      amenities:
+      - Free WiFi
+      - Spa
+      - Pool
+      - Restaurant
+      - Bar
+      - Fitness center
+      - Room service
+      - Concierge
+    outputs:
+    - target_prop_id
+    - target_prop_name
+    - target_cheapest_room_id
+    - target_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.target_prop_id}'
+      check_in: '2026-09-15'
+      check_out: '2026-09-19'
+      price_per_night: 520.0
+      status: confirmed
+      guests: 2
+      booked_days_ago: 3
+    outputs:
+    - target_res_id
+    - target_conf_num
+    - target_res_property_id
+  - use: add_notification
+    params:
+      type: booking_confirmed
+      title: Booking Confirmed - The Savoy London
+      message: 'Your reservation at The Savoy London has been confirmed. Confirmation
+        number: {output.target_conf_num}. Check-in: 2026-09-15, Check-out: 2026-09-19.'
+      read: false
+      related_id: '{output.target_res_id}'
+    outputs:
+    - target_notif_id
+  - use: featured_property
+    params:
+      name: Edinburgh Castle Hotel
+      city: Edinburgh
+      country: United Kingdom
+      star_rating: 4
+      review_score: 8.5
+      price: 195.0
+    outputs:
+    - distractor_prop_id
+    - distractor_prop_name
+    - distractor_cheapest_room_id
+    - distractor_cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.distractor_prop_id}'
+      check_in: '2026-10-01'
+      check_out: '2026-10-04'
+      status: confirmed
+      booked_days_ago: 7
+    outputs:
+    - distractor_res_id
+    - distractor_conf_num
+    - distractor_res_property_id
+  - use: add_notification
+    params:
+      type: deal_alert
+      title: Flash Sale - 30% off Edinburgh hotels
+      message: Limited time offer on Edinburgh properties. Book now!
+      read: false
+    outputs:
+    - distractor_notif_id
+  targets:
+    property_id: '{output.target_prop_id}'
+    property_name: '{output.target_prop_name}'
+    reservation_id: '{output.target_res_id}'
+    confirmation_number: '{output.target_conf_num}'
+    notification_id: '{output.target_notif_id}'
+    notif_title: Booking Confirmed - The Savoy London
+    distractor_res_id: '{output.distractor_res_id}'
+canonical_diff:
+  update:
+    - entity: Reservation
+      desc: Cancel the target reservation found via the booking confirmation notification
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        status: {eq: cancelled}
+    - entity: Notification
+      desc: Mark the booking confirmation notification as read
+      where:
+        id: {expr: "x == target['notification_id']"}
+      changes:
+        read: {eq: true}
+  create:
+    - entity: SavedList
+      desc: Create a new saved list named Revisit Later and add the cancelled property to it
+      properties:
+        name: {eq: "Revisit Later"}
+        property_ids:
+          expr: "target['property_id'] in x"
+        created_at: {any: true}
+        updated_at: {any: true}
+  invariant:
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id']"
+      preserve: ALL
+    - collection: state.notifications
+      filter: "a.id != target['notification_id']"
+      preserve: ALL
+    - collection: state.saved_lists
+      filter: "a.name != 'Revisit Later'"
+      preserve: ALL
+    - collection: state.properties
+      preserve: ALL
+    - collection: state.reviews
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    # Cancelling a reservation auto-generates a rebooking_suggestion
+    # (models/booking.py:752). These are system-only side effects —
+    # the agent has no UI to create them directly.
+    - collection: state.rebooking_suggestions
+      filter: "False"
+      preserve: ALL
+      comprehensive: true
+  named_invariants:
+    - name: Agent cancelled the target reservation found via notification
+      ref: update[0]
+      severity: critical
+    - name: Agent marked the booking confirmation notification as read
+      ref: update[1]
+      severity: high
+    - name: Agent created Revisit Later list with target property
+      ref: create[0]
+      severity: critical
+    - name: Agent did not cancel or modify other reservations
+      ref: invariant[0]
+      severity: high
+    - name: Agent did not modify other notifications
+      ref: invariant[1]
+      severity: medium
+    - name: Agent did not modify other saved lists
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify properties
+      ref: invariant[3]
+      severity: medium
+    - name: Agent did not create or modify reviews
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[5]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[6]
+      severity: high
+    - name: Rebooking suggestions are system-generated side effects
+      ref: invariant[7]
+      severity: low

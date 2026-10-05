@@ -1,0 +1,208 @@
+task_id: pp_medication_reconciliation
+env_id: patient_portal
+title: Post-Hospitalization Medication Reconciliation
+instruction_template: 'After a hospitalization, reconcile your medication list without
+  composing any free-form messages: 1) Read the discharge summary message in your
+  inbox, 2) Find the medication explicitly noted in the summary as "discontinued during
+  hospitalization", 3) For that discontinued medication from step 2, use the prescription
+  renewal request flow so it moves to pending renewal (submit exactly one renewal request
+  — do not submit renewals for any other prescriptions), 4) Schedule exactly one PCP
+  appointment with reason "Post-discharge medication reconciliation". Do not directly
+  discontinue prescriptions yourself and do not send any separate clinical messages.'
+difficulty: frontier
+time_limit_seconds: 600
+expected_steps: 50
+primary_primitives:
+- grounding
+start_path: /messages
+seed:
+  distractors: 10
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Type 2 Diabetes
+      - Hypertension
+      - Heart Failure
+      allergies:
+      - Penicillin
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+    - pcp_name
+    - conditions_list
+  - use: provider_directory
+    params:
+      count: 6
+      specialties:
+      - pcp
+      - cardiology
+      - endocrinology
+      - neurology
+      - billing
+      must_include:
+      - pcp
+      - cardiology
+    outputs:
+    - provider_ids
+    - providers_by_specialty
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 5
+      expired_count: 1
+    outputs:
+    - active_rx_ids
+  - use: appointment_history
+    params:
+      upcoming_count: 1
+      completed_count: 3
+    outputs:
+    - upcoming_ids
+    - completed_ids
+  - use: message_threads
+    params:
+      thread_count: 4
+      unread_count: 2
+      categories:
+      - clinical
+      body_context:
+        type: discharge_summary
+        provider_selector: most_recent_completed
+    outputs:
+    - thread_ids
+    - unread_msg_ids
+    - all_msg_ids
+    - context_msg_ids
+    - context_discontinued_rx_ids
+  targets:
+    pcp_id: '{output.pcp_id}'
+    pcp_name: '{output.pcp_name}'
+    active_rx_ids: '{output.active_rx_ids}'
+    upcoming_ids: '{output.upcoming_ids}'
+    all_msg_ids: '{output.all_msg_ids}'
+    discharge_msg_id: '{output.context_msg_ids.discharge_summary}'
+    discontinued_rx_ids: '{output.context_discontinued_rx_ids.discharge_summary}'
+canonical_diff:
+  # Positive signals:
+  #   (a) mark the discharge-summary provider message as read
+  #       (identified by target.discharge_msg_id, emitted by the
+  #       message_threads seed);
+  #   (b) for each prescription flagged as "discontinued during
+  #       hospitalization" in the discharge note, flip its status to
+  #       pending_renewal (bijection over target.discontinued_rx_ids);
+  #   (c) create one patient->rx_renewal ClinicalMessage per discontinued
+  #       rx (bijection), linked to that rx — structural signal that the
+  #       renewal reached the RX system (category="rx_renewal");
+  #   (d) schedule exactly one PCP appointment with reason
+  #       "Post-discharge medication reconciliation".
+  update:
+    - entity: ClinicalMessage
+      desc: "Mark the discharge-summary message as read"
+      where:
+        # `where` only sees id + changed fields; match by id against the
+        # deterministic target emitted by message_threads.
+        id:
+          expr: "x == target['discharge_msg_id']"
+      changes:
+        is_read: {eq: true}
+    - entity: Prescription
+      desc: "Flip each discontinued prescription to pending_renewal"
+      bijection:
+        over: "target['discontinued_rx_ids']"
+        variable: v
+      where:
+        id: {expr: "x == v"}
+      changes:
+        status: {eq: "pending_renewal"}
+  create:
+    - entity: ClinicalMessage
+      desc: "Submit a structured rx_renewal request per discontinued rx"
+      bijection:
+        over: "target['discontinued_rx_ids']"
+        variable: v
+      properties:
+        from_type: {eq: "patient"}
+        category: {eq: "rx_renewal"}
+        linked_entity_id: {expr: "x == v"}
+        linked_entity_type: {eq: "prescription"}
+        is_read: {eq: true}
+        provider_id:
+          expr: >-
+            x in [r.provider_id for r in initial.prescriptions if r.id == v]
+        subject: {any: true}
+        body: {any: true}
+        thread_id: {any: true}
+        is_urgent: {any: true}
+    - entity: Appointment
+      desc: "Schedule one PCP medication-reconciliation appointment"
+      properties:
+        status: {eq: "scheduled"}
+        provider_id:
+          expr: "x == target['pcp_id']"
+        reason: {eq: "Post-discharge medication reconciliation"}
+        datetime: {any: true}
+        type: {any: true}
+        notes: {any: true}
+        linked_referral_id: {any: true}
+        pre_auth_status: {any: true}
+        booked_at: {any: true}
+        location: {any: true}
+  invariant:
+    - collection: state.messages
+      # All pre-existing messages must be preserved except the discharge
+      # summary (which gets marked read). The create[0] bijection authors
+      # brand-new patient rx_renewal messages — they don't overlap with
+      # initial ids.
+      filter: "a.id in target['all_msg_ids'] and a.id != target['discharge_msg_id']"
+      preserve: ALL
+    - collection: state.prescriptions
+      # Prescriptions not named as discontinued must remain untouched
+      # (no direct discontinuation, no spurious renewals).
+      filter: "a.id not in target['discontinued_rx_ids']"
+      preserve: ALL
+    - collection: state.appointments
+      # Existing appointments unchanged — the create above is the only
+      # permitted appointment mutation.
+      filter: "a.id in {x.id for x in initial.appointments}"
+      preserve: ALL
+    - collection: state.immunizations
+      preserve: ALL
+    - collection: state.lab_results
+      preserve: ALL
+    - collection: state.claims
+      preserve: ALL
+    - collection: state.referrals
+      preserve: ALL
+    - collection: state.pharmacies
+      preserve: ALL
+  named_invariants:
+    - name: "Agent did not modify, delete, or alter pre-existing messages (other than marking discharge read)"
+      ref: invariant[0]
+      severity: medium
+    - name: "Agent did not directly discontinue or modify prescriptions that were not named in the discharge note"
+      ref: invariant[1]
+      severity: critical
+    - name: "Agent did not cancel or modify pre-existing appointments"
+      ref: invariant[2]
+      severity: high
+    - name: "Agent did not modify immunization records"
+      ref: invariant[3]
+      severity: medium
+    - name: "Agent did not create or modify lab results"
+      ref: invariant[4]
+      severity: high
+    - name: "Agent did not touch insurance claims"
+      ref: invariant[5]
+      severity: critical
+    - name: "Agent did not create or modify referrals"
+      ref: invariant[6]
+      severity: high
+    - name: "Agent did not modify pharmacies"
+      ref: invariant[7]
+      severity: medium
+secondary_primitives: []

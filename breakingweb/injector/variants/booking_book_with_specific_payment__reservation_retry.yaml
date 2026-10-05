@@ -1,0 +1,17 @@
+variant_id: booking_book_with_specific_payment__reservation_retry
+base_task_id: booking_book_with_specific_payment
+target_primitive: backtracking
+description: The first reservation submission fails transiently. The agent must retry the booking rather than assuming the
+  room and payment details were saved.
+injections:
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/booking/reservations'
+    methods:
+    - POST
+    error_count: 1
+    error_status: 503
+    error_message: Service temporarily unavailable. (HTTP 503)
+    behavior:
+      mode: once

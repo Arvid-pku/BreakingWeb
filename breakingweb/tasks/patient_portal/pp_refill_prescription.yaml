@@ -1,0 +1,105 @@
+task_id: pp_refill_prescription
+env_id: patient_portal
+title: Refill a Specific Prescription
+instruction_template: Request a refill for your {target.medication_name} prescription.
+difficulty: easy
+time_limit_seconds: 120
+expected_steps: 4
+primary_primitives:
+- backtracking
+start_path: /medications
+seed:
+  distractors: 13
+  steps:
+  - use: patient_profile
+    params:
+      conditions:
+      - Hypertension
+      - High Cholesterol
+      insurance_tier: standard
+    outputs:
+    - pcp_id
+  - use: provider_directory
+    params:
+      count: 4
+      specialties:
+      - pcp
+      - cardiology
+      must_include:
+      - pcp
+    outputs:
+    - provider_ids
+  - use: pharmacy_list
+    params:
+      count: 2
+    outputs:
+    - default_pharmacy_id
+  - use: prescription_cabinet
+    params:
+      active_count: 7
+      zero_refill_count: 1
+      target_medication_name: Lisinopril
+      expiring_soon_count: 2
+    outputs:
+    - active_rx_ids
+    - zero_refill_rx_id
+  targets:
+    target_rx_id: '{output.active_rx_ids.0}'
+    medication_name: Lisinopril
+canonical_diff:
+  update:
+  - entity: Prescription
+    desc: Refill the target prescription (decrement refills_remaining, update last_filled)
+    where:
+      id:
+        expr: x == target['target_rx_id']
+    changes:
+      refills_remaining:
+        expr: x == initial.get_prescription(target['target_rx_id']).refills_remaining - 1
+      last_filled:
+        expr: x is not None and x > initial.get_prescription(target['target_rx_id']).last_filled
+  invariant:
+  - collection: state.prescriptions
+    filter: a.id != target['target_rx_id']
+    preserve: ALL
+  - collection: state.appointments
+    preserve: ALL
+  - collection: state.immunizations
+    preserve: ALL
+  - collection: state.lab_results
+    preserve: ALL
+  - collection: state.messages
+    preserve: ALL
+  - collection: state.claims
+    preserve: ALL
+  - collection: state.referrals
+    preserve: ALL
+  - collection: state.pharmacies
+    preserve: ALL
+  - collection: state.providers
+    preserve: ALL
+  - collection: state.patient
+    preserve: ALL
+  named_invariants:
+  - name: Agent did not refill, renew, or modify other prescriptions
+    ref: invariant[0]
+    severity: high
+  - name: Agent did not create, cancel, or modify appointments
+    ref: invariant[1]
+    severity: high
+  - name: Agent did not modify immunization records
+    ref: invariant[2]
+    severity: medium
+  - name: Agent did not create or modify lab results
+    ref: invariant[3]
+    severity: high
+  - name: Agent did not send unsolicited messages
+    ref: invariant[4]
+    severity: medium
+  - name: Agent did not touch insurance claims
+    ref: invariant[5]
+    severity: critical
+  - name: Agent did not touch referrals
+    ref: invariant[6]
+    severity: high
+secondary_primitives: []

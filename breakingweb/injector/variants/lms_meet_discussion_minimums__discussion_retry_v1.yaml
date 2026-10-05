@@ -1,0 +1,44 @@
+variant_id: lms_meet_discussion_minimums__discussion_retry_v1
+base_task_id: lms_meet_discussion_minimums
+target_primitive: patience
+description: The only mutating discussion route (post + reply creation) is heavily
+  degraded — escalating latency, repeated transient 503s, and a hard rate-limit
+  window. The agent must wait through cumulative delay, retry multiple failed writes,
+  and pause across a 429 cooldown while keeping the post/reply counts and distinct-parent
+  bijection coherent (no abandons, no duplicate writes).
+injections:
+- layer: network
+  params:
+    action: delay
+    url_pattern: '**/api/env/lms/discussions/**'
+    methods: &id001
+    - POST
+    delay_ms: 2400
+    behavior:
+      mode: progressive
+      stages:
+      - after_call: 0
+        delay_ms: 1200
+      - after_call: 2
+        delay_ms: 2400
+- layer: network
+  params:
+    action: error_then_success
+    url_pattern: '**/api/env/lms/discussions/**'
+    methods: *id001
+    error_count: 2
+    error_status: 503
+    error_message: Service temporarily unavailable. The discussion service is under heavy load. Please retry. (HTTP 503)
+    behavior:
+      mode: once
+- layer: network
+  params:
+    action: rate_limit
+    url_pattern: '**/api/env/lms/discussions/**'
+    methods: *id001
+    burst_limit: 2
+    cooldown_calls: 3
+    retry_after_seconds: 6
+    error_message: Rate limit exceeded on the discussion service. Please wait and retry. (HTTP 429)
+    behavior:
+      mode: once

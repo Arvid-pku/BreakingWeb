@@ -1,0 +1,150 @@
+task_id: booking_review_completed_stay
+env_id: booking
+title: Write a Review for a Completed Stay
+instruction_template: 'Go to your trips and find your completed stay at "{target.property_name}"
+  (confirmation number {target.confirmation_number}). Navigate to write a review for
+  this stay. Give an overall score of 8.5, with a title "Wonderful experience" and
+  a positive comment saying "The staff was incredibly friendly and the location was
+  perfect for sightseeing." Include a negative comment saying "The room could have
+  been a bit larger." Set the travel purpose to "leisure" and traveled with to "couple".
+
+  '
+difficulty: medium
+time_limit_seconds: 240
+expected_steps: 14
+primary_primitives:
+- verification
+start_path: /home
+seed:
+  distractors: 6
+  actors: {}
+  steps:
+  - use: featured_property
+    params:
+      name: Prague Old Town Residence
+      city: Prague
+      country: Czech Republic
+      star_rating: 4
+      review_score: 8.7
+      review_count: 1580
+      price: 180.0
+      property_type: Hotel
+      neighborhood: Old Town
+      address: 5 Staromestske namesti, 110 00 Prague
+      amenities:
+      - Free WiFi
+      - Air conditioning
+      - Bar
+      - Tour desk
+      popular_facilities:
+      - Free WiFi
+      - Bar
+      - Tour desk
+      distance_km: 0.1
+      rooms:
+      - name: Classic Double
+        price: 180.0
+        bed_type: double
+        max_occupancy: 2
+        meals_included: breakfast
+        cancel_type: free_cancellation
+        original_price: null
+        view_type: square
+    outputs:
+    - property_id
+    - property_name
+    - cheapest_room_id
+    - cheapest_room_name
+  - use: create_reservation
+    params:
+      property_id: '{output.property_id}'
+      room_type_id: '{output.cheapest_room_id}'
+      room_type_name: Classic Double
+      check_in: '2026-03-01'
+      check_out: '2026-03-05'
+      price_per_night: 180.0
+      status: completed
+      guests: 2
+      booked_days_ago: 45
+    outputs:
+    - reservation_id
+    - confirmation_number
+    - property_id
+  targets:
+    property_id: '{output.property_id}'
+    property_name: '{output.property_name}'
+    reservation_id: '{output.reservation_id}'
+    confirmation_number: '{output.confirmation_number}'
+canonical_diff:
+  create:
+    - entity: Review
+      desc: Write a review with score 8.5, title Wonderful experience, and specified positive/negative comments
+      properties:
+        property_id: {expr: "x == target['property_id']"}
+        reservation_id: {any: true}
+        author_name: {any: true}
+        author_country: {any: true}
+        overall_score: {eq: 8.5}
+        scores: {any: true}
+        title: {expr: "'Wonderful experience' in x"}
+        positive: {expr: "'staff' in x.lower() and 'location' in x.lower()"}
+        negative: {expr: "'room' in x.lower()"}
+        room_type: {any: true}
+        travel_purpose: {eq: leisure}
+        traveled_with: {eq: couple}
+        stay_date: {any: true}
+        created_at: {any: true}
+        helpful_count: {any: true}
+        property_response: {any: true}
+  update:
+    - entity: Reservation
+      desc: Reservation rating_submitted flag flips when the review is written (side-effect)
+      where:
+        id: {expr: "x == target['reservation_id']"}
+      changes:
+        rating_submitted: {any: true}
+  invariant:
+    - collection: state.reviews
+      filter: "a.property_id != target['property_id']"
+      preserve: ALL
+    - collection: state.reservations
+      filter: "a.id != target['reservation_id']"
+      preserve: ALL
+    - collection: state.properties
+      filter: "a.id not in (target['property_id'],)"
+      comprehensive: true
+      preserve: ALL
+    - collection: state.saved_lists
+      preserve: ALL
+    - collection: state.messages
+      preserve: ALL
+    - collection: state.payment_methods
+      preserve: ALL
+    - collection: state.notifications
+      preserve: ALL
+  named_invariants:
+    - name: Agent wrote the review with correct score, title, positive comment about staff and location, and negative about room
+      ref: create[0]
+      severity: critical
+    - name: Agent did not modify or delete reviews for other properties
+      ref: invariant[0]
+      severity: medium
+    - name: Agent did not modify reservations
+      ref: invariant[1]
+      severity: high
+    - name: Agent did not modify properties
+      ref: invariant[2]
+      severity: medium
+    - name: Agent did not modify saved lists
+      ref: invariant[3]
+      severity: low
+    - name: Agent did not send or modify messages
+      ref: invariant[4]
+      severity: low
+    - name: Agent did not modify payment methods
+      ref: invariant[5]
+      severity: high
+    - name: Agent did not create or modify notifications
+      ref: invariant[6]
+      severity: low
+secondary_primitives: []
