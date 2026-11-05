@@ -54,6 +54,10 @@ See the [harness guide](breakingweb/README.md) for model providers, intervention
 
 The code includes 519 base tasks and 535 available intervention variants; the paper evaluates a 519-pair selection. Evaluation artifacts are available in [breakingweb-results-v2](https://huggingface.co/datasets/BreakingWeb/breakingweb-results-v2) and [breakingweb-results-v3](https://huggingface.co/datasets/BreakingWeb/breakingweb-results-v3).
 
+## License
+
+The code in this repository is released under the [Apache License 2.0](LICENSE). The evaluation data on Hugging Face uses the same license.
+
 ## Citation
 
 ```bibtex
